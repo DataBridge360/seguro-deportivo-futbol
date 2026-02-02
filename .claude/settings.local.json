@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install)",
+      "Bash(npm run build:*)",
+      "Bash(node scripts/generate-icons.js:*)",
+      "Bash(npm install:*)",
+      "Bash(powershell -Command \"Rename-Item -Path ''\\(dashboard\\)'' -NewName ''dashboard''\")",
+      "Bash(powershell -Command \"if \\(Test-Path ''dashboard''\\) { Remove-Item -Recurse -Force ''dashboard'' }; Rename-Item -Path ''\\(dashboard\\)'' -NewName ''dashboard''\")",
+      "Bash(powershell -Command \"Rename-Item -Path ''\\(dashboard\\)'' -NewName ''dashboard'' -Force\")",
+      "Bash(npm run lint)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
+    ]
+  }
+}
