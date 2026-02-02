@@ -60,7 +60,7 @@ export default function DashboardLayout({
               <span className="font-bold text-lg tracking-tight uppercase text-slate-900 dark:text-white">Seguro Deportivo</span>
 
               {/* Module Navigation - Desktop */}
-              <nav className="flex items-center gap-1 bg-white/40 dark:bg-white/5 rounded-xl p-1 border border-white/20 dark:border-white/10">
+              <nav className="flex items-center gap-1 p-1">
                 {jugadorNavItems.map((item) => {
                   const isActive = pathname === item.href ||
                     (item.href !== '/dashboard' && pathname.startsWith(item.href))
@@ -68,11 +68,10 @@ export default function DashboardLayout({
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-                        isActive
-                          ? 'bg-white dark:bg-white/20 text-primary font-semibold shadow-sm'
-                          : 'text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/10'
-                      }`}
+                      className={`flex items-center gap-2 px-4 py-2  transition-all ${isActive
+                        ? ' text-primary font-semibold shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-blue-500 dark:hover:text-blue-400'
+                        }`}
                     >
                       <span
                         className="material-symbols-outlined text-[18px]"
@@ -88,7 +87,7 @@ export default function DashboardLayout({
 
               <Link
                 href="/dashboard/notificaciones"
-                className="p-2.5 text-slate-600 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-white/10 rounded-xl transition-colors relative"
+                className="p-2.5 text-slate-600 dark:text-slate-300 hover:text-blue-500 dark:hover:text-blue-400 rounded-xl transition-colors relative"
               >
                 <span className="material-symbols-outlined text-[20px]">notifications</span>
                 <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white/80 dark:ring-slate-900/80"></span>
@@ -155,11 +154,10 @@ export default function DashboardLayout({
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex flex-1 flex-col items-center justify-center gap-1 py-2 rounded-xl transition-all ${
-                    isActive
-                      ? 'text-primary bg-white/70 dark:bg-white/15 shadow-sm'
-                      : 'text-slate-500 dark:text-slate-400 hover:bg-white/40 dark:hover:bg-white/10'
-                  }`}
+                  className={`flex flex-1 flex-col items-center justify-center gap-1 py-2 rounded-xl transition-all ${isActive
+                    ? 'text-primary bg-white/70 dark:bg-white/15 shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400 hover:bg-white/40 dark:hover:bg-white/10'
+                    }`}
                 >
                   <span
                     className="material-symbols-outlined text-[22px]"
