@@ -3,11 +3,14 @@ import type { NextRequest } from 'next/server'
 
 const publicRoutes = ['/', '/login']
 
+// Rutas compartidas para todos los roles autenticados
+const sharedRoutes = [/^\/dashboard\/notificaciones/]
+
 const roleRoutePatterns: Record<string, RegExp[]> = {
   admin: [/^\/dashboard/, /^\/dashboard\/admin/],
-  productor: [/^\/dashboard$/, /^\/dashboard\/productor/],
-  club: [/^\/dashboard$/, /^\/dashboard\/club/],
-  jugador: [/^\/dashboard$/, /^\/dashboard\/jugador/],
+  productor: [/^\/dashboard$/, /^\/dashboard\/productor/, ...sharedRoutes],
+  club: [/^\/dashboard$/, /^\/dashboard\/club/, ...sharedRoutes],
+  jugador: [/^\/dashboard$/, /^\/dashboard\/jugador/, ...sharedRoutes],
 }
 
 export function middleware(request: NextRequest) {

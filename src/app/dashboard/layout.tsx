@@ -23,6 +23,7 @@ const jugadorNavItems = [
   { href: '/dashboard/jugador/perfil', icon: 'person', label: 'Perfil' },
 ]
 
+
 export default function DashboardLayout({
   children,
 }: {
@@ -31,7 +32,7 @@ export default function DashboardLayout({
   const router = useRouter()
   const pathname = usePathname()
   const { user, isAuthenticated, logout } = useAuthStore()
-  const { theme, toggleTheme } = useThemeStore()
+  const { toggleTheme } = useThemeStore()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
@@ -53,57 +54,89 @@ export default function DashboardLayout({
     return (
       <div className="min-h-screen bg-background-light dark:bg-background-dark">
         {/* Desktop Header - hidden on mobile */}
-        <header className="hidden md:block sticky top-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex justify-between items-center h-16">
-              <span className="font-bold text-xl tracking-tight uppercase text-slate-900 dark:text-white">Seguro Deportivo</span>
+        <header className="hidden md:block sticky top-0 z-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <div className="flex justify-between items-center h-14 px-6 rounded-2xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-lg shadow-black/5">
+              <span className="font-bold text-lg tracking-tight uppercase text-slate-900 dark:text-white">Seguro Deportivo</span>
 
-              <div className="flex-1 max-w-md mx-8">
-                <div className="relative w-full">
-                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
-                    <span className="material-symbols-outlined text-sm">search</span>
-                  </span>
-                  <input
-                    type="text"
-                    placeholder="Buscar beneficios, trámites..."
-                    className="block w-full pl-10 pr-3 py-2 border-none rounded-full bg-slate-100 dark:bg-slate-800 focus:ring-2 focus:ring-primary text-sm text-slate-900 dark:text-white"
-                  />
-                </div>
-              </div>
+              {/* Module Navigation - Desktop */}
+              <nav className="flex items-center gap-1 bg-white/40 dark:bg-white/5 rounded-xl p-1 border border-white/20 dark:border-white/10">
+                {jugadorNavItems.map((item) => {
+                  const isActive = pathname === item.href ||
+                    (item.href !== '/dashboard' && pathname.startsWith(item.href))
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                        isActive
+                          ? 'bg-white dark:bg-white/20 text-primary font-semibold shadow-sm'
+                          : 'text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/10'
+                      }`}
+                    >
+                      <span
+                        className="material-symbols-outlined text-[18px]"
+                        style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
+                      >
+                        {item.icon}
+                      </span>
+                      <span className="text-sm">{item.label}</span>
+                    </Link>
+                  )
+                })}
+              </nav>
 
-              <div className="flex items-center gap-4">
-                <button className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full relative">
-                  <span className="material-symbols-outlined">notifications</span>
-                  <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-slate-900"></span>
-                </button>
-                <Link
-                  href="/dashboard/jugador/perfil"
-                  className="flex items-center gap-3 pl-4 border-l border-slate-200 dark:border-slate-800 hover:opacity-80 transition-opacity"
-                >
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{user.name}</p>
-                  <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-white ring-2 ring-primary/20">
-                    <span className="material-symbols-outlined">account_circle</span>
-                  </div>
-                </Link>
-              </div>
+              <Link
+                href="/dashboard/notificaciones"
+                className="p-2.5 text-slate-600 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-white/10 rounded-xl transition-colors relative"
+              >
+                <span className="material-symbols-outlined text-[20px]">notifications</span>
+                <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white/80 dark:ring-slate-900/80"></span>
+              </Link>
             </div>
+
+            {/* Back button - below navbar */}
+            {pathname !== '/dashboard' && (
+              <div className="mt-4">
+                <button
+                  onClick={() => router.back()}
+                  className="flex items-center gap-2 px-3 py-2 text-slate-600 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-white/10 rounded-xl transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+                  <span className="text-sm font-medium">Volver</span>
+                </button>
+              </div>
+            )}
           </div>
         </header>
 
         {/* Mobile Header - hidden on desktop */}
-        <div className="md:hidden sticky top-0 z-50 flex items-center bg-white/80 dark:bg-background-dark/80 backdrop-blur-md p-3 sm:p-4 pb-2 justify-between max-w-[480px] mx-auto">
-          <div className="flex size-10 sm:size-12 shrink-0 items-center">
-            <div className="bg-primary/20 rounded-full size-8 sm:size-10 border-2 border-primary/20 flex items-center justify-center">
-              <span className="material-symbols-outlined text-primary text-lg sm:text-2xl">person</span>
+        <div className="md:hidden sticky top-0 z-50 p-3 sm:p-4 pb-2 max-w-[480px] mx-auto">
+          <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-lg shadow-black/5">
+            <div className="flex size-9 shrink-0 items-center">
+              {pathname !== '/dashboard' ? (
+                <button
+                  onClick={() => router.back()}
+                  className="flex size-9 cursor-pointer items-center justify-center rounded-xl bg-white/60 dark:bg-white/10 text-slate-700 dark:text-white transition-colors hover:bg-white/80 dark:hover:bg-white/20"
+                >
+                  <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+                </button>
+              ) : (
+                <div className="size-9" />
+              )}
             </div>
-          </div>
-          <h2 className="text-[#111518] dark:text-white text-sm sm:text-lg font-bold leading-tight flex-1 text-center uppercase tracking-[0.1em]">
-            Seguro Deportivo
-          </h2>
-          <div className="flex w-10 sm:w-12 items-center justify-end">
-            <button className="flex size-8 sm:size-10 cursor-pointer items-center justify-center rounded-full bg-white dark:bg-slate-800 shadow-sm text-[#111518] dark:text-white">
-              <span className="material-symbols-outlined text-lg sm:text-2xl">notifications</span>
-            </button>
+            <h2 className="text-slate-900 dark:text-white text-sm sm:text-base font-bold leading-tight flex-1 text-center uppercase tracking-[0.08em]">
+              Seguro Deportivo
+            </h2>
+            <div className="flex w-9 items-center justify-end">
+              <Link
+                href="/dashboard/notificaciones"
+                className="flex size-9 cursor-pointer items-center justify-center rounded-xl bg-white/60 dark:bg-white/10 text-slate-700 dark:text-white transition-colors hover:bg-white/80 dark:hover:bg-white/20 relative"
+              >
+                <span className="material-symbols-outlined text-[20px]">notifications</span>
+                <span className="absolute top-1.5 right-1.5 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white/80"></span>
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -113,43 +146,34 @@ export default function DashboardLayout({
         </main>
 
         {/* Bottom Navigation - mobile only */}
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex gap-1 sm:gap-2 border-t border-[#f0f3f4] dark:border-slate-800 bg-white dark:bg-slate-900 px-2 sm:px-4 pb-6 sm:pb-8 pt-2 sm:pt-3 max-w-[480px] mx-auto">
-          {jugadorNavItems.map((item) => {
-            const isActive = pathname === item.href ||
-              (item.href !== '/dashboard' && pathname.startsWith(item.href))
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex flex-1 flex-col items-center justify-center gap-1 sm:gap-1.5 ${
-                  isActive ? 'text-primary' : 'text-[#617989] dark:text-slate-400'
-                }`}
-              >
-                <div className="flex h-6 sm:h-8 items-center justify-center">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 p-3 pb-6 max-w-[480px] mx-auto">
+          <nav className="flex gap-1 rounded-2xl bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-lg shadow-black/10 px-2 py-2">
+            {jugadorNavItems.map((item) => {
+              const isActive = pathname === item.href ||
+                (item.href !== '/dashboard' && pathname.startsWith(item.href))
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex flex-1 flex-col items-center justify-center gap-1 py-2 rounded-xl transition-all ${
+                    isActive
+                      ? 'text-primary bg-white/70 dark:bg-white/15 shadow-sm'
+                      : 'text-slate-500 dark:text-slate-400 hover:bg-white/40 dark:hover:bg-white/10'
+                  }`}
+                >
                   <span
-                    className="material-symbols-outlined text-[22px] sm:text-[28px]"
+                    className="material-symbols-outlined text-[22px]"
                     style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
                   >
                     {item.icon}
                   </span>
-                </div>
-                <p className={`text-[9px] sm:text-[10px] leading-normal tracking-wide ${isActive ? 'font-bold' : 'font-medium'}`}>
-                  {item.label}
-                </p>
-              </Link>
-            )
-          })}
-        </nav>
-
-        {/* Theme Toggle - bottom right */}
-        <div className="fixed bottom-6 right-6 z-50 hidden md:block">
-          <button
-            onClick={toggleTheme}
-            className="w-12 h-12 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-lg flex items-center justify-center transition-all hover:scale-110 active:scale-90"
-          >
-            <span className={`material-symbols-outlined ${theme === 'dark' ? 'hidden' : ''}`}>dark_mode</span>
-            <span className={`material-symbols-outlined ${theme === 'dark' ? '' : 'hidden'}`}>light_mode</span>
-          </button>
+                  <p className={`text-[9px] leading-normal tracking-wide ${isActive ? 'font-bold' : 'font-medium'}`}>
+                    {item.label}
+                  </p>
+                </Link>
+              )
+            })}
+          </nav>
         </div>
       </div>
     )
