@@ -19,10 +19,36 @@ const iconMap: Record<string, any> = {
 const jugadorNavItems = [
   { href: '/dashboard', icon: 'home', label: 'Inicio' },
   { href: '/dashboard/jugador/beneficios', icon: 'sell', label: 'Beneficios' },
-  { href: '/dashboard/jugador/partidos', icon: 'sports_soccer', label: 'Partidos' },
+  { href: '/dashboard/jugador/equipo', icon: 'groups', label: 'Mi Equipo' },
   { href: '/dashboard/jugador/perfil', icon: 'person', label: 'Perfil' },
 ]
 
+
+// Función para obtener la ruta de "volver" basada en el pathname actual
+function getBackRoute(pathname: string): string {
+  // Rutas principales del jugador van a inicio
+  const mainRoutes = [
+    '/dashboard/jugador/beneficios',
+    '/dashboard/jugador/equipo',
+    '/dashboard/jugador/perfil',
+  ]
+
+  // Si es una ruta principal, ir a inicio
+  if (mainRoutes.includes(pathname)) {
+    return '/dashboard'
+  }
+
+  // Si es una sub-ruta, ir a la ruta padre
+  // Ej: /dashboard/jugador/equipo/unirse -> /dashboard/jugador/equipo
+  const segments = pathname.split('/')
+  if (segments.length > 3) {
+    segments.pop() // Quitar el último segmento
+    return segments.join('/')
+  }
+
+  // Por defecto, ir a inicio
+  return '/dashboard'
+}
 
 export default function DashboardLayout({
   children,
@@ -34,6 +60,8 @@ export default function DashboardLayout({
   const { user, isAuthenticated, logout } = useAuthStore()
   const { toggleTheme } = useThemeStore()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const backRoute = getBackRoute(pathname)
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -98,7 +126,7 @@ export default function DashboardLayout({
             {pathname !== '/dashboard' && (
               <div className="mt-4">
                 <button
-                  onClick={() => router.back()}
+                  onClick={() => router.push(backRoute)}
                   className="flex items-center gap-2 px-3 py-2 text-slate-600 dark:text-slate-300 hover:bg-white/50 dark:hover:bg-white/10 rounded-xl transition-colors"
                 >
                   <span className="material-symbols-outlined text-[20px]">arrow_back</span>
@@ -115,7 +143,7 @@ export default function DashboardLayout({
             <div className="flex size-9 shrink-0 items-center">
               {pathname !== '/dashboard' ? (
                 <button
-                  onClick={() => router.back()}
+                  onClick={() => router.push(backRoute)}
                   className="flex size-9 cursor-pointer items-center justify-center rounded-xl bg-white/60 dark:bg-white/10 text-slate-700 dark:text-white transition-colors hover:bg-white/80 dark:hover:bg-white/20"
                 >
                   <span className="material-symbols-outlined text-[20px]">arrow_back</span>

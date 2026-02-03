@@ -123,7 +123,7 @@ function CredentialCard({ memberData, onShowQR, variant = 'mobile' }: {
 function MobileShortcuts() {
   return (
     <div className="flex flex-col gap-3">
-      <button className="group flex items-center gap-3 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.04)] border border-transparent hover:border-primary/20 transition-all active:scale-[0.98]">
+      <Link href="/dashboard/jugador/equipo" className="group flex items-center gap-3 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.04)] border border-transparent hover:border-primary/20 transition-all active:scale-[0.98]">
         <div className="size-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary transition-colors group-hover:bg-primary group-hover:text-white">
           <span className="material-symbols-outlined text-2xl">groups</span>
         </div>
@@ -132,9 +132,9 @@ function MobileShortcuts() {
           <p className="text-[11px] text-[#617989] dark:text-slate-400">Plantel, posiciones y estadísticas</p>
         </div>
         <span className="material-symbols-outlined text-[#617989] transition-transform group-hover:translate-x-1">chevron_right</span>
-      </button>
+      </Link>
 
-      <button className="group flex items-center gap-3 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.04)] border border-transparent hover:border-orange-500/20 transition-all active:scale-[0.98]">
+      <Link href="/dashboard/jugador/beneficios" className="group flex items-center gap-3 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.04)] border border-transparent hover:border-orange-500/20 transition-all active:scale-[0.98]">
         <div className="size-12 rounded-2xl bg-orange-100 dark:bg-orange-500/20 flex items-center justify-center text-orange-500 transition-colors group-hover:bg-orange-500 group-hover:text-white">
           <span className="material-symbols-outlined text-2xl">confirmation_number</span>
         </div>
@@ -143,9 +143,9 @@ function MobileShortcuts() {
           <p className="text-[11px] text-[#617989] dark:text-slate-400">Descuentos exclusivos y beneficios</p>
         </div>
         <span className="material-symbols-outlined text-[#617989] transition-transform group-hover:translate-x-1">chevron_right</span>
-      </button>
+      </Link>
 
-      <button className="group flex items-center gap-3 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.04)] border border-transparent hover:border-indigo-500/20 transition-all active:scale-[0.98]">
+      <Link href="/dashboard/jugador/partidos" className="group flex items-center gap-3 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.04)] border border-transparent hover:border-indigo-500/20 transition-all active:scale-[0.98]">
         <div className="size-12 rounded-2xl bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center text-indigo-500 transition-colors group-hover:bg-indigo-500 group-hover:text-white">
           <span className="material-symbols-outlined text-2xl">calendar_month</span>
         </div>
@@ -154,7 +154,7 @@ function MobileShortcuts() {
           <p className="text-[11px] text-[#617989] dark:text-slate-400">Próximos partidos y entrenamientos</p>
         </div>
         <span className="material-symbols-outlined text-[#617989] transition-transform group-hover:translate-x-1">chevron_right</span>
-      </button>
+      </Link>
     </div>
   )
 }
@@ -162,7 +162,7 @@ function MobileShortcuts() {
 // Atajos rápidos para desktop (grid 2x2)
 function DesktopShortcuts() {
   const shortcuts = [
-    { icon: 'group', title: 'Ver mi equipo', desc: 'Plantel, posiciones y estadísticas', color: 'blue', href: '#' },
+    { icon: 'group', title: 'Ver mi equipo', desc: 'Plantel, posiciones y estadísticas', color: 'blue', href: '/dashboard/jugador/equipo' },
     { icon: 'confirmation_number', title: 'Ver cupones', desc: 'Descuentos exclusivos y beneficios', color: 'orange', href: '/dashboard/jugador/beneficios' },
     { icon: 'calendar_month', title: 'Calendario', desc: 'Próximos partidos y entrenamientos', color: 'indigo', href: '/dashboard/jugador/partidos' },
     { icon: 'person', title: 'Mi Perfil', desc: 'Configuración y datos personales', color: 'purple', href: '/dashboard/jugador/perfil' },

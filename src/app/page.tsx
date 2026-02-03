@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { usePWA } from '@/hooks/usePWA'
 import { useAuthStore } from '@/stores/authStore'
+import NotificationModal from '@/components/ui/NotificationModal'
 
 export default function HomePage() {
   const router = useRouter()
   const { isStandalone, isReady, canInstall, isIOS, promptInstall } = usePWA()
   const { isAuthenticated } = useAuthStore()
   const [showIOSModal, setShowIOSModal] = useState(false)
+  const [showInstallModal, setShowInstallModal] = useState<{ show: boolean; message: string }>({ show: false, message: '' })
 
   useEffect(() => {
     if (!isReady) return
@@ -45,7 +47,10 @@ export default function HomePage() {
     } else if (canInstall) {
       await promptInstall()
     } else {
-      alert('Para instalar, abrí el menú del navegador y seleccioná "Instalar aplicación" o "Agregar a pantalla de inicio"')
+      setShowInstallModal({
+        show: true,
+        message: 'Para instalar, abrí el menú del navegador y seleccioná "Instalar aplicación" o "Agregar a pantalla de inicio"'
+      })
     }
   }
 
@@ -53,7 +58,10 @@ export default function HomePage() {
     if (canInstall) {
       await promptInstall()
     } else {
-      alert('Para instalar en PC, abrí esta página en Chrome, Edge o Brave y buscá el ícono de instalación en la barra de direcciones')
+      setShowInstallModal({
+        show: true,
+        message: 'Para instalar en PC, abrí esta página en Chrome, Edge o Brave y buscá el ícono de instalación en la barra de direcciones'
+      })
     }
   }
 
@@ -184,6 +192,15 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      {/* Modal de instalación */}
+      <NotificationModal
+        isOpen={showInstallModal.show}
+        onClose={() => setShowInstallModal({ show: false, message: '' })}
+        type="info"
+        title="Cómo instalar"
+        message={showInstallModal.message}
+      />
     </div>
   )
 }
