@@ -31,6 +31,7 @@ function getBackRoute(pathname: string): string {
     '/dashboard/jugador/beneficios',
     '/dashboard/jugador/equipo',
     '/dashboard/jugador/perfil',
+    '/dashboard/jugador/partidos',
   ]
 
   // Si es una ruta principal, ir a inicio
