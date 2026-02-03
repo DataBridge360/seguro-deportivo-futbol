@@ -163,7 +163,7 @@ export default function EquipoDetallePage() {
       <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700">
         <button
           onClick={() => setShowConfirmModal(true)}
-          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl h-12 px-6 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-sm font-semibold transition-all active:scale-[0.98]"
+          className="flex w-full mb-7 cursor-pointer items-center justify-center gap-2 rounded-2xl h-12 px-6 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-sm font-semibold transition-all active:scale-[0.98]"
         >
           <span className="material-symbols-outlined text-xl">logout</span>
           Salir del equipo

@@ -94,7 +94,7 @@ export default function JugadorPerfilPage() {
       <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
         <button
           onClick={handleLogout}
-          className="flex items-center justify-center gap-2 w-full p-4 bg-red-50 dark:bg-red-500/10 text-red-500 rounded-2xl font-bold hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors active:scale-[0.98]"
+          className="flex mb-7 items-center justify-center gap-2 w-full p-4 bg-red-50 dark:bg-red-500/10 text-red-500 rounded-2xl font-bold hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors active:scale-[0.98]"
         >
           <span className="material-symbols-outlined">logout</span>
           <span>Cerrar sesión</span>
