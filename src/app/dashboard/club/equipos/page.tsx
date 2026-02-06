@@ -68,7 +68,7 @@ export default function EquiposPage() {
         .map((t) => t.nombre)
 
       // Sort categories in the order defined in CATEGORIAS
-      const categoriasOrdenadas = [...data.categorias].sort(
+      const categoriasOrdenadas = Array.from(data.categorias).sort(
         (a, b) => CATEGORIAS.indexOf(a as typeof CATEGORIAS[number]) - CATEGORIAS.indexOf(b as typeof CATEGORIAS[number])
       )
 
