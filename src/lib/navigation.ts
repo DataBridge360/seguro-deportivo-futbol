@@ -31,31 +31,19 @@ export const navigationItems: NavItem[] = [
 
   // Productor
   {
-    label: 'Mis Clubs',
-    href: '/dashboard/productor/clubs',
-    icon: 'Building2',
-    roles: ['productor']
-  },
-  {
     label: 'Jugadores',
     href: '/dashboard/productor/jugadores',
     icon: 'Users',
     roles: ['productor']
   },
   {
-    label: 'Pólizas',
-    href: '/dashboard/productor/polizas',
-    icon: 'FileText',
+    label: 'Perfil',
+    href: '/dashboard/productor/perfil',
+    icon: 'User',
     roles: ['productor']
   },
 
   // Club
-  {
-    label: 'Mi Club',
-    href: '/dashboard/club/mi-club',
-    icon: 'Building2',
-    roles: ['club']
-  },
   {
     label: 'Jugadores',
     href: '/dashboard/club/jugadores',
@@ -63,9 +51,33 @@ export const navigationItems: NavItem[] = [
     roles: ['club']
   },
   {
-    label: 'Pólizas',
-    href: '/dashboard/club/polizas',
-    icon: 'FileText',
+    label: 'Equipos',
+    href: '/dashboard/club/equipos',
+    icon: 'Shield',
+    roles: ['club']
+  },
+  {
+    label: 'Torneos',
+    href: '/dashboard/club/torneos',
+    icon: 'Trophy',
+    roles: ['club']
+  },
+  {
+    label: 'Calendario',
+    href: '/dashboard/club/calendario',
+    icon: 'Calendar',
+    roles: ['club']
+  },
+  {
+    label: 'Notificaciones',
+    href: '/dashboard/club/notificaciones',
+    icon: 'Bell',
+    roles: ['club']
+  },
+  {
+    label: 'Perfil',
+    href: '/dashboard/club/perfil',
+    icon: 'User',
     roles: ['club']
   },
 
@@ -93,9 +105,9 @@ export function getDefaultRouteForRole(role: UserRole): string {
     case 'admin':
       return '/dashboard'
     case 'productor':
-      return '/dashboard/productor/clubs'
+      return '/dashboard/productor/jugadores'
     case 'club':
-      return '/dashboard/club/mi-club'
+      return '/dashboard'
     case 'jugador':
       return '/dashboard'
     default:

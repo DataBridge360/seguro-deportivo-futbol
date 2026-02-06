@@ -19,6 +19,11 @@
 - `/dashboard/jugador/*` - Secciones del jugador
 - `/dashboard/admin/*` - Panel de administración
 
+## Desarrollo
+
+### Regla importante
+- **NUNCA ejecutar `npm run build` mientras se están haciendo cambios**. Pisa la carpeta `.next` que usa `npm run dev` y rompe el HMR (Hot Module Replacement). Solo ejecutar build cuando el usuario diga "guarda los cambios".
+
 ## Comandos
 
 ### "Guarda los cambios"

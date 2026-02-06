@@ -2,17 +2,14 @@
 
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
-import { useRouter } from 'next/navigation'
-
 export default function JugadorPerfilPage() {
   const { user, logout } = useAuthStore()
   const { theme, toggleTheme } = useThemeStore()
-  const router = useRouter()
 
   const handleLogout = () => {
     document.cookie = 'auth-storage=; path=/; max-age=0'
     logout()
-    router.replace('/login')
+    window.location.href = '/login'
   }
 
   const menuItems = [

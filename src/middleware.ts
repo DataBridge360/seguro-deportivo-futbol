@@ -48,7 +48,7 @@ export function middleware(request: NextRequest) {
     if (!hasAccess) {
       const defaultRoutes: Record<string, string> = {
         admin: '/dashboard',
-        productor: '/dashboard/productor/clubs',
+        productor: '/dashboard/productor/jugadores',
         club: '/dashboard/club/mi-club',
         jugador: '/dashboard',
       }
