@@ -8,19 +8,20 @@ import { getNavigationForRole } from '@/lib/navigation'
 import Link from 'next/link'
 import {
   Home, Users, BarChart3, Settings, Building2, FileText, User, LogOut, Menu, X,
-  Shield, Trophy, Calendar, Bell
+  Shield, Trophy, Calendar, Bell, ScanLine, Calculator, Ticket, LayoutGrid
 } from 'lucide-react'
 
 // Icon map for sidebar navigation
 const iconMap: Record<string, any> = {
-  Home, Users, BarChart3, Settings, Building2, FileText, User, Shield, Trophy, Calendar, Bell
+  Home, Users, BarChart3, Settings, Building2, FileText, User, Shield, Trophy, Calendar, Bell,
+  ScanLine, Calculator, Ticket, LayoutGrid
 }
 
 // Mobile nav items for jugador
 const jugadorNavItems = [
   { href: '/dashboard', icon: 'home', label: 'Inicio' },
-  { href: '/dashboard/jugador/beneficios', icon: 'sell', label: 'Beneficios' },
-  { href: '/dashboard/jugador/equipo', icon: 'groups', label: 'Mi Equipo' },
+  { href: '/dashboard/jugador/cupones', icon: 'confirmation_number', label: 'Cupones' },
+  { href: '/dashboard/jugador/torneos', icon: 'emoji_events', label: 'Torneos' },
   { href: '/dashboard/jugador/perfil', icon: 'person', label: 'Perfil' },
 ]
 
@@ -29,10 +30,11 @@ const jugadorNavItems = [
 function getBackRoute(pathname: string): string {
   // Rutas principales del jugador van a inicio
   const mainRoutes = [
-    '/dashboard/jugador/beneficios',
-    '/dashboard/jugador/equipo',
+    '/dashboard/jugador/cupones',
+    '/dashboard/jugador/torneos',
     '/dashboard/jugador/perfil',
-    '/dashboard/jugador/partidos',
+    '/dashboard/jugador/calendario',
+    '/dashboard/jugador/documentos',
   ]
 
   // Si es una ruta principal, ir a inicio
@@ -41,7 +43,6 @@ function getBackRoute(pathname: string): string {
   }
 
   // Si es una sub-ruta, ir a la ruta padre
-  // Ej: /dashboard/jugador/equipo/unirse -> /dashboard/jugador/equipo
   const segments = pathname.split('/')
   if (segments.length > 3) {
     segments.pop() // Quitar el último segmento

@@ -6,7 +6,7 @@ export const navigationItems: NavItem[] = [
     label: 'Inicio',
     href: '/dashboard',
     icon: 'Home',
-    roles: ['admin', 'productor', 'club', 'jugador']
+    roles: ['admin', 'productor', 'club', 'jugador', 'cantina']
   },
 
   // Admin
@@ -63,6 +63,12 @@ export const navigationItems: NavItem[] = [
     roles: ['club']
   },
   {
+    label: 'Categorias',
+    href: '/dashboard/club/categorias',
+    icon: 'LayoutGrid',
+    roles: ['club']
+  },
+  {
     label: 'Calendario',
     href: '/dashboard/club/calendario',
     icon: 'Calendar',
@@ -83,16 +89,60 @@ export const navigationItems: NavItem[] = [
 
   // Jugador
   {
-    label: 'Mi Perfil',
-    href: '/dashboard/jugador/mi-perfil',
-    icon: 'User',
+    label: 'Cupones',
+    href: '/dashboard/jugador/cupones',
+    icon: 'Ticket',
     roles: ['jugador']
   },
   {
-    label: 'Mi Póliza',
-    href: '/dashboard/jugador/mi-poliza',
+    label: 'Torneos',
+    href: '/dashboard/jugador/torneos',
+    icon: 'Trophy',
+    roles: ['jugador']
+  },
+  {
+    label: 'Calendario',
+    href: '/dashboard/jugador/calendario',
+    icon: 'Calendar',
+    roles: ['jugador']
+  },
+  {
+    label: 'Documentos',
+    href: '/dashboard/jugador/documentos',
     icon: 'FileText',
     roles: ['jugador']
+  },
+  {
+    label: 'Perfil',
+    href: '/dashboard/jugador/perfil',
+    icon: 'User',
+    roles: ['jugador']
+  },
+
+  // Cantina
+  {
+    label: 'Validar Cupones',
+    href: '/dashboard/cantina/cupones',
+    icon: 'ScanLine',
+    roles: ['cantina']
+  },
+  {
+    label: 'Cierre de Caja',
+    href: '/dashboard/cantina/cierre',
+    icon: 'Calculator',
+    roles: ['cantina']
+  },
+  {
+    label: 'Notificaciones',
+    href: '/dashboard/cantina/notificaciones',
+    icon: 'Bell',
+    roles: ['cantina']
+  },
+  {
+    label: 'Perfil',
+    href: '/dashboard/cantina/perfil',
+    icon: 'User',
+    roles: ['cantina']
   },
 ]
 
@@ -110,6 +160,8 @@ export function getDefaultRouteForRole(role: UserRole): string {
       return '/dashboard'
     case 'jugador':
       return '/dashboard'
+    case 'cantina':
+      return '/dashboard/cantina/cupones'
     default:
       return '/dashboard'
   }
@@ -120,4 +172,5 @@ export const roleRoutes: Record<UserRole, string[]> = {
   productor: ['/dashboard', '/dashboard/productor'],
   club: ['/dashboard', '/dashboard/club'],
   jugador: ['/dashboard', '/dashboard/jugador'],
+  cantina: ['/dashboard', '/dashboard/cantina'],
 }

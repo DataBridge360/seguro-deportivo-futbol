@@ -19,6 +19,10 @@ const MOCK_USERS: Record<string, { password: string; user: User }> = {
     password: 'test',
     user: { id: '4', email: 'jugador@test.com', name: 'Carlos Jugador', role: 'jugador' }
   },
+  'cantina@test.com': {
+    password: 'test',
+    user: { id: '5', email: 'cantina@test.com', name: 'Cantina Central', role: 'cantina' }
+  },
 }
 
 interface AuthState {

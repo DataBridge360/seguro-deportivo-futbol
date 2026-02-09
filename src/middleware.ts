@@ -11,6 +11,7 @@ const roleRoutePatterns: Record<string, RegExp[]> = {
   productor: [/^\/dashboard$/, /^\/dashboard\/productor/, ...sharedRoutes],
   club: [/^\/dashboard$/, /^\/dashboard\/club/, ...sharedRoutes],
   jugador: [/^\/dashboard$/, /^\/dashboard\/jugador/, ...sharedRoutes],
+  cantina: [/^\/dashboard$/, /^\/dashboard\/cantina/, ...sharedRoutes],
 }
 
 export function middleware(request: NextRequest) {
@@ -51,6 +52,7 @@ export function middleware(request: NextRequest) {
         productor: '/dashboard/productor/jugadores',
         club: '/dashboard/club/mi-club',
         jugador: '/dashboard',
+        cantina: '/dashboard/cantina/cupones',
       }
       return NextResponse.redirect(new URL(defaultRoutes[userRole] || '/dashboard', request.url))
     }

@@ -157,6 +157,8 @@ export default function LoginPage() {
                 <div className="text-right">test</div>
                 <div>jugador@test.com</div>
                 <div className="text-right">test</div>
+                <div>cantina@test.com</div>
+                <div className="text-right">test</div>
               </div>
             </div>
           </div>

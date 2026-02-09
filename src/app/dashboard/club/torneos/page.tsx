@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { MOCK_TORNEOS } from '@/lib/mockData'
 import type { Torneo } from '@/lib/mockData'
+import NotificationModal from '@/components/ui/NotificationModal'
 
 function getBadgeClasses(estado: Torneo['estado']) {
   switch (estado) {
@@ -28,7 +29,25 @@ function getEstadoLabel(estado: Torneo['estado']) {
 }
 
 export default function ClubTorneosPage() {
+  const [torneos, setTorneos] = useState<Torneo[]>(MOCK_TORNEOS)
   const [torneoSeleccionado, setTorneoSeleccionado] = useState<Torneo | null>(null)
+  const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({ open: false, title: '', message: '', type: 'info' })
+
+  const handleToggleInscripciones = (torneoId: string) => {
+    setTorneos(prev => prev.map(t => {
+      if (t.id === torneoId) {
+        const updated = { ...t, inscripcionesAbiertas: !t.inscripcionesAbiertas }
+        setNotification({
+          open: true,
+          title: updated.inscripcionesAbiertas ? 'Inscripciones abiertas' : 'Inscripciones cerradas',
+          message: `Las inscripciones para "${t.nombre}" fueron ${updated.inscripcionesAbiertas ? 'abiertas' : 'cerradas'}.`,
+          type: 'success',
+        })
+        return updated
+      }
+      return t
+    }))
+  }
 
   return (
     <div className="space-y-6">
@@ -51,7 +70,7 @@ export default function ClubTorneosPage() {
 
       {/* Cards grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {MOCK_TORNEOS.map((torneo) => (
+        {torneos.map((torneo) => (
           <div
             key={torneo.id}
             className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 flex flex-col gap-4"
@@ -91,8 +110,22 @@ export default function ClubTorneosPage() {
               ))}
             </div>
 
+            {/* Toggle inscripciones */}
+            <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-sm text-slate-400">how_to_reg</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400">Inscripciones</span>
+              </div>
+              <button
+                onClick={() => handleToggleInscripciones(torneo.id)}
+                className={`relative w-11 h-6 rounded-full transition-colors ${torneo.inscripcionesAbiertas ? 'bg-green-500' : 'bg-slate-300 dark:bg-slate-600'}`}
+              >
+                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${torneo.inscripcionesAbiertas ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+              </button>
+            </div>
+
             {/* Boton ver detalle */}
-            <div className="pt-2 mt-auto">
+            <div className="mt-auto">
               <button
                 onClick={() => setTorneoSeleccionado(torneo)}
                 className="px-5 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors w-full"
@@ -134,6 +167,14 @@ export default function ClubTorneosPage() {
               </span>
             </div>
 
+            {/* Inscripciones estado */}
+            <div className="flex items-center gap-2 mb-4">
+              <span className="material-symbols-outlined text-lg text-slate-400">how_to_reg</span>
+              <span className={`text-sm font-medium ${torneoSeleccionado.inscripcionesAbiertas ? 'text-green-500' : 'text-slate-500 dark:text-slate-400'}`}>
+                {torneoSeleccionado.inscripcionesAbiertas ? 'Inscripciones abiertas' : 'Inscripciones cerradas'}
+              </span>
+            </div>
+
             {/* Equipos participantes */}
             <div className="mb-4">
               <p className="text-sm font-semibold text-slate-900 dark:text-white mb-2">
@@ -171,6 +212,14 @@ export default function ClubTorneosPage() {
           </div>
         </div>
       )}
+
+      <NotificationModal
+        isOpen={notification.open}
+        onClose={() => setNotification(prev => ({ ...prev, open: false }))}
+        title={notification.title}
+        message={notification.message}
+        type={notification.type}
+      />
     </div>
   )
 }

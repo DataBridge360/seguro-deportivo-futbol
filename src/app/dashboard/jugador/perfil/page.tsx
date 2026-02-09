@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
 export default function JugadorPerfilPage() {
@@ -14,6 +15,7 @@ export default function JugadorPerfilPage() {
 
   const menuItems = [
     { icon: 'person', label: 'Datos personales', href: '#' },
+    { icon: 'folder', label: 'Documentos personales', href: '/dashboard/jugador/documentos' },
     { icon: 'lock', label: 'Cambiar contraseña', href: '#' },
     { icon: 'notifications', label: 'Notificaciones', href: '#' },
     { icon: 'help', label: 'Ayuda y soporte', href: '#' },
@@ -72,18 +74,28 @@ export default function JugadorPerfilPage() {
         </p>
 
         <div className="flex flex-col gap-2">
-          {menuItems.map((item, index) => (
-            <button
-              key={index}
-              className="flex items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-[#e5e7eb] dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors active:scale-[0.98]"
-            >
-              <div className="flex items-center justify-center size-10 rounded-full bg-slate-100 dark:bg-slate-700">
-                <span className="material-symbols-outlined text-[#617989] dark:text-slate-300">{item.icon}</span>
-              </div>
-              <span className="flex-1 text-left font-medium text-[#111518] dark:text-white">{item.label}</span>
-              <span className="material-symbols-outlined text-[#617989]">chevron_right</span>
-            </button>
-          ))}
+          {menuItems.map((item, index) => {
+            const content = (
+              <>
+                <div className="flex items-center justify-center size-10 rounded-full bg-slate-100 dark:bg-slate-700">
+                  <span className="material-symbols-outlined text-[#617989] dark:text-slate-300">{item.icon}</span>
+                </div>
+                <span className="flex-1 text-left font-medium text-[#111518] dark:text-white">{item.label}</span>
+                <span className="material-symbols-outlined text-[#617989]">chevron_right</span>
+              </>
+            )
+            const className = "flex items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-[#e5e7eb] dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors active:scale-[0.98]"
+
+            return item.href !== '#' ? (
+              <Link key={index} href={item.href} className={className}>
+                {content}
+              </Link>
+            ) : (
+              <button key={index} className={className}>
+                {content}
+              </button>
+            )
+          })}
         </div>
       </div>
 

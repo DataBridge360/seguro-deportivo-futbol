@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { EQUIPOS_NOMBRES, MOCK_TORNEOS } from '@/lib/mockData'
+import { EQUIPOS_NOMBRES, MOCK_TORNEOS, CATEGORIAS } from '@/lib/mockData'
 import NotificationModal from '@/components/ui/NotificationModal'
 
 const tipoDestinatarioOptions = [
@@ -10,6 +10,7 @@ const tipoDestinatarioOptions = [
   'Jugadores sin seguro',
   'Por equipo',
   'Por torneo',
+  'Por categoria',
 ]
 
 const historialNotificaciones = [
@@ -43,25 +44,25 @@ export default function NotificacionesPage() {
   const [tipoDestinatario, setTipoDestinatario] = useState('')
   const [equipoSeleccionado, setEquipoSeleccionado] = useState('')
   const [torneoSeleccionado, setTorneoSeleccionado] = useState('')
+  const [categoriaSeleccionada, setCategoriaSeleccionada] = useState('')
   const [asunto, setAsunto] = useState('')
   const [mensaje, setMensaje] = useState('')
+  const [incluirCupon, setIncluirCupon] = useState(false)
+  const [tipoCupon, setTipoCupon] = useState<'porcentaje' | 'monto_fijo'>('porcentaje')
+  const [valorCupon, setValorCupon] = useState('')
   const [errors, setErrors] = useState<{
     tipoDestinatario?: string
     equipoSeleccionado?: string
     torneoSeleccionado?: string
+    categoriaSeleccionada?: string
     asunto?: string
     mensaje?: string
+    valorCupon?: string
   }>({})
   const [showNotification, setShowNotification] = useState(false)
 
   const validate = () => {
-    const newErrors: {
-      tipoDestinatario?: string
-      equipoSeleccionado?: string
-      torneoSeleccionado?: string
-      asunto?: string
-      mensaje?: string
-    } = {}
+    const newErrors: typeof errors = {}
 
     if (!tipoDestinatario) {
       newErrors.tipoDestinatario = 'Selecciona el tipo de destinatario'
@@ -75,12 +76,20 @@ export default function NotificacionesPage() {
       newErrors.torneoSeleccionado = 'Selecciona un torneo'
     }
 
+    if (tipoDestinatario === 'Por categoria' && !categoriaSeleccionada) {
+      newErrors.categoriaSeleccionada = 'Selecciona una categoria'
+    }
+
     if (!asunto.trim()) {
       newErrors.asunto = 'El asunto es obligatorio'
     }
 
     if (!mensaje.trim()) {
       newErrors.mensaje = 'El mensaje es obligatorio'
+    }
+
+    if (incluirCupon && (!valorCupon || parseFloat(valorCupon) <= 0)) {
+      newErrors.valorCupon = 'El valor del cupon es obligatorio'
     }
 
     setErrors(newErrors)
@@ -100,17 +109,22 @@ export default function NotificacionesPage() {
     setTipoDestinatario('')
     setEquipoSeleccionado('')
     setTorneoSeleccionado('')
+    setCategoriaSeleccionada('')
     setAsunto('')
     setMensaje('')
+    setIncluirCupon(false)
+    setValorCupon('')
   }
 
   const handleTipoDestinatarioChange = (value: string) => {
     setTipoDestinatario(value)
     setEquipoSeleccionado('')
     setTorneoSeleccionado('')
+    setCategoriaSeleccionada('')
     if (errors.tipoDestinatario) setErrors((prev) => ({ ...prev, tipoDestinatario: undefined }))
     if (errors.equipoSeleccionado) setErrors((prev) => ({ ...prev, equipoSeleccionado: undefined }))
     if (errors.torneoSeleccionado) setErrors((prev) => ({ ...prev, torneoSeleccionado: undefined }))
+    if (errors.categoriaSeleccionada) setErrors((prev) => ({ ...prev, categoriaSeleccionada: undefined }))
   }
 
   return (
@@ -218,6 +232,37 @@ export default function NotificacionesPage() {
           </div>
         )}
 
+        {/* Segundo dropdown: Por categoria */}
+        {tipoDestinatario === 'Por categoria' && (
+          <div>
+            <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">
+              Categoria
+            </label>
+            <select
+              value={categoriaSeleccionada}
+              onChange={(e) => {
+                setCategoriaSeleccionada(e.target.value)
+                if (errors.categoriaSeleccionada) setErrors((prev) => ({ ...prev, categoriaSeleccionada: undefined }))
+              }}
+              className={`w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:border-primary ${
+                errors.categoriaSeleccionada
+                  ? 'border-red-500'
+                  : 'border-slate-300 dark:border-slate-600'
+              }`}
+            >
+              <option value="">Seleccionar categoria</option>
+              {CATEGORIAS.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+            {errors.categoriaSeleccionada && (
+              <p className="text-red-400 text-xs mt-1">{errors.categoriaSeleccionada}</p>
+            )}
+          </div>
+        )}
+
         {/* Asunto */}
         <div>
           <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">
@@ -262,6 +307,68 @@ export default function NotificacionesPage() {
           />
           {errors.mensaje && (
             <p className="text-red-400 text-xs mt-1">{errors.mensaje}</p>
+          )}
+        </div>
+
+        {/* Incluir cupon */}
+        <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={incluirCupon}
+              onChange={(e) => setIncluirCupon(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary"
+            />
+            <div>
+              <p className="font-medium text-slate-900 dark:text-white text-sm">Incluir cupon de descuento</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Se generara un cupon para cada destinatario</p>
+            </div>
+          </label>
+
+          {incluirCupon && (
+            <div className="mt-4 space-y-3 pl-7">
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 text-xs font-medium mb-1.5">Tipo de descuento</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTipoCupon('porcentaje')}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium border transition-colors ${
+                      tipoCupon === 'porcentaje'
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:border-slate-400'
+                    }`}
+                  >
+                    Porcentaje (%)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTipoCupon('monto_fijo')}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium border transition-colors ${
+                      tipoCupon === 'monto_fijo'
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:border-slate-400'
+                    }`}
+                  >
+                    Monto fijo ($)
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 text-xs font-medium mb-1.5">
+                  Valor del descuento {tipoCupon === 'porcentaje' ? '(%)' : '($)'}
+                </label>
+                <input
+                  type="number"
+                  value={valorCupon}
+                  onChange={(e) => { setValorCupon(e.target.value); if (errors.valorCupon) setErrors((prev) => ({ ...prev, valorCupon: undefined })) }}
+                  placeholder={tipoCupon === 'porcentaje' ? 'Ej: 15' : 'Ej: 500'}
+                  className={`w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:border-primary ${errors.valorCupon ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'}`}
+                  min="1"
+                />
+                {errors.valorCupon && <p className="text-red-400 text-xs mt-1">{errors.valorCupon}</p>}
+              </div>
+            </div>
           )}
         </div>
 
@@ -316,7 +423,10 @@ export default function NotificacionesPage() {
         isOpen={showNotification}
         onClose={handleNotificationClose}
         title="Notificacion enviada"
-        message="La notificacion fue enviada correctamente a los destinatarios seleccionados."
+        message={incluirCupon
+          ? `La notificacion fue enviada con un cupon de ${tipoCupon === 'porcentaje' ? `${valorCupon}%` : `$${valorCupon}`} de descuento.`
+          : 'La notificacion fue enviada correctamente a los destinatarios seleccionados.'
+        }
         type="success"
       />
     </div>
