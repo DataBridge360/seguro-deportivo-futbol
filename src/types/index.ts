@@ -7,6 +7,11 @@ export interface User {
   role: UserRole
 }
 
+export interface AuthResponse {
+  token: string
+  user: User
+}
+
 export interface NavItem {
   label: string
   href: string

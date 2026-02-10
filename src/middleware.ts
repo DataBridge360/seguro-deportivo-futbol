@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const publicRoutes = ['/', '/login']
+const publicRoutes = ['/', '/login', '/login/jugador']
 
 // Rutas compartidas para todos los roles autenticados
 const sharedRoutes = [/^\/dashboard\/notificaciones/]
@@ -30,7 +30,7 @@ export function middleware(request: NextRequest) {
   }
 
   if (publicRoutes.includes(pathname)) {
-    if (user && pathname === '/login') {
+    if (user && pathname.startsWith('/login')) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
     return NextResponse.next()
