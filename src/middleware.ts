@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const publicRoutes = ['/', '/login', '/login/jugador']
+const publicRoutes = ['/', '/login', '/login/staff']
 
 // Rutas compartidas para todos los roles autenticados
 const sharedRoutes = [/^\/dashboard\/notificaciones/]

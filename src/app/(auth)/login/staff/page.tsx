@@ -6,10 +6,10 @@ import Link from 'next/link'
 import { useAuthStore } from '@/stores/authStore'
 import { getDefaultRouteForRole } from '@/lib/navigation'
 
-export default function LoginJugadorPage() {
+export default function LoginStaffPage() {
   const router = useRouter()
-  const { loginDNI, isLoading, error, clearError, user, isAuthenticated } = useAuthStore()
-  const [dni, setDni] = useState('')
+  const { login, isLoading, error, clearError, user, isAuthenticated } = useAuthStore()
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
 
@@ -23,7 +23,7 @@ export default function LoginJugadorPage() {
     e.preventDefault()
     clearError()
 
-    const success = await loginDNI(dni, password)
+    const success = await login(email, password)
 
     if (success) {
       const { user } = useAuthStore.getState()
@@ -47,35 +47,30 @@ export default function LoginJugadorPage() {
       <div className="flex flex-col flex-1 px-6 justify-center pb-20">
         <div className="py-6">
           <h1 className="text-[#111518] dark:text-white tracking-tight text-[32px] font-bold leading-tight text-center">
-            Hola, jugador
+            Bienvenido
           </h1>
           <p className="text-[#111518] dark:text-white/70 text-base font-normal leading-normal pt-2 px-8 text-center max-w-sm mx-auto">
-            Ingresá con tu DNI para ver tu información
+            Ingresá con tu email para gestionar tus seguros
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-2 max-w-md mx-auto w-full">
-          {/* DNI input */}
+          {/* Email input */}
           <div className="py-2">
             <label className="flex flex-col">
               <p className="text-[#111518] dark:text-white text-sm font-medium leading-normal pb-2 ml-1">
-                DNI
+                Email
               </p>
               <div className="relative flex items-center">
-                <span className="material-symbols-outlined absolute left-4 text-[#617989]">badge</span>
+                <span className="material-symbols-outlined absolute left-4 text-[#617989]">mail</span>
                 <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={dni}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '')
-                    setDni(value)
-                  }}
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="flex w-full rounded-xl text-[#111518] dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-[#dbe1e6] dark:border-[#344857] bg-white dark:bg-[#1c2a35] h-14 placeholder:text-[#617989] pl-12 pr-4 text-base font-normal leading-normal"
-                  placeholder="Ingresá tu DNI"
+                  placeholder="Ingresá tu email"
                   required
-                  autoComplete="off"
+                  autoComplete="email"
                 />
               </div>
             </label>
@@ -144,7 +139,7 @@ export default function LoginJugadorPage() {
             </button>
           </div>
 
-          {/* Link to staff login */}
+          {/* Link to jugador login */}
           <div className="flex flex-col items-center gap-4 mt-4">
             <div className="flex items-center w-full gap-4">
               <div className="h-[1px] bg-[#dbe1e6] dark:bg-[#344857] flex-1"></div>
@@ -156,8 +151,8 @@ export default function LoginJugadorPage() {
               href="/login"
               className="w-full flex items-center justify-center gap-2 h-14 rounded-xl border border-[#dbe1e6] dark:border-[#344857] text-[#111518] dark:text-white font-medium hover:bg-white/50 dark:hover:bg-[#1c2a35]/50 transition-colors"
             >
-              <span className="material-symbols-outlined text-lg">mail</span>
-              <span>Soy staff — Ingresar con email</span>
+              <span className="material-symbols-outlined text-lg">sports_soccer</span>
+              <span>Soy jugador — Ingresar con DNI</span>
             </Link>
           </div>
         </form>
