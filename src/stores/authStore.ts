@@ -1,37 +1,17 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { User } from '@/types'
-
-const MOCK_USERS: Record<string, { password: string; user: User }> = {
-  'admin@test.com': {
-    password: 'test',
-    user: { id: '1', email: 'admin@test.com', name: 'Administrador', role: 'admin' }
-  },
-  'productor@test.com': {
-    password: 'test',
-    user: { id: '2', email: 'productor@test.com', name: 'Juan Productor', role: 'productor' }
-  },
-  'club@test.com': {
-    password: 'test',
-    user: { id: '3', email: 'club@test.com', name: 'Club Atlético', role: 'club' }
-  },
-  'jugador@test.com': {
-    password: 'test',
-    user: { id: '4', email: 'jugador@test.com', name: 'Carlos Jugador', role: 'jugador' }
-  },
-  'cantina@test.com': {
-    password: 'test',
-    user: { id: '5', email: 'cantina@test.com', name: 'Cantina Central', role: 'cantina' }
-  },
-}
+import { loginWithEmail, loginWithDNI } from '@/lib/api'
 
 interface AuthState {
   user: User | null
+  token: string | null
   isAuthenticated: boolean
   isLoading: boolean
   error: string | null
   _hasHydrated: boolean
   login: (email: string, password: string) => Promise<boolean>
+  loginDNI: (dni: string, password: string) => Promise<boolean>
   logout: () => void
   clearError: () => void
   setHasHydrated: (val: boolean) => void
@@ -41,6 +21,7 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,
+      token: null,
       isAuthenticated: false,
       isLoading: false,
       error: null,
@@ -51,20 +32,45 @@ export const useAuthStore = create<AuthState>()(
       login: async (email: string, password: string) => {
         set({ isLoading: true, error: null })
 
-        await new Promise(resolve => setTimeout(resolve, 500))
+        try {
+          const data = await loginWithEmail(email, password)
 
-        const mockUser = MOCK_USERS[email.toLowerCase()]
+          localStorage.setItem('token', data.token)
 
-        if (mockUser && mockUser.password === password) {
           set({
-            user: mockUser.user,
+            user: data.user as User,
+            token: data.token,
             isAuthenticated: true,
             isLoading: false
           })
           return true
-        } else {
+        } catch (err) {
           set({
-            error: 'Credenciales inválidas',
+            error: err instanceof Error ? err.message : 'Error al iniciar sesión',
+            isLoading: false
+          })
+          return false
+        }
+      },
+
+      loginDNI: async (dni: string, password: string) => {
+        set({ isLoading: true, error: null })
+
+        try {
+          const data = await loginWithDNI(dni, password)
+
+          localStorage.setItem('token', data.token)
+
+          set({
+            user: data.user as User,
+            token: data.token,
+            isAuthenticated: true,
+            isLoading: false
+          })
+          return true
+        } catch (err) {
+          set({
+            error: err instanceof Error ? err.message : 'Error al iniciar sesión',
             isLoading: false
           })
           return false
@@ -72,7 +78,8 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        set({ user: null, isAuthenticated: false, error: null })
+        localStorage.removeItem('token')
+        set({ user: null, token: null, isAuthenticated: false, error: null })
       },
 
       clearError: () => set({ error: null })
@@ -81,9 +88,13 @@ export const useAuthStore = create<AuthState>()(
       name: 'auth-storage',
       partialize: (state) => ({
         user: state.user,
+        token: state.token,
         isAuthenticated: state.isAuthenticated
       }),
       onRehydrateStorage: () => (state) => {
+        if (state?.token) {
+          localStorage.setItem('token', state.token)
+        }
         state?.setHasHydrated(true)
       }
     }
