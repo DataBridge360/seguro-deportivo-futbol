@@ -37,6 +37,12 @@ export const navigationItems: NavItem[] = [
     roles: ['productor']
   },
   {
+    label: 'Carga Masiva',
+    href: '/dashboard/productor/carga-masiva',
+    icon: 'Upload',
+    roles: ['productor']
+  },
+  {
     label: 'Perfil',
     href: '/dashboard/productor/perfil',
     icon: 'User',
