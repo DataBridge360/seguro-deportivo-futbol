@@ -8,13 +8,13 @@ import { getNavigationForRole } from '@/lib/navigation'
 import Link from 'next/link'
 import {
   Home, Users, BarChart3, Settings, Building2, FileText, User, LogOut, Menu, X,
-  Shield, Trophy, Calendar, Bell, ScanLine, Calculator, Ticket, LayoutGrid
+  Shield, Trophy, Calendar, Bell, ScanLine, Calculator, Ticket, LayoutGrid, Upload
 } from 'lucide-react'
 
 // Icon map for sidebar navigation
 const iconMap: Record<string, any> = {
   Home, Users, BarChart3, Settings, Building2, FileText, User, Shield, Trophy, Calendar, Bell,
-  ScanLine, Calculator, Ticket, LayoutGrid
+  ScanLine, Calculator, Ticket, LayoutGrid, Upload
 }
 
 // Mobile nav items for jugador
