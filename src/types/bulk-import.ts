@@ -65,7 +65,6 @@ export interface ImportResult {
   updated_players: CreatedPlayer[]
   errors: ImportError[]
   summary: {
-    perfiles_created: number
     jugadores_created: number
     jugador_club_created: number
   }

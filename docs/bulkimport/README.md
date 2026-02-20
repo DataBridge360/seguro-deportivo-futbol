@@ -243,7 +243,6 @@ Confirma la importación de jugadores usando el token del preview.
     error: string;                // Descripción del error
   }>;
   summary: {
-    perfiles_created: number;     // Perfiles creados
     jugadores_created: number;    // Registros en tabla jugadores
     jugador_club_created: number; // Relaciones jugador-club creadas
   };
@@ -291,7 +290,6 @@ Confirma la importación de jugadores usando el token del preview.
   ],
   "errors": [],
   "summary": {
-    "perfiles_created": 95,
     "jugadores_created": 95,
     "jugador_club_created": 98
   },
@@ -320,7 +318,6 @@ Confirma la importación de jugadores usando el token del preview.
   "updated_players": [],
   "errors": [],
   "summary": {
-    "perfiles_created": 1,
     "jugadores_created": 1,
     "jugador_club_created": 1
   },
@@ -412,7 +409,6 @@ export interface ImportResult {
   updated_players: CreatedPlayer[];  // ⬅️ NUEVO
   errors: ImportError[];
   summary: {
-    perfiles_created: number;
     jugadores_created: number;
     jugador_club_created: number;
   };

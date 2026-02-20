@@ -234,13 +234,7 @@ export default function ResultsSection({ result, onNewImport }: ResultsSectionPr
         <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">
           Detalles de la Importación
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-          <div>
-            <p className="text-slate-500 dark:text-slate-400 mb-1">Perfiles creados</p>
-            <p className="text-2xl font-bold text-slate-900 dark:text-white">
-              {result.summary.perfiles_created}
-            </p>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div>
             <p className="text-slate-500 dark:text-slate-400 mb-1">Jugadores creados</p>
             <p className="text-2xl font-bold text-slate-900 dark:text-white">
