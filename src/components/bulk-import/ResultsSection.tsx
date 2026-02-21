@@ -8,9 +8,10 @@ import { generatePassword } from '@/lib/password-generator'
 interface ResultsSectionProps {
   result: ImportResult
   onNewImport: () => void
+  onClose?: () => void
 }
 
-export default function ResultsSection({ result, onNewImport }: ResultsSectionProps) {
+export default function ResultsSection({ result, onNewImport, onClose }: ResultsSectionProps) {
   const router = useRouter()
 
   return (
@@ -299,11 +300,11 @@ export default function ResultsSection({ result, onNewImport }: ResultsSectionPr
         </button>
 
         <button
-          onClick={() => router.push('/dashboard/productor/jugadores')}
+          onClick={onClose ? onClose : () => router.push('/dashboard/productor/jugadores')}
           className="flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white px-6 py-2.5 rounded-lg font-medium transition-colors"
         >
           <Users className="w-4 h-4" />
-          Ver Jugadores
+          {onClose ? 'Cerrar' : 'Ver Jugadores'}
         </button>
       </div>
     </div>

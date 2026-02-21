@@ -25,6 +25,31 @@ body {
   background-image: linear-gradient(#1392ec15 1px, transparent 1px), linear-gradient(90deg, #1392ec15 1px, transparent 1px);
 }
 
+/* Football dot pattern for login card */
+.football-pattern {
+  background-image: radial-gradient(circle at 2px 2px, rgba(19, 146, 236, 0.05) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+.dark .football-pattern {
+  background-image: radial-gradient(circle at 2px 2px, rgba(19, 146, 236, 0.08) 1px, transparent 0);
+}
+
+.grass-gradient {
+  background: linear-gradient(to bottom, transparent, rgba(19, 146, 236, 0.03));
+}
+
+/* Minimalist soccer ball background pattern */
+.soccer-bg {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Ccircle cx='30' cy='30' r='8' fill='none' stroke='%23cbd5e1' stroke-width='0.5' opacity='0.4'/%3E%3Cpath d='M30 22 L33 27 L30 29 L27 27Z' fill='%23cbd5e1' opacity='0.2'/%3E%3Cpath d='M30 38 L27 33 L30 31 L33 33Z' fill='%23cbd5e1' opacity='0.2'/%3E%3Cpath d='M22.5 26.5 L27 27 L26 30 L22.5 29Z' fill='%23cbd5e1' opacity='0.2'/%3E%3Cpath d='M37.5 26.5 L33 27 L34 30 L37.5 29Z' fill='%23cbd5e1' opacity='0.2'/%3E%3C/svg%3E");
+  background-size: 80px 80px;
+}
+
+.dark .soccer-bg {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'%3E%3Ccircle cx='30' cy='30' r='8' fill='none' stroke='%23334155' stroke-width='0.5' opacity='0.4'/%3E%3Cpath d='M30 22 L33 27 L30 29 L27 27Z' fill='%23334155' opacity='0.2'/%3E%3Cpath d='M30 38 L27 33 L30 31 L33 33Z' fill='%23334155' opacity='0.2'/%3E%3Cpath d='M22.5 26.5 L27 27 L26 30 L22.5 29Z' fill='%23334155' opacity='0.2'/%3E%3Cpath d='M37.5 26.5 L33 27 L34 30 L37.5 29Z' fill='%23334155' opacity='0.2'/%3E%3C/svg%3E");
+  background-size: 80px 80px;
+}
+
 /* Dashboard styles */
 .dashboard-bg {
   background-color: rgb(var(--background));
@@ -46,16 +71,72 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgb(30 41 59);
+  background: rgb(241 245 249);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgb(71 85 105);
+  background: rgb(148 163 184);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgb(100 116 139);
+}
+
+.dark ::-webkit-scrollbar-track,
+.dark::-webkit-scrollbar-track {
+  background: rgb(30 41 59);
+}
+
+.dark ::-webkit-scrollbar-thumb,
+.dark::-webkit-scrollbar-thumb {
+  background: rgb(71 85 105);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover,
+.dark::-webkit-scrollbar-thumb:hover {
+  background: rgb(100 116 139);
+}
+
+/* Custom scrollbar for horizontal table scroll */
+.table-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+
+.table-scroll::-webkit-scrollbar-track {
+  background: rgb(241 245 249);
+  border-radius: 0 0 8px 8px;
+}
+
+.table-scroll::-webkit-scrollbar-thumb {
+  background: rgb(148 163 184);
+  border-radius: 4px;
+}
+
+.table-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgb(100 116 139);
+}
+
+.dark .table-scroll::-webkit-scrollbar-track {
+  background: rgba(255 255 255 / 0.05);
+}
+
+.dark .table-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255 255 255 / 0.15);
+}
+
+.dark .table-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(255 255 255 / 0.25);
+}
+
+/* Firefox scrollbar */
+.table-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(148 163 184) rgb(241 245 249);
+}
+
+.dark .table-scroll {
+  scrollbar-color: rgba(255 255 255 / 0.15) rgba(255 255 255 / 0.05);
 }
 
 * {
@@ -75,4 +156,19 @@ body {
 
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out;
 }

@@ -6,16 +6,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { getNavigationForRole } from '@/lib/navigation'
 import Link from 'next/link'
-import {
-  Home, Users, BarChart3, Settings, Building2, FileText, User, LogOut, Menu, X,
-  Shield, Trophy, Calendar, Bell, ScanLine, Calculator, Ticket, LayoutGrid, Upload
-} from 'lucide-react'
-
-// Icon map for sidebar navigation
-const iconMap: Record<string, any> = {
-  Home, Users, BarChart3, Settings, Building2, FileText, User, Shield, Trophy, Calendar, Bell,
-  ScanLine, Calculator, Ticket, LayoutGrid, Upload
-}
+import Image from 'next/image'
 
 // Mobile nav items for jugador
 const jugadorNavItems = [
@@ -208,15 +199,15 @@ export default function DashboardLayout({
     )
   }
 
-  // Para admin, productor y club: layout con sidebar
+  // Para admin, productor y club: layout con sidebar estilo mockup
   const navigation = getNavigationForRole(user.role)
 
   return (
-    <div className="min-h-screen flex bg-slate-100 dark:bg-slate-900">
+    <div className="min-h-screen flex bg-background-light dark:bg-background-dark">
       {/* Overlay móvil */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -224,32 +215,42 @@ export default function DashboardLayout({
       {/* Sidebar */}
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-50
-        w-56 sm:w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700
+        w-64 border-r border-slate-200 dark:border-white/[0.06] flex flex-col h-screen lg:h-auto
+        bg-white dark:bg-[#151f2e]
         transform transition-transform duration-200 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="p-3 sm:p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-            <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Seguro Deportivo</h1>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="lg:hidden p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-slate-700 dark:text-white"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* User info */}
-          <div className="p-3 sm:p-4 border-b border-slate-200 dark:border-slate-700">
-            <p className="font-medium truncate text-slate-900 dark:text-white text-sm sm:text-base">{user.name}</p>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 capitalize">{user.role}</p>
+          {/* Mobile: close button / Desktop: logo */}
+          <div className="p-6">
+            {/* Close button - mobile only */}
+            <div className="flex lg:hidden justify-end">
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="p-1.5 hover:bg-slate-100 dark:hover:bg-white/[0.06] rounded-lg transition-colors text-slate-500 dark:text-slate-400"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+            {/* Logo - desktop only */}
+            <div className="hidden lg:flex items-center gap-3">
+              <Image
+                src="/logo.png"
+                alt="Logo del Club"
+                width={44}
+                height={44}
+                className="size-11 rounded-full object-cover"
+              />
+              <div>
+                <h1 className="text-sm font-bold leading-tight tracking-tight text-slate-900 dark:text-white">Complejo Deportivo</h1>
+                <p className="text-xs text-primary font-bold">Plaza Huincul</p>
+              </div>
+            </div>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-3 sm:p-4 space-y-1 overflow-y-auto">
+          <nav className="flex-1 mt-4 px-3 space-y-1 overflow-y-auto">
             {navigation.map((item) => {
-              const Icon = iconMap[item.icon] || Home
               const isActive = item.href === '/dashboard'
                 ? pathname === '/dashboard'
                 : pathname === item.href || pathname.startsWith(item.href + '/')
@@ -260,51 +261,72 @@ export default function DashboardLayout({
                   href={item.href}
                   onClick={() => setSidebarOpen(false)}
                   className={`
-                    flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 rounded-lg transition-colors text-sm sm:text-base
+                    flex items-center gap-3 px-4 py-3 rounded-lg transition-all
                     ${isActive
-                      ? 'bg-primary text-white'
-                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white'
+                      ? 'bg-primary/[0.15] text-primary border-r-[3px] border-primary'
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.06]'
                     }
                   `}
                 >
-                  <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
-                  {item.label}
+                  <span className="material-symbols-outlined text-[22px]">{item.materialIcon}</span>
+                  <span className="text-sm font-semibold tracking-wide">{item.label}</span>
                 </Link>
               )
             })}
           </nav>
 
-          {/* Logout */}
-          <div className="p-3 sm:p-4 border-t border-slate-200 dark:border-slate-700">
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white transition-colors w-full text-sm sm:text-base"
-            >
-              <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
-              Cerrar Sesión
-            </button>
+          {/* User + Logout */}
+          <div className="p-4 border-t border-slate-200 dark:border-white/[0.06]">
+            <div className="flex items-center gap-3 p-2">
+              <div className="size-9 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center ring-2 ring-primary/20">
+                <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-lg">person</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold truncate text-slate-900 dark:text-white">{user.name}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="material-symbols-outlined text-slate-400 text-lg cursor-pointer hover:text-primary transition-colors"
+                title="Cerrar sesión"
+              >
+                logout
+              </button>
+            </div>
           </div>
         </div>
       </aside>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col min-w-0">
         {/* Mobile header */}
-        <header className="lg:hidden bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-3 sm:p-4 flex items-center gap-3 sm:gap-4">
+        <header className="lg:hidden h-16 border-b border-slate-200 dark:border-white/[0.06] bg-white/80 dark:bg-[#151f2e]/80 backdrop-blur-md sticky top-0 z-40 px-4 flex items-center gap-4">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded text-slate-700 dark:text-white"
+            className="p-2 hover:bg-slate-100 dark:hover:bg-white/[0.06] rounded-lg transition-colors text-slate-700 dark:text-white"
           >
-            <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
+            <span className="material-symbols-outlined text-[22px]">menu</span>
           </button>
-          <h1 className="font-semibold text-slate-900 dark:text-white text-sm sm:text-base">Seguro Deportivo</h1>
+          <div className="flex items-center gap-2">
+            <Image
+              src="/logo.png"
+              alt="Logo del Club"
+              width={32}
+              height={32}
+              className="size-8 rounded-full object-cover"
+            />
+            <div className="leading-tight">
+              <h1 className="font-bold text-xs text-slate-900 dark:text-white">Complejo Deportivo</h1>
+              <p className="text-[10px] text-primary font-bold">Plaza Huincul</p>
+            </div>
+          </div>
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-auto text-slate-900 dark:text-white">
+        <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto text-slate-900 dark:text-white">
           {children}
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   )
 }

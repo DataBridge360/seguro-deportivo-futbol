@@ -16,5 +16,6 @@ export interface NavItem {
   label: string
   href: string
   icon: string
+  materialIcon: string
   roles: UserRole[]
 }

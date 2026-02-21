@@ -1,11 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/authStore'
 import Link from 'next/link'
-import NotificationModal from '@/components/ui/NotificationModal'
-import DatePicker from '@/components/ui/DatePicker'
-import { MOCK_JUGADORES, formatDate as formatDateShortFn } from '@/lib/mockData'
 
 // Modal QR
 function QRModal({ isOpen, onClose, memberId }: { isOpen: boolean; onClose: () => void; memberId: string }) {
@@ -301,284 +299,6 @@ function JugadorDashboard() {
   )
 }
 
-// Datos del productor derivados del mock centralizado
-const MOCK_JUGADORES_PRODUCTOR = MOCK_JUGADORES.map(j => ({
-  id: j.id,
-  nombreCompleto: j.nombreCompleto,
-  dni: j.dni,
-  club: j.club,
-  seguroFin: j.seguroFin,
-}))
-
-function formatDateShort(dateStr: string): string {
-  const [y, m, d] = dateStr.split('-')
-  return `${d}/${m}/${y}`
-}
-
-// Dashboard especifico del productor
-function ProductorDashboard() {
-  const { user } = useAuthStore()
-
-  const now = new Date()
-  const [jugadores, setJugadores] = useState(MOCK_JUGADORES_PRODUCTOR)
-  const total = jugadores.length
-  const inactivos = jugadores.filter(j => new Date(j.seguroFin) < now)
-  const activos = total - inactivos.length
-
-  // Modal de renovacion
-  const [renewModal, setRenewModal] = useState<{ open: boolean; jugador: typeof MOCK_JUGADORES_PRODUCTOR[0] | null }>({ open: false, jugador: null })
-  const [renewInicio, setRenewInicio] = useState('')
-  const [renewDuracion, setRenewDuracion] = useState<'mensual' | 'trimestral' | 'semestral' | 'anual'>('anual')
-
-  // Notificacion
-  const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({ open: false, title: '', message: '', type: 'info' })
-
-  const calcRenewFin = (inicio: string, duracion: string): string => {
-    if (!inicio) return ''
-    const d = new Date(inicio + 'T00:00:00')
-    switch (duracion) {
-      case 'mensual': d.setMonth(d.getMonth() + 1); break
-      case 'trimestral': d.setMonth(d.getMonth() + 3); break
-      case 'semestral': d.setMonth(d.getMonth() + 6); break
-      case 'anual': d.setFullYear(d.getFullYear() + 1); break
-    }
-    return d.toISOString().split('T')[0]
-  }
-
-  const handleRenewClick = (jugador: typeof MOCK_JUGADORES_PRODUCTOR[0]) => {
-    setRenewModal({ open: true, jugador })
-    setRenewInicio(new Date().toISOString().split('T')[0])
-    setRenewDuracion('anual')
-  }
-
-  const handleRenewConfirm = () => {
-    if (!renewModal.jugador || !renewInicio) return
-    const jugador = renewModal.jugador
-    const newEndStr = calcRenewFin(renewInicio, renewDuracion)
-
-    setJugadores(prev => prev.map(j =>
-      j.id === jugador.id ? { ...j, seguroFin: newEndStr } : j
-    ))
-    setRenewModal({ open: false, jugador: null })
-    setNotification({
-      open: true,
-      title: 'Seguro renovado',
-      message: `El seguro de ${jugador.nombreCompleto} se renovo desde el ${formatDateShort(renewInicio)} hasta el ${formatDateShort(newEndStr)}.`,
-      type: 'success'
-    })
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Saludo */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold">
-          Hola, {user?.name}
-        </h1>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Resumen de tu cartera de asegurados</p>
-      </div>
-
-      {/* Tarjetas de resumen */}
-      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
-        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-5 border border-slate-200 dark:border-slate-700">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-primary">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-            </div>
-            <h3 className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium">Total Jugadores</h3>
-          </div>
-          <p className="text-2xl sm:text-3xl font-bold">{total}</p>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-5 border border-slate-200 dark:border-slate-700">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg bg-green-500/10">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-green-400">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
-              </svg>
-            </div>
-            <h3 className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium">Activos</h3>
-          </div>
-          <p className="text-2xl sm:text-3xl font-bold text-green-400">{activos}</p>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-5 border border-slate-200 dark:border-slate-700">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg bg-red-500/10">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-red-400">
-                <circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line x1="12" x2="12.01" y1="16" y2="16" />
-              </svg>
-            </div>
-            <h3 className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium">Sin seguro</h3>
-          </div>
-          <p className="text-2xl sm:text-3xl font-bold text-red-400">{inactivos.length}</p>
-        </div>
-      </div>
-
-      {/* Tabla de inactivos */}
-      {inactivos.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-bold flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-red-400" />
-              Jugadores sin seguro
-            </h2>
-            <Link
-              href="/dashboard/productor/jugadores"
-              className="text-primary text-xs font-medium hover:underline"
-            >
-              Ver todos
-            </Link>
-          </div>
-          <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-left">
-                  <th className="px-4 py-3 font-medium">Nombre</th>
-                  <th className="px-4 py-3 font-medium">DNI</th>
-                  <th className="px-4 py-3 font-medium hidden sm:table-cell">Club</th>
-                  <th className="px-4 py-3 font-medium">Vencio</th>
-                  <th className="px-4 py-3 font-medium text-right">Accion</th>
-                </tr>
-              </thead>
-              <tbody>
-                {inactivos.map((j) => (
-                  <tr key={j.id} className="border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-100/50 dark:hover:bg-slate-700/30 transition-colors">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-slate-900 dark:text-white">{j.nombreCompleto}</p>
-                      <p className="text-slate-500 dark:text-slate-400 text-xs sm:hidden">{j.club}</p>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{j.dni}</td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300 hidden sm:table-cell">{j.club}</td>
-                    <td className="px-4 py-3 text-red-400 text-xs font-medium">{formatDateShort(j.seguroFin)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => handleRenewClick(j)}
-                        className="inline-flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
-                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><line x1="12" x2="12" y1="9" y2="15" /><line x1="9" x2="15" y1="12" y2="12" />
-                        </svg>
-                        Renovar
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Renovacion */}
-      {renewModal.open && renewModal.jugador && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setRenewModal({ open: false, jugador: null })}>
-          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-center mb-4">
-              <div className="bg-green-500/10 p-3 rounded-full">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-green-500">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><line x1="12" x2="12" y1="9" y2="15" /><line x1="9" x2="15" y1="12" y2="12" />
-                </svg>
-              </div>
-            </div>
-            <h3 className="text-slate-900 dark:text-white text-lg font-bold text-center mb-1">Renovar seguro</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm text-center mb-5">
-              <strong className="text-slate-900 dark:text-white">{renewModal.jugador.nombreCompleto}</strong>
-            </p>
-
-            {/* Fecha de inicio */}
-            <div className="mb-4">
-              <label className="block text-slate-500 dark:text-slate-400 text-xs font-medium mb-1.5">Fecha de inicio de vigencia</label>
-              <DatePicker
-                value={renewInicio}
-                onChange={setRenewInicio}
-                placeholder="Seleccionar fecha"
-              />
-            </div>
-
-            {/* Duracion */}
-            <div className="mb-4">
-              <label className="block text-slate-500 dark:text-slate-400 text-xs font-medium mb-2">Duracion del seguro</label>
-              <div className="grid grid-cols-2 gap-2">
-                {([
-                  { value: 'mensual', label: 'Mensual', desc: '1 mes' },
-                  { value: 'trimestral', label: 'Trimestral', desc: '3 meses' },
-                  { value: 'semestral', label: 'Semestral', desc: '6 meses' },
-                  { value: 'anual', label: 'Anual', desc: '12 meses' },
-                ] as const).map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setRenewDuracion(opt.value)}
-                    className={`flex items-center gap-2.5 p-3 rounded-lg border text-left transition-all ${
-                      renewDuracion === opt.value
-                        ? 'border-green-500 bg-green-500/10'
-                        : 'border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-900 hover:border-slate-400 dark:hover:border-slate-500'
-                    }`}
-                  >
-                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
-                      renewDuracion === opt.value ? 'border-green-500' : 'border-slate-400 dark:border-slate-500'
-                    }`}>
-                      {renewDuracion === opt.value && (
-                        <div className="w-2 h-2 rounded-full bg-green-500" />
-                      )}
-                    </div>
-                    <div>
-                      <p className={`text-sm font-medium ${renewDuracion === opt.value ? 'text-green-400' : 'text-slate-900 dark:text-white'}`}>{opt.label}</p>
-                      <p className="text-[11px] text-slate-400 dark:text-slate-500">{opt.desc}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Resumen */}
-            {renewInicio && (
-              <div className="bg-slate-100 dark:bg-slate-900 rounded-lg p-3 mb-5 text-sm">
-                <div className="flex justify-between text-slate-500 dark:text-slate-400 mb-1.5">
-                  <span>Inicio:</span>
-                  <span className="text-slate-900 dark:text-white font-medium">{formatDateShort(renewInicio)}</span>
-                </div>
-                <div className="flex justify-between text-slate-500 dark:text-slate-400">
-                  <span>Finalizacion:</span>
-                  <span className="text-green-400 font-medium">{formatDateShort(calcRenewFin(renewInicio, renewDuracion))}</span>
-                </div>
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setRenewModal({ open: false, jugador: null })}
-                className="flex-1 px-4 py-2.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-900 dark:text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleRenewConfirm}
-                disabled={!renewInicio}
-                className="flex-1 px-4 py-2.5 bg-green-600 hover:bg-green-500 disabled:opacity-40 disabled:hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                Confirmar Renovacion
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Notificacion */}
-      <NotificationModal
-        isOpen={notification.open}
-        onClose={() => setNotification(prev => ({ ...prev, open: false }))}
-        title={notification.title}
-        message={notification.message}
-        type={notification.type}
-      />
-    </div>
-  )
-}
-
 // Componente del dashboard para admin
 function AdminDashboard() {
   const { user } = useAuthStore()
@@ -810,13 +530,21 @@ function CantinaDashboard() {
 
 export default function DashboardPage() {
   const { user } = useAuthStore()
+  const router = useRouter()
+
+  // Redirect productor to jugadores page
+  useEffect(() => {
+    if (user?.role === 'productor') {
+      router.replace('/dashboard/productor/jugadores')
+    }
+  }, [user?.role, router])
 
   if (user?.role === 'jugador') {
     return <JugadorDashboard />
   }
 
   if (user?.role === 'productor') {
-    return <ProductorDashboard />
+    return null // Redirecting...
   }
 
   if (user?.role === 'club') {

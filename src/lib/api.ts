@@ -58,6 +58,25 @@ export async function bulkImportConfirm(data: ConfirmRequest): Promise<ImportRes
   })
 }
 
+// Jugadores API Functions
+
+export interface JugadorResponse {
+  id: string
+  dni: string
+  nombre: string
+  apellido: string
+  nombre_completo: string
+  fecha_nacimiento: string
+  activo: boolean
+  poliza_inicio?: string | null
+  poliza_fin?: string | null
+}
+
+export async function getJugadores(): Promise<JugadorResponse[]> {
+  const res = await apiFetch('/jugadores/mis-jugadores')
+  return res.data
+}
+
 export async function getClubs(): Promise<Club[]> {
   const res = await apiFetch('/clubes')
   return res.data // La respuesta tiene formato { success: true, data: Club[] }

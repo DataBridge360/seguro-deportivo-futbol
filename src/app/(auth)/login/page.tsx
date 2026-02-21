@@ -2,13 +2,17 @@
 
 import { useState, FormEvent, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import Image from 'next/image'
 import { useAuthStore } from '@/stores/authStore'
 import { getDefaultRouteForRole } from '@/lib/navigation'
 
+type LoginMode = 'email' | 'dni'
+
 export default function LoginPage() {
   const router = useRouter()
-  const { loginDNI, isLoading, error, clearError, user, isAuthenticated } = useAuthStore()
+  const { login, loginDNI, isLoading, error, clearError, user, isAuthenticated } = useAuthStore()
+  const [mode, setMode] = useState<LoginMode>('dni')
+  const [email, setEmail] = useState('')
   const [dni, setDni] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -23,7 +27,9 @@ export default function LoginPage() {
     e.preventDefault()
     clearError()
 
-    const success = await loginDNI(dni, password)
+    const success = mode === 'email'
+      ? await login(email, password)
+      : await loginDNI(dni, password)
 
     if (success) {
       const { user } = useAuthStore.getState()
@@ -34,106 +40,142 @@ export default function LoginPage() {
     }
   }
 
-  return (
-    <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden pitch-pattern">
-      {/* Header */}
-      <div className="flex items-center p-6 justify-center">
-        <h2 className="text-[#111518] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">
-          Seguro Deportivo
-        </h2>
-      </div>
+  const toggleMode = () => {
+    clearError()
+    setMode(mode === 'email' ? 'dni' : 'email')
+    setPassword('')
+  }
 
-      {/* Main content */}
-      <div className="flex flex-col flex-1 px-6 justify-center pb-20">
-        <div className="py-6">
-          <h1 className="text-[#111518] dark:text-white tracking-tight text-[32px] font-bold leading-tight text-center">
-            Hola, jugador
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-50 dark:bg-background-dark soccer-bg">
+      {/* Main Container */}
+      <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-xl shadow-2xl ring-1 ring-slate-200/50 dark:ring-slate-700/50 overflow-hidden football-pattern animate-fade-in">
+        {/* Top Header with Logo */}
+        <div className="pt-8 pb-4 flex flex-col items-center px-6">
+          <div className="mb-4">
+            <Image
+              src="/logo.png"
+              alt="Logo del Complejo Deportivo"
+              width={160}
+              height={160}
+              className="w-40 h-40 object-contain"
+              priority
+            />
+          </div>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white text-center leading-tight tracking-tight">
+            Complejo Deportivo <span className="block text-primary">Plaza Huincul</span>
           </h1>
-          <p className="text-[#111518] dark:text-white/70 text-base font-normal leading-normal pt-2 px-8 text-center max-w-sm mx-auto">
-            Ingresá con tu DNI para ver tu información
+          <p className="mt-1.5 text-slate-500 dark:text-slate-400 text-center text-xs font-medium">
+            Tu portal deportivo en Plaza Huincul
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-2 max-w-md mx-auto w-full">
-          {/* DNI input */}
-          <div className="py-2">
-            <label className="flex flex-col">
-              <p className="text-[#111518] dark:text-white text-sm font-medium leading-normal pb-2 ml-1">
-                DNI
-              </p>
-              <div className="relative flex items-center">
-                <span className="material-symbols-outlined absolute left-4 text-[#617989]">badge</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={dni}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, '')
-                    setDni(value)
-                  }}
-                  className="flex w-full rounded-xl text-[#111518] dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-[#dbe1e6] dark:border-[#344857] bg-white dark:bg-[#1c2a35] h-14 placeholder:text-[#617989] pl-12 pr-4 text-base font-normal leading-normal"
-                  placeholder="Ingresá tu DNI"
-                  required
-                  autoComplete="off"
-                />
+        {/* Login Form */}
+        <form onSubmit={handleSubmit} className="px-6 pb-8 space-y-4">
+          <div className="space-y-3">
+            {mode === 'email' ? (
+              /* Email Field */
+              <div key="email" className="space-y-1.5 animate-fade-in">
+                <label htmlFor="email" className="text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">
+                  Correo Electr&oacute;nico
+                </label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary/70 text-xl">
+                    mail
+                  </span>
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-slate-400"
+                    placeholder="ejemplo@correo.com"
+                    required
+                    autoComplete="email"
+                  />
+                </div>
               </div>
-            </label>
-          </div>
+            ) : (
+              /* DNI Field */
+              <div key="dni" className="space-y-1.5 animate-fade-in">
+                <label htmlFor="dni" className="text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">
+                  DNI
+                </label>
+                <div className="relative">
+                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary/70 text-xl">
+                    badge
+                  </span>
+                  <input
+                    id="dni"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={dni}
+                    onChange={(e) => setDni(e.target.value.replace(/\D/g, ''))}
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-slate-400"
+                    placeholder="Ingres&aacute; tu DNI"
+                    required
+                    autoComplete="off"
+                  />
+                </div>
+              </div>
+            )}
 
-          {/* Password input */}
-          <div className="py-2">
-            <label className="flex flex-col">
-              <p className="text-[#111518] dark:text-white text-sm font-medium leading-normal pb-2 ml-1">
-                Contraseña
-              </p>
-              <div className="relative flex items-center">
-                <span className="material-symbols-outlined absolute left-4 text-[#617989]">lock</span>
+            {/* Password Field */}
+            <div className="space-y-1.5">
+              <label htmlFor="password" className="text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">
+                Contrase&ntilde;a
+              </label>
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary/70 text-xl">
+                  lock
+                </span>
                 <input
+                  id="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="flex w-full rounded-xl text-[#111518] dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-[#dbe1e6] dark:border-[#344857] bg-white dark:bg-[#1c2a35] h-14 placeholder:text-[#617989] pl-12 pr-12 text-base font-normal leading-normal"
-                  placeholder="Ingresá tu contraseña"
+                  className="w-full pl-11 pr-11 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-slate-400"
+                  placeholder="&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;"
                   required
                   autoComplete="current-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="material-symbols-outlined absolute right-4 text-[#617989] cursor-pointer hover:text-primary transition-colors"
+                  className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer hover:text-primary transition-colors text-xl"
                 >
                   {showPassword ? 'visibility_off' : 'visibility'}
                 </button>
               </div>
-            </label>
-          </div>
-
-          {/* Forgot password */}
-          <div className="flex justify-end py-1">
-            <a className="text-primary text-sm font-medium hover:underline cursor-pointer">
-              ¿Olvidaste tu contraseña?
-            </a>
+              {mode === 'email' && (
+                <div className="flex justify-end">
+                  <a className="text-xs font-semibold text-primary hover:underline mt-1 cursor-pointer">
+                    &iquest;Olvidaste tu contrase&ntilde;a?
+                  </a>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Error message */}
           {error && (
-            <div className="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-xl text-sm text-center">
+            <div className="bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 px-4 py-3 rounded-lg text-sm text-center">
               {error}
             </div>
           )}
 
-          {/* Submit button */}
-          <div className="py-4">
+          {/* Action Buttons */}
+          <div className="space-y-3 pt-2">
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-primary hover:bg-primary/90 disabled:bg-primary/50 disabled:cursor-not-allowed text-white font-bold h-14 rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-2"
+              className="w-full bg-gradient-to-r from-blue-600 to-primary disabled:from-blue-600/50 disabled:to-primary/50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-lg shadow-lg shadow-primary/20 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
             >
               {isLoading ? (
                 <>
-                  <span className="material-symbols-outlined animate-spin">progress_activity</span>
-                  <span>Ingresando...</span>
+                  <span className="material-symbols-outlined animate-spin text-lg">progress_activity</span>
+                  Ingresando...
                 </>
               ) : (
                 <>
@@ -142,31 +184,52 @@ export default function LoginPage() {
                 </>
               )}
             </button>
-          </div>
 
-          {/* Link to staff login */}
-          <div className="flex flex-col items-center gap-4 mt-4">
-            <div className="flex items-center w-full gap-4">
-              <div className="h-[1px] bg-[#dbe1e6] dark:bg-[#344857] flex-1"></div>
-              <span className="text-[#617989] text-xs font-bold uppercase tracking-widest">o</span>
-              <div className="h-[1px] bg-[#dbe1e6] dark:bg-[#344857] flex-1"></div>
+            <div className="relative flex py-2 items-center">
+              <div className="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
+              <span className="flex-shrink mx-4 text-slate-400 text-xs uppercase tracking-widest font-bold">o</span>
+              <div className="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
             </div>
 
-            <Link
-              href="/login/staff"
-              className="w-full flex items-center justify-center gap-2 h-14 rounded-xl border border-[#dbe1e6] dark:border-[#344857] text-[#111518] dark:text-white font-medium hover:bg-white/50 dark:hover:bg-[#1c2a35]/50 transition-colors"
+            <button
+              type="button"
+              onClick={toggleMode}
+              className="w-full bg-white dark:bg-slate-800 border-2 border-primary/30 hover:border-primary text-slate-700 dark:text-slate-200 font-bold py-3 rounded-lg transition-all flex items-center justify-center gap-2"
             >
-              <span className="material-symbols-outlined text-lg">mail</span>
-              <span>Soy staff — Ingresar con email</span>
-            </Link>
+              {mode === 'email' ? (
+                <>
+                  <span className="material-symbols-outlined text-primary">sports_soccer</span>
+                  Soy jugador &mdash; Ingresar con DNI
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined text-primary">mail</span>
+                  Soy staff &mdash; Ingresar con email
+                </>
+              )}
+            </button>
           </div>
         </form>
+
+        {/* Decorative Grass Base */}
+        <div className="h-2 w-full bg-primary grass-gradient"></div>
       </div>
 
-      {/* Bottom indicator */}
-      <div className="h-8 flex justify-center items-end pb-2">
-        <div className="w-32 h-1.5 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
-      </div>
+      {/* Footer */}
+      <footer className="mt-8 text-center px-4">
+        <p className="text-slate-500 dark:text-slate-400 text-sm">
+          &iquest;Necesitas ayuda?{' '}
+          <a className="text-primary font-bold hover:underline cursor-pointer inline-flex items-center gap-1">
+            <span className="material-symbols-outlined text-sm">support_agent</span>
+            Contactar soporte
+          </a>
+        </p>
+        <div className="mt-6 opacity-60 flex items-center justify-center gap-1 text-xs uppercase tracking-tighter text-slate-400">
+          <span className="material-symbols-outlined text-sm">location_on</span>
+          Plaza Huincul, Neuqu&eacute;n
+        </div>
+      </footer>
+
     </div>
   )
 }

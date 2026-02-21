@@ -11,6 +11,9 @@ export interface PreviewResponse {
   total: number
   new_players: NewPlayer[]
   existing_players: ExistingPlayer[]
+  dni_conflicts: DniConflict[]
+  birth_date_conflicts: BirthDateConflict[]
+  name_conflicts: NameConflict[]
   errors: ErrorItem[]
   preview_token: string
 }
@@ -33,6 +36,34 @@ export interface ExistingPlayer {
   message: string
 }
 
+export interface DniConflict {
+  row: number
+  dni: string
+  nombre_nuevo: string
+  nombre_existente: string
+  existing_id: string
+  message: string
+}
+
+export interface BirthDateConflict {
+  row: number
+  dni: string
+  nombre_completo: string
+  fecha_nacimiento_nueva: string
+  fecha_nacimiento_existente: string
+  existing_id: string
+  message: string
+}
+
+export interface NameConflict {
+  row: number
+  dni_nuevo: string
+  dni_existente: string
+  nombre_completo: string
+  existing_id: string
+  message: string
+}
+
 export interface ErrorItem {
   row: number
   dni: string | null
@@ -44,6 +75,7 @@ export interface ConfirmRequest {
   productor_id: string
   club_id: string // REQUERIDO - club al que se asignarán los jugadores
   overwrite_existing: boolean
+  accepted_conflict_ids?: string[]
   test_mode?: boolean
 }
 

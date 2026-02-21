@@ -42,6 +42,12 @@ export function middleware(request: NextRequest) {
     }
 
     const userRole = user.role
+
+    // Redirect productor from /dashboard to jugadores
+    if (userRole === 'productor' && pathname === '/dashboard') {
+      return NextResponse.redirect(new URL('/dashboard/productor/jugadores', request.url))
+    }
+
     const allowedPatterns = roleRoutePatterns[userRole] || []
 
     const hasAccess = allowedPatterns.some(pattern => pattern.test(pathname))
