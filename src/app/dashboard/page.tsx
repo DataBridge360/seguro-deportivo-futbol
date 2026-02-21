@@ -332,17 +332,87 @@ function AdminDashboard() {
 // Dashboard del Club
 function ClubDashboard() {
   const { user } = useAuthStore()
+  const router = useRouter()
 
-  const jugadoresTotal = 45
-  const equipos = 3
-  const torneosActivos = 2
-  const sinSeguro = 8
+  const [loading, setLoading] = useState(true)
+  const [jugadoresTotal, setJugadoresTotal] = useState(0)
+  const [equiposTotal, setEquiposTotal] = useState(0)
+  const [torneosActivos, setTorneosActivos] = useState(0)
+  const [sinSeguro, setSinSeguro] = useState(0)
+  const [proximosPartidos, setProximosPartidos] = useState<any[]>([])
 
-  const proximosPartidos = [
-    { id: '1', fecha: '2026-02-14', hora: '15:30', equipo: 'River Plate', rival: 'Boca Juniors', torneo: 'Liga Profesional', ubicacion: 'Estadio Monumental' },
-    { id: '2', fecha: '2026-02-18', hora: '17:00', equipo: 'Racing Club', rival: 'Independiente', torneo: 'Copa Argentina', ubicacion: 'Estadio Cilindro' },
-    { id: '3', fecha: '2026-02-22', hora: '10:00', equipo: 'San Lorenzo', rival: 'River Plate', torneo: 'Liga Profesional', ubicacion: 'Estadio Nuevo Gasometro' },
-  ]
+  useEffect(() => {
+    loadDashboardData()
+  }, [])
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true)
+
+      // Importar las funciones API
+      const { getJugadores, getEquipos, getTorneos, getPartidos } = await import('@/lib/api')
+
+      // Cargar datos en paralelo
+      const [jugadores, equipos, torneos, partidos] = await Promise.all([
+        getJugadores(),
+        getEquipos(),
+        getTorneos(),
+        getPartidos()
+      ])
+
+      // Calcular estadísticas
+      setJugadoresTotal(jugadores.length)
+      setEquiposTotal(equipos.length)
+      // Torneos activos = próximos + en curso (no finalizados ni cancelados)
+      setTorneosActivos(torneos.filter(t => t.estado === 'proximo' || t.estado === 'en_curso').length)
+
+      // Jugadores sin seguro (sin poliza_inicio o poliza_fin, o poliza vencida)
+      const hoy = new Date()
+      const jugadoresSinSeguro = jugadores.filter(j => {
+        if (!j.poliza_inicio || !j.poliza_fin) return true
+        const finPoliza = new Date(j.poliza_fin)
+        return finPoliza < hoy
+      })
+      setSinSeguro(jugadoresSinSeguro.length)
+
+      // Próximos partidos (solo programados, ordenados por fecha, máximo 3)
+      const hoyStr = new Date().toISOString().split('T')[0]
+      const partidosFuturos = partidos
+        .filter(p => p.estado === 'programado' && p.fecha >= hoyStr)
+        .sort((a, b) => {
+          const dateCompare = a.fecha.localeCompare(b.fecha)
+          if (dateCompare !== 0) return dateCompare
+          return a.hora.localeCompare(b.hora)
+        })
+        .slice(0, 3)
+        .map(p => ({
+          id: p.id,
+          fecha: p.fecha,
+          hora: p.hora,
+          equipo: p.equipo_local_nombre,
+          rival: p.equipo_visitante_nombre,
+          torneo: p.torneo_nombre,
+          ubicacion: p.ubicacion || 'Por definir'
+        }))
+
+      setProximosPartidos(partidosFuturos)
+    } catch (error) {
+      console.error('Error al cargar datos del dashboard:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-slate-500 dark:text-slate-400 text-sm">Cargando dashboard...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -377,7 +447,7 @@ function ClubDashboard() {
             </div>
             <h3 className="text-slate-500 dark:text-slate-400 text-xs font-medium">Equipos</h3>
           </div>
-          <p className="text-2xl sm:text-3xl font-bold text-indigo-400">{equipos}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-indigo-400">{equiposTotal}</p>
         </div>
 
         <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-5 border border-slate-200 dark:border-slate-700">
@@ -420,8 +490,12 @@ function ClubDashboard() {
           </Link>
         </div>
         <div className="flex flex-col gap-3">
-          {proximosPartidos.map((p) => (
-            <div key={p.id} className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex items-center gap-4">
+          {proximosPartidos.length > 0 ? proximosPartidos.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => router.push(`/dashboard/club/partidos/${p.id}`)}
+              className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex items-center gap-4 hover:border-primary transition-colors text-left w-full"
+            >
               <div className="text-center min-w-[50px]">
                 <p className="text-xs text-slate-500 dark:text-slate-400">{new Date(p.fecha + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}</p>
                 <p className="text-lg font-bold text-slate-900 dark:text-white">{p.hora}</p>
@@ -436,8 +510,13 @@ function ClubDashboard() {
               <span className="hidden sm:inline-flex px-2.5 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full">
                 {p.equipo}
               </span>
+            </button>
+          )) : (
+            <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+              <span className="material-symbols-outlined text-3xl text-slate-300 dark:text-slate-600">event_busy</span>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">No hay partidos próximos</p>
             </div>
-          ))}
+          )}
         </div>
       </div>
     </div>

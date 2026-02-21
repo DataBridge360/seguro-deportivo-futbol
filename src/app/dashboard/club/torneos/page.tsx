@@ -1,52 +1,78 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { MOCK_TORNEOS } from '@/lib/mockData'
-import type { Torneo } from '@/lib/mockData'
+import { getTorneos } from '@/lib/api'
+import type { Torneo } from '@/types/club'
 import NotificationModal from '@/components/ui/NotificationModal'
 
 function getBadgeClasses(estado: Torneo['estado']) {
   switch (estado) {
-    case 'En curso':
+    case 'en_curso':
       return 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400'
-    case 'Proximo':
+    case 'proximo':
       return 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400'
-    case 'Finalizado':
+    case 'finalizado':
       return 'bg-slate-100 text-slate-600 dark:bg-slate-600/30 dark:text-slate-400'
+    case 'cancelado':
+      return 'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400'
   }
 }
 
 function getEstadoLabel(estado: Torneo['estado']) {
   switch (estado) {
-    case 'En curso':
+    case 'en_curso':
       return 'En curso'
-    case 'Proximo':
-      return 'Proximo'
-    case 'Finalizado':
+    case 'proximo':
+      return 'Próximo'
+    case 'finalizado':
       return 'Finalizado'
+    case 'cancelado':
+      return 'Cancelado'
   }
 }
 
+function formatDate(dateString: string) {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
 export default function ClubTorneosPage() {
-  const [torneos, setTorneos] = useState<Torneo[]>(MOCK_TORNEOS)
+  const [torneos, setTorneos] = useState<Torneo[]>([])
+  const [loading, setLoading] = useState(true)
   const [torneoSeleccionado, setTorneoSeleccionado] = useState<Torneo | null>(null)
   const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({ open: false, title: '', message: '', type: 'info' })
 
-  const handleToggleInscripciones = (torneoId: string) => {
-    setTorneos(prev => prev.map(t => {
-      if (t.id === torneoId) {
-        const updated = { ...t, inscripcionesAbiertas: !t.inscripcionesAbiertas }
-        setNotification({
-          open: true,
-          title: updated.inscripcionesAbiertas ? 'Inscripciones abiertas' : 'Inscripciones cerradas',
-          message: `Las inscripciones para "${t.nombre}" fueron ${updated.inscripcionesAbiertas ? 'abiertas' : 'cerradas'}.`,
-          type: 'success',
-        })
-        return updated
-      }
-      return t
-    }))
+  useEffect(() => {
+    loadTorneos()
+  }, [])
+
+  const loadTorneos = async () => {
+    try {
+      setLoading(true)
+      const data = await getTorneos()
+      setTorneos(data)
+    } catch (error) {
+      setNotification({
+        open: true,
+        title: 'Error al cargar torneos',
+        message: error instanceof Error ? error.message : 'Error desconocido',
+        type: 'error'
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-slate-500 dark:text-slate-400 text-sm">Cargando torneos...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -56,7 +82,7 @@ export default function ClubTorneosPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Torneos</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Torneos en los que participa tu club
+            Torneos organizados por tu club
           </p>
         </div>
         <Link
@@ -69,73 +95,84 @@ export default function ClubTorneosPage() {
       </div>
 
       {/* Cards grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {torneos.map((torneo) => (
-          <div
-            key={torneo.id}
-            className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 flex flex-col gap-4"
-          >
-            {/* Nombre y estado */}
-            <div className="flex items-start justify-between gap-3">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-                {torneo.nombre}
-              </h3>
-              <span
-                className={`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getBadgeClasses(torneo.estado)}`}
-              >
-                {getEstadoLabel(torneo.estado)}
-              </span>
-            </div>
-
-            {/* Fechas */}
-            <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-              <span className="material-symbols-outlined text-lg">calendar_today</span>
-              <span>
-                {torneo.fechaInicio} - {torneo.fechaFin}
-              </span>
-            </div>
-
-            {/* Equipos */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="material-symbols-outlined text-lg text-slate-400 dark:text-slate-500">
-                groups
-              </span>
-              {torneo.equipos.map((equipo) => (
+      {torneos.length === 0 ? (
+        <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+          <span className="material-symbols-outlined text-5xl text-slate-300 dark:text-slate-600">sports_soccer</span>
+          <p className="mt-3 text-slate-500 dark:text-slate-400 text-sm">No hay torneos creados</p>
+          <p className="mt-1 text-slate-400 dark:text-slate-500 text-xs">Creá tu primer torneo haciendo clic en "Nuevo Torneo"</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {torneos.map((torneo) => (
+            <div
+              key={torneo.id}
+              className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 flex flex-col gap-4"
+            >
+              {/* Nombre y estado */}
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                  {torneo.nombre}
+                </h3>
                 <span
-                  key={equipo}
-                  className="px-2 py-0.5 text-xs font-medium rounded-full bg-primary/10 text-primary"
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getBadgeClasses(torneo.estado)}`}
                 >
-                  {equipo}
+                  {getEstadoLabel(torneo.estado)}
                 </span>
-              ))}
-            </div>
-
-            {/* Toggle inscripciones */}
-            <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-sm text-slate-400">how_to_reg</span>
-                <span className="text-xs text-slate-500 dark:text-slate-400">Inscripciones</span>
               </div>
-              <button
-                onClick={() => handleToggleInscripciones(torneo.id)}
-                className={`relative w-11 h-6 rounded-full transition-colors ${torneo.inscripcionesAbiertas ? 'bg-green-500' : 'bg-slate-300 dark:bg-slate-600'}`}
-              >
-                <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${torneo.inscripcionesAbiertas ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
-              </button>
-            </div>
 
-            {/* Boton ver detalle */}
-            <div className="mt-auto">
-              <button
-                onClick={() => setTorneoSeleccionado(torneo)}
-                className="px-5 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors w-full"
-              >
-                Ver detalle
-              </button>
+              {/* Descripción */}
+              {torneo.descripcion && (
+                <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2">
+                  {torneo.descripcion}
+                </p>
+              )}
+
+              {/* Fechas */}
+              <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                <span className="material-symbols-outlined text-lg">calendar_today</span>
+                <span>
+                  {formatDate(torneo.fecha_inicio)} - {formatDate(torneo.fecha_fin)}
+                </span>
+              </div>
+
+              {/* Max jugadores */}
+              {torneo.max_jugadores_por_equipo && (
+                <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                  <span className="material-symbols-outlined text-lg">group</span>
+                  <span>Máx. {torneo.max_jugadores_por_equipo} jugadores por equipo</span>
+                </div>
+              )}
+
+              {/* Toggle inscripciones */}
+              <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700">
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-sm text-slate-400">how_to_reg</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">Inscripciones</span>
+                </div>
+                <span className={`text-xs font-semibold ${torneo.inscripciones_abiertas ? 'text-green-500' : 'text-slate-400'}`}>
+                  {torneo.inscripciones_abiertas ? 'Abiertas' : 'Cerradas'}
+                </span>
+              </div>
+
+              {/* Botones */}
+              <div className="mt-auto flex gap-2">
+                <button
+                  onClick={() => setTorneoSeleccionado(torneo)}
+                  className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Info
+                </button>
+                <Link
+                  href={`/dashboard/club/torneos/${torneo.id}`}
+                  className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors text-center"
+                >
+                  Gestionar
+                </Link>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Modal de detalle */}
       {torneoSeleccionado && (
@@ -144,7 +181,7 @@ export default function ClubTorneosPage() {
           onClick={() => setTorneoSeleccionado(null)}
         >
           <div
-            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 max-w-md w-full shadow-2xl"
+            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 max-w-md w-full shadow-2xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header del modal */}
@@ -159,53 +196,48 @@ export default function ClubTorneosPage() {
               </span>
             </div>
 
+            {/* Descripción */}
+            {torneoSeleccionado.descripcion && (
+              <div className="mb-4">
+                <p className="text-sm font-semibold text-slate-900 dark:text-white mb-2">
+                  Descripción
+                </p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                  {torneoSeleccionado.descripcion}
+                </p>
+              </div>
+            )}
+
             {/* Fechas */}
             <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-4">
               <span className="material-symbols-outlined text-lg">calendar_today</span>
               <span>
-                {torneoSeleccionado.fechaInicio} - {torneoSeleccionado.fechaFin}
+                {formatDate(torneoSeleccionado.fecha_inicio)} - {formatDate(torneoSeleccionado.fecha_fin)}
               </span>
             </div>
 
             {/* Inscripciones estado */}
             <div className="flex items-center gap-2 mb-4">
               <span className="material-symbols-outlined text-lg text-slate-400">how_to_reg</span>
-              <span className={`text-sm font-medium ${torneoSeleccionado.inscripcionesAbiertas ? 'text-green-500' : 'text-slate-500 dark:text-slate-400'}`}>
-                {torneoSeleccionado.inscripcionesAbiertas ? 'Inscripciones abiertas' : 'Inscripciones cerradas'}
+              <span className={`text-sm font-medium ${torneoSeleccionado.inscripciones_abiertas ? 'text-green-500' : 'text-slate-500 dark:text-slate-400'}`}>
+                {torneoSeleccionado.inscripciones_abiertas ? 'Inscripciones abiertas' : 'Inscripciones cerradas'}
               </span>
             </div>
 
-            {/* Equipos participantes */}
-            <div className="mb-4">
-              <p className="text-sm font-semibold text-slate-900 dark:text-white mb-2">
-                Equipos participantes
-              </p>
-              <div className="flex items-center gap-2 flex-wrap">
-                {torneoSeleccionado.equipos.map((equipo) => (
-                  <span
-                    key={equipo}
-                    className="px-2 py-0.5 text-xs font-medium rounded-full bg-primary/10 text-primary"
-                  >
-                    {equipo}
-                  </span>
-                ))}
+            {/* Max jugadores */}
+            {torneoSeleccionado.max_jugadores_por_equipo && (
+              <div className="flex items-center gap-2 mb-4">
+                <span className="material-symbols-outlined text-lg text-slate-400">group</span>
+                <span className="text-sm text-slate-600 dark:text-slate-400">
+                  Máximo {torneoSeleccionado.max_jugadores_por_equipo} jugadores por equipo
+                </span>
               </div>
-            </div>
-
-            {/* Descripcion */}
-            <div className="mb-6">
-              <p className="text-sm font-semibold text-slate-900 dark:text-white mb-2">
-                Descripcion
-              </p>
-              <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-                {torneoSeleccionado.descripcion}
-              </p>
-            </div>
+            )}
 
             {/* Boton cerrar */}
             <button
               onClick={() => setTorneoSeleccionado(null)}
-              className="w-full px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors"
+              className="w-full px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors mt-4"
             >
               Cerrar
             </button>
