@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { MOCK_PARTIDOS, EQUIPOS_NOMBRES, formatDate } from '@/lib/mockData'
+import { getPartidos } from '@/lib/api'
+import type { Partido } from '@/types/club'
+import NotificationModal from '@/components/ui/NotificationModal'
 
 const MESES = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -11,11 +13,45 @@ const MESES = [
 
 const DIAS_SEMANA = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa']
 
+function formatDate(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-')
+  return `${d}/${m}`
+}
+
 export default function CalendarioPage() {
   const router = useRouter()
   const hoy = new Date()
+  const [partidos, setPartidos] = useState<Partido[]>([])
+  const [loading, setLoading] = useState(true)
   const [viewYear, setViewYear] = useState(hoy.getFullYear())
   const [viewMonth, setViewMonth] = useState(hoy.getMonth())
+  const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({
+    open: false,
+    title: '',
+    message: '',
+    type: 'info'
+  })
+
+  useEffect(() => {
+    loadPartidos()
+  }, [])
+
+  const loadPartidos = async () => {
+    try {
+      setLoading(true)
+      const data = await getPartidos()
+      setPartidos(data)
+    } catch (error) {
+      setNotification({
+        open: true,
+        title: 'Error al cargar partidos',
+        message: error instanceof Error ? error.message : 'Error desconocido',
+        type: 'error'
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   // Build calendar grid for current month
   const diasDelMes = useMemo(() => {
@@ -40,24 +76,28 @@ export default function CalendarioPage() {
   // Set of days (as number) that have matches in the current month
   const diasConPartidos = useMemo(() => {
     const set = new Set<number>()
-    MOCK_PARTIDOS.forEach((p) => {
+    partidos.forEach((p) => {
       const [y, m, d] = p.fecha.split('-').map(Number)
       if (y === viewYear && m - 1 === viewMonth) {
         set.add(d)
       }
     })
     return set
-  }, [viewYear, viewMonth])
+  }, [partidos, viewYear, viewMonth])
 
   // Matches for the current viewed month
   const partidosDelMes = useMemo(() => {
-    return MOCK_PARTIDOS
+    return partidos
       .filter((p) => {
         const [y, m] = p.fecha.split('-').map(Number)
         return y === viewYear && m - 1 === viewMonth
       })
-      .sort((a, b) => a.fecha.localeCompare(b.fecha))
-  }, [viewYear, viewMonth])
+      .sort((a, b) => {
+        const dateCompare = a.fecha.localeCompare(b.fecha)
+        if (dateCompare !== 0) return dateCompare
+        return a.hora.localeCompare(b.hora)
+      })
+  }, [partidos, viewYear, viewMonth])
 
   // Navigation
   const mesAnterior = () => {
@@ -81,6 +121,47 @@ export default function CalendarioPage() {
   // Check if a day is today
   const esHoy = (dia: number) => {
     return dia === hoy.getDate() && viewMonth === hoy.getMonth() && viewYear === hoy.getFullYear()
+  }
+
+  const getEstadoBadge = (estado: Partido['estado']) => {
+    switch (estado) {
+      case 'programado':
+        return 'bg-blue-500/10 text-blue-500'
+      case 'en_curso':
+        return 'bg-green-500/10 text-green-500'
+      case 'finalizado':
+        return 'bg-slate-500/10 text-slate-500'
+      case 'suspendido':
+        return 'bg-yellow-500/10 text-yellow-500'
+      case 'cancelado':
+        return 'bg-red-500/10 text-red-500'
+    }
+  }
+
+  const getEstadoLabel = (estado: Partido['estado']) => {
+    switch (estado) {
+      case 'programado':
+        return 'Programado'
+      case 'en_curso':
+        return 'En curso'
+      case 'finalizado':
+        return 'Finalizado'
+      case 'suspendido':
+        return 'Suspendido'
+      case 'cancelado':
+        return 'Cancelado'
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-slate-500 dark:text-slate-400 text-sm">Cargando calendario...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -176,31 +257,50 @@ export default function CalendarioPage() {
           {partidosDelMes.length > 0 ? (
             <div className="flex flex-col gap-3">
               {partidosDelMes.map((p) => (
-                <div
+                <button
                   key={p.id}
-                  className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex items-center gap-4"
+                  onClick={() => router.push(`/dashboard/club/partidos/${p.id}`)}
+                  className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 hover:border-primary dark:hover:border-primary transition-colors text-left w-full"
                 >
-                  {/* Date and time on left */}
-                  <div className="text-center min-w-[50px]">
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {formatDate(p.fecha)}
-                    </p>
-                    <p className="text-lg font-bold text-slate-900 dark:text-white">{p.hora}</p>
-                  </div>
+                  <div className="flex items-start gap-4">
+                    {/* Date and time on left */}
+                    <div className="text-center min-w-[50px]">
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {formatDate(p.fecha)}
+                      </p>
+                      <p className="text-lg font-bold text-slate-900 dark:text-white">{p.hora}</p>
+                    </div>
 
-                  {/* Divider */}
-                  <div className="w-px h-10 bg-slate-200 dark:bg-slate-700" />
+                    {/* Divider */}
+                    <div className="w-px h-12 bg-slate-200 dark:border-slate-700" />
 
-                  {/* Match details */}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-slate-900 dark:text-white truncate">
-                      {p.equipoLocal} vs {p.equipoVisitante}
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                      {p.torneo} · {p.ubicacion}
-                    </p>
+                    {/* Match details */}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-slate-900 dark:text-white truncate">
+                        {p.equipo_local_nombre} vs {p.equipo_visitante_nombre}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        {p.torneo_nombre}
+                      </p>
+                      {p.ubicacion && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-1">
+                          <span className="material-symbols-outlined text-xs">location_on</span>
+                          {p.ubicacion}{p.cancha && ` - ${p.cancha}`}
+                        </p>
+                      )}
+                      <div className="mt-2">
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${getEstadoBadge(p.estado)}`}>
+                          {getEstadoLabel(p.estado)}
+                        </span>
+                      </div>
+                      {p.estado === 'finalizado' && p.resultado_local !== null && p.resultado_visitante !== null && (
+                        <p className="text-sm font-bold text-slate-700 dark:text-slate-300 mt-2">
+                          Resultado: {p.resultado_local} - {p.resultado_visitante}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           ) : (
@@ -216,6 +316,14 @@ export default function CalendarioPage() {
           )}
         </div>
       </div>
+
+      <NotificationModal
+        isOpen={notification.open}
+        onClose={() => setNotification(prev => ({ ...prev, open: false }))}
+        title={notification.title}
+        message={notification.message}
+        type={notification.type}
+      />
     </div>
   )
 }

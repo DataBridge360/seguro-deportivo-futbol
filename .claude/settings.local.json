@@ -3,7 +3,17 @@
     "allow": [
       "mcp__ide__getDiagnostics",
       "Bash(npm run build:*)",
-      "Bash(npx next lint:*)"
+      "Bash(npx next lint:*)",
+      "Bash(git restore:*)",
+      "Bash(git pull:*)",
+      "Bash(ls:*)",
+      "Bash(file:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx eslint:*)"
     ]
-  }
+  },
+  "disabledMcpjsonServers": [
+    "supabase"
+  ]
 }

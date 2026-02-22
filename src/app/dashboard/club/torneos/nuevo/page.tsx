@@ -2,242 +2,303 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { createTorneo } from '@/lib/api'
+import type { CreateTorneoDTO } from '@/types/club'
 import DatePicker from '@/components/ui/DatePicker'
 import NotificationModal from '@/components/ui/NotificationModal'
-import { EQUIPOS_NOMBRES } from '@/lib/mockData'
-
-const equiposDisponibles = [...EQUIPOS_NOMBRES]
-
-interface FormErrors {
-  nombre?: string
-  fechaInicio?: string
-  fechaFin?: string
-  equipos?: string
-}
 
 export default function NuevoTorneoPage() {
   const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' }>({
+    open: false,
+    title: '',
+    message: '',
+    type: 'success'
+  })
 
-  const [nombre, setNombre] = useState('')
-  const [fechaInicio, setFechaInicio] = useState('')
-  const [fechaFin, setFechaFin] = useState('')
-  const [equiposSeleccionados, setEquiposSeleccionados] = useState<string[]>([])
-  const [errors, setErrors] = useState<FormErrors>({})
-  const [showNotification, setShowNotification] = useState(false)
+  const [form, setForm] = useState<CreateTorneoDTO>({
+    nombre: '',
+    descripcion: '',
+    fecha_inicio: '',
+    fecha_fin: '',
+    estado: 'proximo',
+    inscripciones_abiertas: false,
+    max_jugadores_por_equipo: undefined,
+  })
 
-  const toggleEquipo = (equipo: string) => {
-    setEquiposSeleccionados((prev) =>
-      prev.includes(equipo)
-        ? prev.filter((e) => e !== equipo)
-        : [...prev, equipo]
-    )
-    if (errors.equipos) setErrors((prev) => ({ ...prev, equipos: undefined }))
+  const handleChange = (field: keyof CreateTorneoDTO, value: any) => {
+    setForm(prev => ({ ...prev, [field]: value }))
+    if (errors[field]) {
+      setErrors(prev => {
+        const next = { ...prev }
+        delete next[field]
+        return next
+      })
+    }
   }
 
-  const validate = () => {
-    const newErrors: FormErrors = {}
+  const validate = (): boolean => {
+    const newErrors: Record<string, string> = {}
 
-    if (!nombre.trim()) {
-      newErrors.nombre = 'El nombre del torneo es obligatorio'
+    if (!form.nombre.trim()) {
+      newErrors.nombre = 'El nombre es obligatorio'
+    } else if (form.nombre.length > 200) {
+      newErrors.nombre = 'El nombre no puede exceder 200 caracteres'
     }
 
-    if (!fechaInicio) {
-      newErrors.fechaInicio = 'La fecha de inicio es obligatoria'
+    if (form.descripcion && form.descripcion.length > 1000) {
+      newErrors.descripcion = 'La descripción no puede exceder 1000 caracteres'
     }
 
-    if (!fechaFin) {
-      newErrors.fechaFin = 'La fecha de finalización es obligatoria'
+    if (!form.fecha_inicio) {
+      newErrors.fecha_inicio = 'La fecha de inicio es obligatoria'
     }
 
-    if (fechaInicio && fechaFin && fechaFin <= fechaInicio) {
-      newErrors.fechaFin = 'La fecha de finalización debe ser posterior a la de inicio'
+    if (!form.fecha_fin) {
+      newErrors.fecha_fin = 'La fecha de fin es obligatoria'
     }
 
-    if (equiposSeleccionados.length === 0) {
-      newErrors.equipos = 'Seleccioná al menos un equipo participante'
+    if (form.fecha_inicio && form.fecha_fin) {
+      const inicio = new Date(form.fecha_inicio)
+      const fin = new Date(form.fecha_fin)
+      if (fin <= inicio) {
+        newErrors.fecha_fin = 'La fecha de fin debe ser posterior a la fecha de inicio'
+      }
+    }
+
+    if (form.max_jugadores_por_equipo !== undefined && form.max_jugadores_por_equipo < 1) {
+      newErrors.max_jugadores_por_equipo = 'Debe ser al menos 1 jugador'
     }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!validate()) return
+    if (!validate()) {
+      return
+    }
 
-    setShowNotification(true)
-  }
+    try {
+      setLoading(true)
 
-  const handleNotificationClose = () => {
-    setShowNotification(false)
-    router.push('/dashboard/club/torneos')
+      // Preparar datos para enviar (sin campos opcionales vacíos)
+      const data: CreateTorneoDTO = {
+        nombre: form.nombre.trim(),
+        fecha_inicio: form.fecha_inicio,
+        fecha_fin: form.fecha_fin,
+      }
+
+      if (form.descripcion?.trim()) {
+        data.descripcion = form.descripcion.trim()
+      }
+
+      if (form.estado) {
+        data.estado = form.estado
+      }
+
+      if (form.inscripciones_abiertas !== undefined) {
+        data.inscripciones_abiertas = form.inscripciones_abiertas
+      }
+
+      if (form.max_jugadores_por_equipo && form.max_jugadores_por_equipo > 0) {
+        data.max_jugadores_por_equipo = form.max_jugadores_por_equipo
+      }
+
+      await createTorneo(data)
+
+      setNotification({
+        open: true,
+        title: 'Torneo creado',
+        message: `El torneo "${form.nombre}" fue creado exitosamente`,
+        type: 'success'
+      })
+
+      // Redireccionar después de 2 segundos
+      setTimeout(() => {
+        router.push('/dashboard/club/torneos')
+      }, 2000)
+
+    } catch (error) {
+      setNotification({
+        open: true,
+        title: 'Error al crear torneo',
+        message: error instanceof Error ? error.message : 'Error desconocido',
+        type: 'error'
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="space-y-6 max-w-3xl">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-          Nuevo Torneo
-        </h1>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-          Registrá un nuevo torneo para tu club
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Nuevo Torneo</h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          Creá un nuevo torneo para tu club
         </p>
       </div>
 
       {/* Form */}
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-6 space-y-5"
-      >
-        {/* Nombre del torneo */}
+      <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 space-y-5">
+
+        {/* Nombre */}
         <div>
           <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">
-            Nombre del torneo
+            Nombre del torneo <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
-            value={nombre}
-            onChange={(e) => {
-              setNombre(e.target.value)
-              if (errors.nombre) setErrors((prev) => ({ ...prev, nombre: undefined }))
-            }}
-            placeholder="Ej: Torneo Apertura 2025"
+            value={form.nombre}
+            onChange={(e) => handleChange('nombre', e.target.value)}
+            placeholder="Ej: Apertura 2026"
+            maxLength={200}
             className={`w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-primary ${
-              errors.nombre
-                ? 'border-red-500'
-                : 'border-slate-300 dark:border-slate-600'
+              errors.nombre ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'
             }`}
           />
-          {errors.nombre && (
-            <p className="text-red-400 text-xs mt-1">{errors.nombre}</p>
-          )}
+          {errors.nombre && <p className="text-red-400 text-xs mt-1">{errors.nombre}</p>}
+        </div>
+
+        {/* Descripción */}
+        <div>
+          <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">
+            Descripción
+          </label>
+          <textarea
+            value={form.descripcion}
+            onChange={(e) => handleChange('descripcion', e.target.value)}
+            placeholder="Descripción del torneo (opcional)"
+            maxLength={1000}
+            rows={3}
+            className={`w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-primary resize-none ${
+              errors.descripcion ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'
+            }`}
+          />
+          {errors.descripcion && <p className="text-red-400 text-xs mt-1">{errors.descripcion}</p>}
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{form.descripcion?.length || 0}/1000</p>
         </div>
 
         {/* Fechas */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Fecha de inicio */}
           <div>
             <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">
-              Fecha de inicio
+              Fecha de inicio <span className="text-red-500">*</span>
             </label>
             <DatePicker
-              value={fechaInicio}
-              onChange={(value) => {
-                setFechaInicio(value)
-                if (errors.fechaInicio) setErrors((prev) => ({ ...prev, fechaInicio: undefined }))
-              }}
-              placeholder="dd/mm/aaaa"
-              hasError={!!errors.fechaInicio}
+              value={form.fecha_inicio}
+              onChange={(val) => handleChange('fecha_inicio', val)}
+              placeholder="Seleccionar fecha"
+              hasError={!!errors.fecha_inicio}
             />
-            {errors.fechaInicio && (
-              <p className="text-red-400 text-xs mt-1">{errors.fechaInicio}</p>
-            )}
+            {errors.fecha_inicio && <p className="text-red-400 text-xs mt-1">{errors.fecha_inicio}</p>}
           </div>
 
-          {/* Fecha de finalización */}
           <div>
             <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">
-              Fecha de finalización
+              Fecha de fin <span className="text-red-500">*</span>
             </label>
             <DatePicker
-              value={fechaFin}
-              onChange={(value) => {
-                setFechaFin(value)
-                if (errors.fechaFin) setErrors((prev) => ({ ...prev, fechaFin: undefined }))
-              }}
-              placeholder="dd/mm/aaaa"
-              hasError={!!errors.fechaFin}
+              value={form.fecha_fin}
+              onChange={(val) => handleChange('fecha_fin', val)}
+              placeholder="Seleccionar fecha"
+              hasError={!!errors.fecha_fin}
             />
-            {errors.fechaFin && (
-              <p className="text-red-400 text-xs mt-1">{errors.fechaFin}</p>
-            )}
+            {errors.fecha_fin && <p className="text-red-400 text-xs mt-1">{errors.fecha_fin}</p>}
           </div>
         </div>
 
-        {/* Equipos participantes */}
+        {/* Estado */}
         <div>
           <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">
-            Equipos participantes
+            Estado
           </label>
-          <div className="flex flex-wrap gap-3">
-            {equiposDisponibles.map((equipo) => {
-              const selected = equiposSeleccionados.includes(equipo)
-              return (
-                <button
-                  key={equipo}
-                  type="button"
-                  onClick={() => toggleEquipo(equipo)}
-                  className={`px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
-                    selected
-                      ? 'border-primary bg-primary/10 text-primary dark:text-primary'
-                      : errors.equipos
-                        ? 'border-red-500 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400'
-                        : 'border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:border-slate-400 dark:hover:border-slate-500'
-                  }`}
-                >
-                  <span className="flex items-center gap-2">
-                    <span
-                      className={`w-4 h-4 rounded border flex items-center justify-center text-[10px] ${
-                        selected
-                          ? 'bg-primary border-primary text-white'
-                          : errors.equipos
-                            ? 'border-red-500'
-                            : 'border-slate-400 dark:border-slate-500'
-                      }`}
-                    >
-                      {selected && (
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="w-3 h-3"
-                        >
-                          <path d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </span>
-                    {equipo}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-          {errors.equipos && (
-            <p className="text-red-400 text-xs mt-1">{errors.equipos}</p>
-          )}
+          <select
+            value={form.estado}
+            onChange={(e) => handleChange('estado', e.target.value as CreateTorneoDTO['estado'])}
+            className="w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:border-primary"
+          >
+            <option value="proximo">Próximo</option>
+            <option value="en_curso">En curso</option>
+            <option value="finalizado">Finalizado</option>
+            <option value="cancelado">Cancelado</option>
+          </select>
+        </div>
+
+        {/* Máximo de jugadores */}
+        <div>
+          <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">
+            Máximo de jugadores por equipo
+          </label>
+          <input
+            type="number"
+            min="1"
+            value={form.max_jugadores_por_equipo || ''}
+            onChange={(e) => handleChange('max_jugadores_por_equipo', e.target.value ? parseInt(e.target.value) : undefined)}
+            placeholder="Ej: 22"
+            className={`w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-primary ${
+              errors.max_jugadores_por_equipo ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'
+            }`}
+          />
+          {errors.max_jugadores_por_equipo && <p className="text-red-400 text-xs mt-1">{errors.max_jugadores_por_equipo}</p>}
+        </div>
+
+        {/* Inscripciones abiertas */}
+        <div className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            id="inscripciones"
+            checked={form.inscripciones_abiertas}
+            onChange={(e) => handleChange('inscripciones_abiertas', e.target.checked)}
+            className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-primary focus:ring-primary/50"
+          />
+          <label htmlFor="inscripciones" className="text-sm text-slate-600 dark:text-slate-300 cursor-pointer">
+            Inscripciones abiertas
+          </label>
         </div>
 
         {/* Buttons */}
-        <div className="flex justify-end gap-3 pt-2">
+        <div className="flex gap-3 pt-4">
           <button
             type="button"
-            onClick={() => router.push('/dashboard/club/torneos')}
-            className="px-5 py-2.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-900 dark:text-white rounded-lg text-sm font-medium transition-colors"
+            onClick={() => router.back()}
+            disabled={loading}
+            className="flex-1 px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
           >
             Cancelar
           </button>
           <button
             type="submit"
-            className="px-5 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            disabled={loading}
+            className="flex-1 px-5 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            Guardar
+            {loading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Creando...
+              </>
+            ) : (
+              <>
+                <span className="material-symbols-outlined text-lg">add</span>
+                Crear Torneo
+              </>
+            )}
           </button>
         </div>
       </form>
 
-      {/* Success Notification */}
       <NotificationModal
-        isOpen={showNotification}
-        onClose={handleNotificationClose}
-        title="Torneo creado"
-        message="El torneo se registró correctamente."
-        type="success"
+        isOpen={notification.open}
+        onClose={() => setNotification(prev => ({ ...prev, open: false }))}
+        title={notification.title}
+        message={notification.message}
+        type={notification.type}
       />
     </div>
   )

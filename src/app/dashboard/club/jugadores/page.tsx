@@ -1,31 +1,83 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { MOCK_JUGADORES, EQUIPOS_NOMBRES, CATEGORIAS, formatDate, isSeguroVigente } from '@/lib/mockData'
+import { useState, useEffect, useMemo } from 'react'
+import { getJugadores, type JugadorResponse } from '@/lib/api'
+import NotificationModal from '@/components/ui/NotificationModal'
+
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '-'
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+function isSeguroVigente(fechaFin: string | null | undefined): boolean {
+  if (!fechaFin) return false
+  return new Date(fechaFin) >= new Date()
+}
 
 export default function ClubJugadoresPage() {
+  const [jugadores, setJugadores] = useState<JugadorResponse[]>([])
+  const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState('')
-  const [filtroEquipo, setFiltroEquipo] = useState('')
-  const [filtroCategoria, setFiltroCategoria] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('')
+  const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({
+    open: false,
+    title: '',
+    message: '',
+    type: 'info'
+  })
+
+  useEffect(() => {
+    loadJugadores()
+  }, [])
+
+  const loadJugadores = async () => {
+    try {
+      setLoading(true)
+      const data = await getJugadores()
+      setJugadores(data)
+    } catch (error) {
+      setNotification({
+        open: true,
+        title: 'Error al cargar jugadores',
+        message: error instanceof Error ? error.message : 'Error desconocido',
+        type: 'error'
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const jugadoresFiltrados = useMemo(() => {
-    return MOCK_JUGADORES.filter((j) => {
+    return jugadores.filter((j) => {
       const search = busqueda.toLowerCase()
       const matchBusqueda =
         !busqueda ||
-        j.nombreCompleto.toLowerCase().includes(search) ||
+        j.nombre_completo.toLowerCase().includes(search) ||
         j.dni.includes(search)
-      const matchEquipo = !filtroEquipo || j.equipo === filtroEquipo
-      const matchCategoria = !filtroCategoria || j.categoria === filtroCategoria
-      const vigente = isSeguroVigente(j.seguroFin)
+
+      const vigente = isSeguroVigente(j.poliza_fin)
       const matchEstado =
         !filtroEstado ||
         (filtroEstado === 'vigente' && vigente) ||
-        (filtroEstado === 'sin_seguro' && !vigente)
-      return matchBusqueda && matchEquipo && matchCategoria && matchEstado
+        (filtroEstado === 'sin_seguro' && !vigente) ||
+        (filtroEstado === 'activo' && j.activo) ||
+        (filtroEstado === 'inactivo' && !j.activo)
+
+      return matchBusqueda && matchEstado
     })
-  }, [busqueda, filtroEquipo, filtroCategoria, filtroEstado])
+  }, [jugadores, busqueda, filtroEstado])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-slate-500 dark:text-slate-400 text-sm">Cargando jugadores...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -33,14 +85,16 @@ export default function ClubJugadoresPage() {
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Jugadores</h1>
         <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-          Listado de jugadores del club (solo lectura)
+          Listado de jugadores del club
         </p>
       </div>
 
       {/* Filtros */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-lg text-slate-400">
+            search
+          </span>
           <input
             type="text"
             placeholder="Buscar por nombre o DNI..."
@@ -50,134 +104,130 @@ export default function ClubJugadoresPage() {
           />
         </div>
         <select
-          value={filtroEquipo}
-          onChange={(e) => setFiltroEquipo(e.target.value)}
-          className="px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-primary min-w-[160px]"
-        >
-          <option value="">Todos los equipos</option>
-          {EQUIPOS_NOMBRES.map((equipo) => (
-            <option key={equipo} value={equipo}>
-              {equipo}
-            </option>
-          ))}
-        </select>
-        <select
-          value={filtroCategoria}
-          onChange={(e) => setFiltroCategoria(e.target.value)}
-          className="px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-primary min-w-[160px]"
-        >
-          <option value="">Todas las categorías</option>
-          {CATEGORIAS.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat}
-            </option>
-          ))}
-        </select>
-        <select
           value={filtroEstado}
           onChange={(e) => setFiltroEstado(e.target.value)}
-          className="px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-primary min-w-[160px]"
+          className="px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:border-primary min-w-[180px]"
         >
           <option value="">Todos los estados</option>
-          <option value="vigente">Vigente</option>
+          <option value="vigente">Con seguro vigente</option>
           <option value="sin_seguro">Sin seguro</option>
+          <option value="activo">Activos</option>
+          <option value="inactivo">Inactivos</option>
         </select>
       </div>
 
       {/* Contador */}
-      <p className="text-slate-500 dark:text-slate-400 text-sm">
-        {jugadoresFiltrados.length} jugador{jugadoresFiltrados.length !== 1 ? 'es' : ''}
-      </p>
+      <div className="flex items-center gap-2">
+        <span className="material-symbols-outlined text-slate-400 text-xl">group</span>
+        <p className="text-slate-500 dark:text-slate-400 text-sm">
+          {jugadoresFiltrados.length} jugador{jugadoresFiltrados.length !== 1 ? 'es' : ''}
+        </p>
+      </div>
 
       {/* Tabla */}
-      <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-left">
-              <th className="px-4 py-3 font-medium">Nombre</th>
-              <th className="px-4 py-3 font-medium">DNI</th>
-              <th className="px-4 py-3 font-medium hidden md:table-cell">Equipo</th>
-              <th className="px-4 py-3 font-medium hidden lg:table-cell">Categoría</th>
-              <th className="px-4 py-3 font-medium hidden lg:table-cell">Seguro</th>
-              <th className="px-4 py-3 font-medium">Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {jugadoresFiltrados.map((jugador) => {
-              const vigente = isSeguroVigente(jugador.seguroFin)
-              return (
-                <tr
-                  key={jugador.id}
-                  className="border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-100/50 dark:hover:bg-slate-700/30 transition-colors"
-                >
-                  <td className="px-4 py-3">
-                    <div>
-                      <p className="font-medium text-slate-900 dark:text-white">
-                        {jugador.nombreCompleto}
-                      </p>
-                      <p className="text-slate-500 dark:text-slate-400 text-xs md:hidden">
-                        {jugador.equipo}
-                      </p>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                    {jugador.dni}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300 hidden md:table-cell">
-                    {jugador.equipo}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300 hidden lg:table-cell">
-                    {jugador.categoria}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-300 hidden lg:table-cell">
-                    {formatDate(jugador.seguroInicio)} - {formatDate(jugador.seguroFin)}
-                  </td>
-                  <td className="px-4 py-3">
-                    {vigente ? (
-                      <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-green-500/10 text-green-500">
-                        Vigente
-                      </span>
-                    ) : (
-                      <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-red-500/10 text-red-400">
-                        Sin seguro
-                      </span>
-                    )}
+      {jugadores.length === 0 ? (
+        <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+          <span className="material-symbols-outlined text-5xl text-slate-300 dark:text-slate-600">person_off</span>
+          <p className="mt-3 text-slate-500 dark:text-slate-400 text-sm">No hay jugadores registrados</p>
+        </div>
+      ) : (
+        <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-left">
+                <th className="px-4 py-3 font-medium">Nombre</th>
+                <th className="px-4 py-3 font-medium">DNI</th>
+                <th className="px-4 py-3 font-medium hidden md:table-cell">Nacimiento</th>
+                <th className="px-4 py-3 font-medium hidden lg:table-cell">Póliza</th>
+                <th className="px-4 py-3 font-medium">Estado</th>
+                <th className="px-4 py-3 font-medium hidden sm:table-cell">Activo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {jugadoresFiltrados.map((jugador) => {
+                const vigente = isSeguroVigente(jugador.poliza_fin)
+                return (
+                  <tr
+                    key={jugador.id}
+                    className="border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-100/50 dark:hover:bg-slate-700/30 transition-colors"
+                  >
+                    <td className="px-4 py-3">
+                      <div>
+                        <p className="font-medium text-slate-900 dark:text-white">
+                          {jugador.nombre_completo}
+                        </p>
+                        <p className="text-slate-500 dark:text-slate-400 text-xs md:hidden">
+                          {formatDate(jugador.fecha_nacimiento)}
+                        </p>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300 font-mono">
+                      {jugador.dni}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300 hidden md:table-cell">
+                      {formatDate(jugador.fecha_nacimiento)}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-300 hidden lg:table-cell">
+                      {jugador.poliza_inicio && jugador.poliza_fin ? (
+                        <span className="text-xs">
+                          {formatDate(jugador.poliza_inicio)} - {formatDate(jugador.poliza_fin)}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 dark:text-slate-500">Sin póliza</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {vigente ? (
+                        <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-green-500/10 text-green-500">
+                          Vigente
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-red-500/10 text-red-400">
+                          Sin seguro
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 hidden sm:table-cell">
+                      {jugador.activo ? (
+                        <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-blue-500/10 text-blue-500">
+                          Activo
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-slate-500/10 text-slate-500">
+                          Inactivo
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+              {jugadoresFiltrados.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="px-4 py-12 text-center"
+                  >
+                    <span className="material-symbols-outlined text-3xl text-slate-300 dark:text-slate-600 block mb-2">
+                      search_off
+                    </span>
+                    <p className="text-slate-400 dark:text-slate-500 text-sm">
+                      No se encontraron jugadores
+                    </p>
                   </td>
                 </tr>
-              )
-            })}
-            {jugadoresFiltrados.length === 0 && (
-              <tr>
-                <td
-                  colSpan={6}
-                  className="px-4 py-12 text-center text-slate-400 dark:text-slate-500"
-                >
-                  No se encontraron jugadores
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-// Inline SVG icon
-function SearchIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <circle cx="11" cy="11" r="8" />
-      <path d="m21 21-4.3-4.3" />
-    </svg>
+      <NotificationModal
+        isOpen={notification.open}
+        onClose={() => setNotification(prev => ({ ...prev, open: false }))}
+        title={notification.title}
+        message={notification.message}
+        type={notification.type}
+      />
+    </div>
   )
 }
