@@ -3,6 +3,10 @@
 import Link from 'next/link'
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
+
+const WHATSAPP_NUMBER = '542996130664'
+const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`
+
 export default function JugadorPerfilPage() {
   const { user, logout } = useAuthStore()
   const { theme, toggleTheme } = useThemeStore()
@@ -14,11 +18,10 @@ export default function JugadorPerfilPage() {
   }
 
   const menuItems = [
-    { icon: 'person', label: 'Datos personales', href: '#' },
-    { icon: 'folder', label: 'Documentos personales', href: '/dashboard/jugador/documentos' },
-    { icon: 'lock', label: 'Cambiar contraseña', href: '#' },
-    { icon: 'notifications', label: 'Notificaciones', href: '#' },
-    { icon: 'help', label: 'Ayuda y soporte', href: '#' },
+    { icon: 'person', label: 'Datos personales', href: '/dashboard/jugador/perfil/datos' },
+    // { icon: 'folder', label: 'Documentos personales', href: '/dashboard/jugador/documentos' },
+    { icon: 'lock', label: 'Cambiar contraseña', href: '/dashboard/jugador/perfil/cambiar-contrasena' },
+    { icon: 'help', label: 'Ayuda y soporte', href: WHATSAPP_URL, external: true },
     { icon: 'description', label: 'Términos y condiciones', href: '#' },
   ]
 
@@ -85,6 +88,14 @@ export default function JugadorPerfilPage() {
               </>
             )
             const className = "flex items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-[#e5e7eb] dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors active:scale-[0.98]"
+
+            if ('external' in item && item.external) {
+              return (
+                <a key={index} href={item.href} target="_blank" rel="noopener noreferrer" className={className}>
+                  {content}
+                </a>
+              )
+            }
 
             return item.href !== '#' ? (
               <Link key={index} href={item.href} className={className}>

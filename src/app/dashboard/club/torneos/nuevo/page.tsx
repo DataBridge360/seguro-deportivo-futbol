@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createTorneo } from '@/lib/api'
-import type { CreateTorneoDTO } from '@/types/club'
+import { createTorneo, getCategorias } from '@/lib/api'
+import type { CreateTorneoDTO, Categoria } from '@/types/club'
 import DatePicker from '@/components/ui/DatePicker'
 import NotificationModal from '@/components/ui/NotificationModal'
 
@@ -18,15 +18,22 @@ export default function NuevoTorneoPage() {
     type: 'success'
   })
 
+  const [categorias, setCategorias] = useState<Categoria[]>([])
+
   const [form, setForm] = useState<CreateTorneoDTO>({
     nombre: '',
     descripcion: '',
     fecha_inicio: '',
     fecha_fin: '',
-    estado: 'proximo',
-    inscripciones_abiertas: false,
-    max_jugadores_por_equipo: undefined,
+    inscripcion_inicio: '',
+    inscripcion_fin: '',
+    max_jugadores_por_equipo: 0,
+    categoria_ids: [],
   })
+
+  useEffect(() => {
+    getCategorias().then(setCategorias).catch(() => {})
+  }, [])
 
   const handleChange = (field: keyof CreateTorneoDTO, value: any) => {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -37,6 +44,18 @@ export default function NuevoTorneoPage() {
         return next
       })
     }
+  }
+
+  const toggleCategoria = (catId: string) => {
+    setForm(prev => {
+      const ids = prev.categoria_ids || []
+      return {
+        ...prev,
+        categoria_ids: ids.includes(catId)
+          ? ids.filter(id => id !== catId)
+          : [...ids, catId],
+      }
+    })
   }
 
   const validate = (): boolean => {
@@ -68,8 +87,16 @@ export default function NuevoTorneoPage() {
       }
     }
 
-    if (form.max_jugadores_por_equipo !== undefined && form.max_jugadores_por_equipo < 1) {
-      newErrors.max_jugadores_por_equipo = 'Debe ser al menos 1 jugador'
+    if (!form.max_jugadores_por_equipo || form.max_jugadores_por_equipo < 1) {
+      newErrors.max_jugadores_por_equipo = 'El máximo de jugadores es obligatorio (mínimo 1)'
+    }
+
+    if (form.inscripcion_inicio && form.inscripcion_fin) {
+      const inscInicio = new Date(form.inscripcion_inicio)
+      const inscFin = new Date(form.inscripcion_fin)
+      if (inscFin < inscInicio) {
+        newErrors.inscripcion_fin = 'La fecha de cierre debe ser igual o posterior a la de apertura'
+      }
     }
 
     setErrors(newErrors)
@@ -91,22 +118,23 @@ export default function NuevoTorneoPage() {
         nombre: form.nombre.trim(),
         fecha_inicio: form.fecha_inicio,
         fecha_fin: form.fecha_fin,
+        max_jugadores_por_equipo: form.max_jugadores_por_equipo,
       }
 
       if (form.descripcion?.trim()) {
         data.descripcion = form.descripcion.trim()
       }
 
-      if (form.estado) {
-        data.estado = form.estado
+      if (form.inscripcion_inicio) {
+        data.inscripcion_inicio = form.inscripcion_inicio
       }
 
-      if (form.inscripciones_abiertas !== undefined) {
-        data.inscripciones_abiertas = form.inscripciones_abiertas
+      if (form.inscripcion_fin) {
+        data.inscripcion_fin = form.inscripcion_fin
       }
 
-      if (form.max_jugadores_por_equipo && form.max_jugadores_por_equipo > 0) {
-        data.max_jugadores_por_equipo = form.max_jugadores_por_equipo
+      if (form.categoria_ids && form.categoria_ids.length > 0) {
+        data.categoria_ids = form.categoria_ids
       }
 
       await createTorneo(data)
@@ -214,33 +242,16 @@ export default function NuevoTorneoPage() {
           </div>
         </div>
 
-        {/* Estado */}
-        <div>
-          <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">
-            Estado
-          </label>
-          <select
-            value={form.estado}
-            onChange={(e) => handleChange('estado', e.target.value as CreateTorneoDTO['estado'])}
-            className="w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:border-primary"
-          >
-            <option value="proximo">Próximo</option>
-            <option value="en_curso">En curso</option>
-            <option value="finalizado">Finalizado</option>
-            <option value="cancelado">Cancelado</option>
-          </select>
-        </div>
-
         {/* Máximo de jugadores */}
         <div>
           <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">
-            Máximo de jugadores por equipo
+            Máximo de jugadores por equipo <span className="text-red-500">*</span>
           </label>
           <input
             type="number"
             min="1"
             value={form.max_jugadores_por_equipo || ''}
-            onChange={(e) => handleChange('max_jugadores_por_equipo', e.target.value ? parseInt(e.target.value) : undefined)}
+            onChange={(e) => handleChange('max_jugadores_por_equipo', e.target.value ? parseInt(e.target.value) : 0)}
             placeholder="Ej: 22"
             className={`w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-primary ${
               errors.max_jugadores_por_equipo ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'
@@ -249,19 +260,73 @@ export default function NuevoTorneoPage() {
           {errors.max_jugadores_por_equipo && <p className="text-red-400 text-xs mt-1">{errors.max_jugadores_por_equipo}</p>}
         </div>
 
-        {/* Inscripciones abiertas */}
-        <div className="flex items-center gap-3">
-          <input
-            type="checkbox"
-            id="inscripciones"
-            checked={form.inscripciones_abiertas}
-            onChange={(e) => handleChange('inscripciones_abiertas', e.target.checked)}
-            className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-primary focus:ring-primary/50"
-          />
-          <label htmlFor="inscripciones" className="text-sm text-slate-600 dark:text-slate-300 cursor-pointer">
-            Inscripciones abiertas
+        {/* Período de inscripción */}
+        <div className="pb-6">
+          <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">
+            Período de inscripción
           </label>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mb-3">
+            Rango de fechas en el que los jugadores podrán inscribirse al torneo
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-slate-500 dark:text-slate-400 text-xs mb-1">
+                Apertura
+              </label>
+              <DatePicker
+                value={form.inscripcion_inicio || ''}
+                onChange={(val) => handleChange('inscripcion_inicio', val)}
+                placeholder="Fecha de apertura"
+                hasError={!!errors.inscripcion_inicio}
+              />
+              {errors.inscripcion_inicio && <p className="text-red-400 text-xs mt-1">{errors.inscripcion_inicio}</p>}
+            </div>
+            <div>
+              <label className="block text-slate-500 dark:text-slate-400 text-xs mb-1">
+                Cierre
+              </label>
+              <DatePicker
+                value={form.inscripcion_fin || ''}
+                onChange={(val) => handleChange('inscripcion_fin', val)}
+                placeholder="Fecha de cierre"
+                hasError={!!errors.inscripcion_fin}
+              />
+              {errors.inscripcion_fin && <p className="text-red-400 text-xs mt-1">{errors.inscripcion_fin}</p>}
+            </div>
+          </div>
         </div>
+
+        {/* Categorías */}
+        {categorias.length > 0 && (
+          <div>
+            <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">
+              Categorías del torneo
+            </label>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mb-3">
+              Seleccioná las categorías que participarán en este torneo
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {categorias.map((cat) => (
+                <label
+                  key={cat.id}
+                  className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border cursor-pointer transition-colors ${
+                    form.categoria_ids?.includes(cat.id)
+                      ? 'border-primary bg-primary/10 dark:bg-primary/20'
+                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={form.categoria_ids?.includes(cat.id) || false}
+                    onChange={() => toggleCategoria(cat.id)}
+                    className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary accent-primary"
+                  />
+                  <span className="text-sm text-slate-700 dark:text-slate-300">{cat.nombre}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Buttons */}
         <div className="flex gap-3 pt-4">

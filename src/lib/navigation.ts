@@ -72,20 +72,6 @@ export const navigationItems: NavItem[] = [
     roles: ['club']
   },
   {
-    label: 'Categorias',
-    href: '/dashboard/club/categorias',
-    icon: 'LayoutGrid',
-    materialIcon: 'grid_view',
-    roles: ['club']
-  },
-  {
-    label: 'Calendario',
-    href: '/dashboard/club/calendario',
-    icon: 'Calendar',
-    materialIcon: 'calendar_month',
-    roles: ['club']
-  },
-  {
     label: 'Notificaciones',
     href: '/dashboard/club/notificaciones',
     icon: 'Bell',
@@ -113,13 +99,6 @@ export const navigationItems: NavItem[] = [
     href: '/dashboard/jugador/torneos',
     icon: 'Trophy',
     materialIcon: 'emoji_events',
-    roles: ['jugador']
-  },
-  {
-    label: 'Calendario',
-    href: '/dashboard/jugador/calendario',
-    icon: 'Calendar',
-    materialIcon: 'calendar_month',
     roles: ['jugador']
   },
   {

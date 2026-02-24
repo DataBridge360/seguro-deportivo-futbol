@@ -2,24 +2,15 @@
 
 export interface CreateCategoriaDTO {
   nombre: string
-  descripcion?: string
-  edad_minima?: number
-  edad_maxima?: number
 }
 
 export interface UpdateCategoriaDTO {
   nombre?: string
-  descripcion?: string
-  edad_minima?: number
-  edad_maxima?: number
 }
 
 export interface Categoria {
   id: string
   nombre: string
-  descripcion?: string | null
-  edad_minima?: number | null
-  edad_maxima?: number | null
   club_id: string
   created_at: string
 }
@@ -31,9 +22,10 @@ export interface CreateTorneoDTO {
   descripcion?: string
   fecha_inicio: string
   fecha_fin: string
-  estado?: 'proximo' | 'en_curso' | 'finalizado' | 'cancelado'
-  inscripciones_abiertas?: boolean
-  max_jugadores_por_equipo?: number
+  inscripcion_inicio?: string
+  inscripcion_fin?: string
+  max_jugadores_por_equipo: number
+  categoria_ids?: string[]
 }
 
 export interface Torneo {
@@ -43,9 +35,12 @@ export interface Torneo {
   fecha_inicio: string
   fecha_fin: string
   estado: 'proximo' | 'en_curso' | 'finalizado' | 'cancelado'
+  inscripcion_inicio?: string | null
+  inscripcion_fin?: string | null
   inscripciones_abiertas: boolean
-  max_jugadores_por_equipo?: number | null
+  max_jugadores_por_equipo: number
   club_id: string
+  categorias?: Categoria[]
   created_at: string
   updated_at: string
 }
@@ -55,9 +50,12 @@ export interface Torneo {
 export interface CreateEquipoDTO {
   nombre: string
   logo_url?: string
-  color_primario?: string
-  color_secundario?: string
-  activo?: boolean
+  categoria_ids?: string[]
+}
+
+export interface UpdateEquipoDTO {
+  nombre?: string
+  logo_url?: string
   categoria_ids?: string[]
 }
 
@@ -66,8 +64,6 @@ export interface Equipo {
   nombre: string
   club_id: string
   logo_url?: string | null
-  color_primario?: string | null
-  color_secundario?: string | null
   activo: boolean
   categorias: Categoria[]
   created_at: string
@@ -179,8 +175,6 @@ export interface EquipoDetalle {
   id: string
   nombre: string
   logo_url?: string | null
-  color_primario?: string | null
-  color_secundario?: string | null
   plantel: JugadorPlantel[]
 }
 
@@ -199,4 +193,23 @@ export interface PartidoDetalle {
   observaciones?: string | null
   created_at: string
   updated_at: string
+}
+
+// Tipos para Jugadores en Equipo-Torneo
+
+export interface AgregarJugadorEquipoDTO {
+  jugador_id: string
+  numero_camiseta?: number
+  posicion?: string
+  capitan?: boolean
+}
+
+export interface JugadorEquipoTorneo {
+  id: string
+  jugador_id: string
+  nombre_completo: string
+  numero_camiseta?: number | null
+  posicion?: string | null
+  capitan: boolean
+  foto_url?: string | null
 }

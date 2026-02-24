@@ -3,9 +3,10 @@
 ## UI/UX
 
 ### Notificaciones y Alertas
-- **NUNCA usar `alert()`, `confirm()` o `prompt()` nativos del navegador**
-- Siempre usar modals de notificación personalizados para feedback al usuario
-- Mantener consistencia con el diseño glass/blur del proyecto
+- **NUNCA usar `alert()`, `confirm()` o `prompt()` nativos del navegador** (no funcionan bien en mobile y rompen la experiencia)
+- Para confirmaciones destructivas (eliminar, desinscribir, etc.) usar un **modal de confirmación personalizado** con botones Cancelar/Confirmar
+- Para feedback al usuario usar el componente `NotificationModal`
+- Mantener consistencia con el diseño glass/blur del proyecto (`backdrop-blur`, `bg-black/60`)
 
 ### Estilos
 - Usar Tailwind CSS para todos los estilos

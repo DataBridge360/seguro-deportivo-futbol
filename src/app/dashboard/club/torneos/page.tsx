@@ -33,14 +33,13 @@ function getEstadoLabel(estado: Torneo['estado']) {
 }
 
 function formatDate(dateString: string) {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const [y, m, d] = dateString.split('-')
+  return `${d}/${m}/${y}`
 }
 
 export default function ClubTorneosPage() {
   const [torneos, setTorneos] = useState<Torneo[]>([])
   const [loading, setLoading] = useState(true)
-  const [torneoSeleccionado, setTorneoSeleccionado] = useState<Torneo | null>(null)
   const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({ open: false, title: '', message: '', type: 'info' })
 
   useEffect(() => {
@@ -143,105 +142,37 @@ export default function ClubTorneosPage() {
                 </div>
               )}
 
-              {/* Toggle inscripciones */}
-              <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700">
-                <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-sm text-slate-400">how_to_reg</span>
-                  <span className="text-xs text-slate-500 dark:text-slate-400">Inscripciones</span>
+              {/* Período de inscripción */}
+              {(torneo.inscripcion_inicio || torneo.inscripcion_fin) && (
+                <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-700">
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-sm text-slate-400">how_to_reg</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Inscripciones</span>
+                  </div>
+                  {(() => {
+                    const hoy = new Date().toISOString().split('T')[0]
+                    const abierta = torneo.inscripcion_inicio && torneo.inscripcion_fin &&
+                      hoy >= torneo.inscripcion_inicio && hoy <= torneo.inscripcion_fin
+                    return (
+                      <span className={`text-xs font-semibold ${abierta ? 'text-green-500' : 'text-slate-400'}`}>
+                        {abierta ? 'Abiertas' : 'Cerradas'}
+                      </span>
+                    )
+                  })()}
                 </div>
-                <span className={`text-xs font-semibold ${torneo.inscripciones_abiertas ? 'text-green-500' : 'text-slate-400'}`}>
-                  {torneo.inscripciones_abiertas ? 'Abiertas' : 'Cerradas'}
-                </span>
-              </div>
+              )}
 
-              {/* Botones */}
-              <div className="mt-auto flex gap-2">
-                <button
-                  onClick={() => setTorneoSeleccionado(torneo)}
-                  className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors"
-                >
-                  Info
-                </button>
+              {/* Botón */}
+              <div className="mt-auto">
                 <Link
                   href={`/dashboard/club/torneos/${torneo.id}`}
-                  className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors text-center"
+                  className="block w-full px-4 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors text-center"
                 >
                   Gestionar
                 </Link>
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Modal de detalle */}
-      {torneoSeleccionado && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-          onClick={() => setTorneoSeleccionado(null)}
-        >
-          <div
-            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-6 max-w-md w-full shadow-2xl max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header del modal */}
-            <div className="flex items-start justify-between gap-3 mb-4">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                {torneoSeleccionado.nombre}
-              </h2>
-              <span
-                className={`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getBadgeClasses(torneoSeleccionado.estado)}`}
-              >
-                {getEstadoLabel(torneoSeleccionado.estado)}
-              </span>
-            </div>
-
-            {/* Descripción */}
-            {torneoSeleccionado.descripcion && (
-              <div className="mb-4">
-                <p className="text-sm font-semibold text-slate-900 dark:text-white mb-2">
-                  Descripción
-                </p>
-                <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-                  {torneoSeleccionado.descripcion}
-                </p>
-              </div>
-            )}
-
-            {/* Fechas */}
-            <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-4">
-              <span className="material-symbols-outlined text-lg">calendar_today</span>
-              <span>
-                {formatDate(torneoSeleccionado.fecha_inicio)} - {formatDate(torneoSeleccionado.fecha_fin)}
-              </span>
-            </div>
-
-            {/* Inscripciones estado */}
-            <div className="flex items-center gap-2 mb-4">
-              <span className="material-symbols-outlined text-lg text-slate-400">how_to_reg</span>
-              <span className={`text-sm font-medium ${torneoSeleccionado.inscripciones_abiertas ? 'text-green-500' : 'text-slate-500 dark:text-slate-400'}`}>
-                {torneoSeleccionado.inscripciones_abiertas ? 'Inscripciones abiertas' : 'Inscripciones cerradas'}
-              </span>
-            </div>
-
-            {/* Max jugadores */}
-            {torneoSeleccionado.max_jugadores_por_equipo && (
-              <div className="flex items-center gap-2 mb-4">
-                <span className="material-symbols-outlined text-lg text-slate-400">group</span>
-                <span className="text-sm text-slate-600 dark:text-slate-400">
-                  Máximo {torneoSeleccionado.max_jugadores_por_equipo} jugadores por equipo
-                </span>
-              </div>
-            )}
-
-            {/* Boton cerrar */}
-            <button
-              onClick={() => setTorneoSeleccionado(null)}
-              className="w-full px-5 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors mt-4"
-            >
-              Cerrar
-            </button>
-          </div>
         </div>
       )}
 

@@ -24,7 +24,6 @@ function getBackRoute(pathname: string): string {
     '/dashboard/jugador/cupones',
     '/dashboard/jugador/torneos',
     '/dashboard/jugador/perfil',
-    '/dashboard/jugador/calendario',
     '/dashboard/jugador/documentos',
   ]
 
@@ -79,7 +78,19 @@ export default function DashboardLayout({
         <header className="hidden md:block sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
             <div className="flex justify-between items-center h-14 px-6 rounded-2xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-lg shadow-black/5">
-              <span className="font-bold text-lg tracking-tight uppercase text-slate-900 dark:text-white">Seguro Deportivo</span>
+              <div className="flex items-center gap-2.5">
+                <Image
+                  src="/logo.png"
+                  alt="Logo del Club"
+                  width={36}
+                  height={36}
+                  className="size-9 rounded-full object-cover"
+                />
+                <div className="leading-tight">
+                  <h1 className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">Complejo Deportivo</h1>
+                  <p className="text-[10px] text-primary font-bold">Plaza Huincul</p>
+                </div>
+              </div>
 
               {/* Module Navigation - Desktop */}
               <nav className="flex items-center gap-1 p-1">
@@ -146,9 +157,19 @@ export default function DashboardLayout({
                 <div className="size-9" />
               )}
             </div>
-            <h2 className="text-slate-900 dark:text-white text-sm sm:text-base font-bold leading-tight flex-1 text-center uppercase tracking-[0.08em]">
-              Seguro Deportivo
-            </h2>
+            <div className="flex items-center gap-2 flex-1 justify-center">
+              <Image
+                src="/logo.png"
+                alt="Logo del Club"
+                width={28}
+                height={28}
+                className="size-7 rounded-full object-cover"
+              />
+              <div className="leading-tight">
+                <h1 className="text-xs font-bold text-slate-900 dark:text-white">Complejo Deportivo</h1>
+                <p className="text-[9px] text-primary font-bold">Plaza Huincul</p>
+              </div>
+            </div>
             <div className="flex w-9 items-center justify-end">
               <Link
                 href="/dashboard/notificaciones"

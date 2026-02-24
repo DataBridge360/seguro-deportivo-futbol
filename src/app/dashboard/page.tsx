@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/authStore'
+import { QRCodeSVG } from 'qrcode.react'
+import Image from 'next/image'
 import Link from 'next/link'
 
 // Modal QR
-function QRModal({ isOpen, onClose, memberId }: { isOpen: boolean; onClose: () => void; memberId: string }) {
+function QRModal({ isOpen, onClose, dni }: { isOpen: boolean; onClose: () => void; dni: string }) {
   if (!isOpen) return null
 
   return (
@@ -18,11 +20,7 @@ function QRModal({ isOpen, onClose, memberId }: { isOpen: boolean; onClose: () =
         <div className="text-center">
           <h3 className="text-lg font-bold text-[#111518] dark:text-white mb-4">Codigo QR</h3>
           <div className="bg-white p-4 rounded-xl inline-block mb-4">
-            {/* Placeholder QR - en produccion usar libreria de QR */}
-            <div className="w-48 h-48 bg-[#111518] rounded-lg flex items-center justify-center relative">
-              <div className="absolute inset-4 border-4 border-white rounded"></div>
-              <span className="text-white text-xs font-mono">{memberId}</span>
-            </div>
+            <QRCodeSVG value={dni} size={192} level="H" />
           </div>
           <p className="text-sm text-[#617989] dark:text-slate-400 mb-4">
             Mostra este codigo para verificar tu identidad
@@ -59,26 +57,27 @@ function CredentialCard({ memberData, onShowQR, variant = 'mobile' }: {
         backdropFilter: 'blur(12px)',
       }}
     >
-      {/* Background decoration */}
-      <div className={`absolute opacity-10 pointer-events-none ${isDesktop ? '-right-4 -bottom-4 group-hover:scale-110 transition-transform duration-700' : 'inset-0 overflow-hidden'}`}>
-        <span className={`material-symbols-outlined ${isDesktop ? 'text-[180px]' : 'text-[240px] absolute -right-8 -bottom-8 rotate-12'}`}>
-          sports_soccer
-        </span>
+      {/* Background club logo */}
+      <div className={`absolute pointer-events-none ${isDesktop ? '-right-10 -bottom-10 group-hover:scale-110 transition-transform duration-700' : 'right-[-30px] bottom-[-30px]'}`}>
+        <Image
+          src="/logo.png"
+          alt=""
+          width={isDesktop ? 320 : 360}
+          height={isDesktop ? 320 : 360}
+          className="opacity-[0.12] rotate-12"
+          style={{ filter: 'brightness(2) grayscale(0.3)' }}
+        />
       </div>
 
       {/* Card content */}
       <div className={`relative ${isDesktop ? '' : 'h-full p-5'} flex flex-col ${isDesktop ? 'gap-6' : 'justify-between'}`}>
-        {/* Top section - Name left, ID right */}
+        {/* Top section - Name */}
         <div className={`flex justify-between items-start ${isDesktop ? 'mb-2' : ''} relative z-10`}>
           <div>
             <h1 className={`${isDesktop ? 'text-2xl' : 'text-2xl'} font-bold leading-tight tracking-tight`}>
               {memberData.name}
             </h1>
             <p className={`${isDesktop ? 'text-sky-100 text-sm' : 'text-xs'} opacity-90 mt-0.5`}>{memberData.club}</p>
-          </div>
-          <div className="text-right">
-            <p className={`${isDesktop ? 'text-[10px] text-sky-200' : 'text-[9px] opacity-60'} uppercase font-bold tracking-wider`}>ID de Socio</p>
-            <p className={`${isDesktop ? 'text-sm' : 'text-sm'} font-mono tracking-wider font-medium`}>#{memberData.id}</p>
           </div>
         </div>
 
@@ -111,9 +110,15 @@ function CredentialCard({ memberData, onShowQR, variant = 'mobile' }: {
             <p className={`${isDesktop ? 'text-[10px] text-sky-200' : 'text-[8px] opacity-60'} uppercase font-bold tracking-wider`}>Vigencia del Seguro</p>
             <p className={`${isDesktop ? 'text-sm font-semibold' : 'text-xs font-semibold'}`}>{memberData.insuranceStart} - {memberData.insuranceEnd}</p>
           </div>
-          <span className={`${isDesktop ? 'bg-emerald-400 text-emerald-950 text-[10px] font-black px-3 py-1 ring-4 ring-emerald-400/20' : 'bg-green-500/20 backdrop-blur-md border border-green-400/30 text-green-300 text-[10px] px-2.5 py-0.5'} rounded-full uppercase tracking-wider font-bold`}>
-            ACTIVO
-          </span>
+          {memberData.status === 'activo' ? (
+            <span className={`${isDesktop ? 'bg-emerald-400 text-emerald-950 text-[10px] font-black px-3 py-1 ring-4 ring-emerald-400/20' : 'bg-green-500/20 backdrop-blur-md border border-green-400/30 text-green-300 text-[10px] px-2.5 py-0.5'} rounded-full uppercase tracking-wider font-bold`}>
+              ACTIVO
+            </span>
+          ) : (
+            <span className={`${isDesktop ? 'bg-red-400 text-red-950 text-[10px] font-black px-3 py-1 ring-4 ring-red-400/20' : 'bg-red-500/20 backdrop-blur-md border border-red-400/30 text-red-300 text-[10px] px-2.5 py-0.5'} rounded-full uppercase tracking-wider font-bold`}>
+              VENCIDO
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -146,16 +151,6 @@ function MobileShortcuts() {
         <span className="material-symbols-outlined text-[#617989] transition-transform group-hover:translate-x-1">chevron_right</span>
       </Link>
 
-      <Link href="/dashboard/jugador/calendario" className="group flex items-center gap-3 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.04)] border border-transparent hover:border-indigo-500/20 transition-all active:scale-[0.98]">
-        <div className="size-12 rounded-2xl bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center text-indigo-500 transition-colors group-hover:bg-indigo-500 group-hover:text-white">
-          <span className="material-symbols-outlined text-2xl">calendar_month</span>
-        </div>
-        <div className="flex-1 text-left">
-          <p className="font-bold text-[#111518] dark:text-white text-base">Calendario</p>
-          <p className="text-[11px] text-[#617989] dark:text-slate-400">Proximos partidos y entrenamientos</p>
-        </div>
-        <span className="material-symbols-outlined text-[#617989] transition-transform group-hover:translate-x-1">chevron_right</span>
-      </Link>
     </div>
   )
 }
@@ -165,8 +160,7 @@ function DesktopShortcuts() {
   const shortcuts = [
     { icon: 'confirmation_number', title: 'Ver cupones', desc: 'Descuentos exclusivos y beneficios', color: 'orange', href: '/dashboard/jugador/cupones' },
     { icon: 'emoji_events', title: 'Torneos', desc: 'Inscripciones y mis torneos', color: 'blue', href: '/dashboard/jugador/torneos' },
-    { icon: 'calendar_month', title: 'Calendario', desc: 'Proximos partidos y entrenamientos', color: 'indigo', href: '/dashboard/jugador/calendario' },
-    { icon: 'description', title: 'Documentos', desc: 'DNI, ficha medica y contratos', color: 'purple', href: '/dashboard/jugador/documentos' },
+    // { icon: 'description', title: 'Documentos', desc: 'DNI, ficha medica y contratos', color: 'purple', href: '/dashboard/jugador/documentos' },
   ]
 
   const colorClasses: Record<string, string> = {
@@ -198,55 +192,71 @@ function DesktopShortcuts() {
   )
 }
 
-// Proximo partido (desktop only)
-function NextMatch() {
-  return (
-    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-8 flex flex-col md:flex-row items-center justify-between gap-8">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center">
-          <span className="material-symbols-outlined text-3xl text-slate-600 dark:text-slate-300">shield</span>
-        </div>
-        <span className="font-bold text-sm text-slate-900 dark:text-white">River Plate</span>
-      </div>
-
-      <div className="flex flex-col items-center text-center">
-        <span className="bg-primary/10 text-primary text-[10px] font-black px-3 py-1 rounded-full mb-2">LIGA PROFESIONAL</span>
-        <div className="flex items-center gap-6">
-          <span className="text-3xl font-black text-slate-300 dark:text-slate-600">VS</span>
-        </div>
-        <p className="mt-4 font-bold text-2xl text-slate-900 dark:text-white">Domingo 15:30</p>
-        <p className="text-xs text-slate-500">Estadio Monumental</p>
-      </div>
-
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-16 h-16 bg-slate-100 dark:bg-slate-700 rounded-full flex items-center justify-center">
-          <span className="material-symbols-outlined text-3xl text-slate-600 dark:text-slate-300">shield</span>
-        </div>
-        <span className="font-bold text-sm text-slate-900 dark:text-white">Boca Juniors</span>
-      </div>
-    </div>
-  )
-}
-
 // Componente del dashboard para jugador
 function JugadorDashboard() {
   const { user } = useAuthStore()
   const [showQR, setShowQR] = useState(false)
-
-  const memberData = {
-    id: 'SC-2024-9981',
+  const [loading, setLoading] = useState(true)
+  const [dniRaw, setDniRaw] = useState('')
+  const [memberData, setMemberData] = useState({
     name: user?.name || 'Usuario',
-    club: 'River Plate',
-    dni: '44.201.327',
-    birthDate: '05/11/2002',
-    insuranceStart: '02/03/2025',
-    insuranceEnd: '02/03/2026',
+    club: '',
+    dni: '',
+    birthDate: '',
+    insuranceStart: '',
+    insuranceEnd: '',
     status: 'activo',
+  })
+
+  useEffect(() => {
+    loadPerfil()
+  }, [])
+
+  const loadPerfil = async () => {
+    try {
+      const { getJugadorPerfil } = await import('@/lib/api')
+      const perfil = await getJugadorPerfil()
+
+      const formatDate = (dateStr: string | null | undefined) => {
+        if (!dateStr) return '-'
+        const date = new Date(dateStr)
+        return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      }
+
+      const clubNombre = perfil.clubes?.[0]?.nombre || ''
+      const vigente = perfil.poliza_fin ? new Date(perfil.poliza_fin) >= new Date() : false
+
+      setDniRaw(perfil.dni)
+      setMemberData({
+        name: perfil.nombre_completo || user?.name || 'Usuario',
+        club: clubNombre,
+        dni: perfil.dni.replace(/\B(?=(\d{3})+(?!\d))/g, '.'),
+        birthDate: formatDate(perfil.fecha_nacimiento),
+        insuranceStart: formatDate(perfil.poliza_inicio),
+        insuranceEnd: formatDate(perfil.poliza_fin),
+        status: vigente ? 'activo' : 'inactivo',
+      })
+    } catch (error) {
+      console.error('Error al cargar perfil:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-slate-500 dark:text-slate-400 text-sm">Cargando...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
     <>
-      <QRModal isOpen={showQR} onClose={() => setShowQR(false)} memberId={memberData.id} />
+      <QRModal isOpen={showQR} onClose={() => setShowQR(false)} dni={dniRaw} />
 
       {/* Mobile Layout */}
       <div className="md:hidden space-y-6">
@@ -278,20 +288,10 @@ function JugadorDashboard() {
             </div>
           </div>
 
-          {/* Right column - Shortcuts and Match */}
-          <div className="lg:col-span-7 space-y-8">
-            <div>
-              <h2 className="text-xs font-bold tracking-[0.2em] text-slate-400 uppercase mb-4">Atajos Rapidos</h2>
-              <DesktopShortcuts />
-            </div>
-
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xs font-bold tracking-[0.2em] text-slate-400 uppercase">Proximo Partido</h2>
-                <button className="text-primary text-xs font-bold hover:underline">Ver fixture completo</button>
-              </div>
-              <NextMatch />
-            </div>
+          {/* Right column - Shortcuts */}
+          <div className="lg:col-span-7">
+            <h2 className="text-xs font-bold tracking-[0.2em] text-slate-400 uppercase mb-4">Atajos Rapidos</h2>
+            <DesktopShortcuts />
           </div>
         </div>
       </div>
@@ -332,15 +332,12 @@ function AdminDashboard() {
 // Dashboard del Club
 function ClubDashboard() {
   const { user } = useAuthStore()
-  const router = useRouter()
 
   const [loading, setLoading] = useState(true)
   const [jugadoresTotal, setJugadoresTotal] = useState(0)
   const [equiposTotal, setEquiposTotal] = useState(0)
   const [torneosActivos, setTorneosActivos] = useState(0)
   const [sinSeguro, setSinSeguro] = useState(0)
-  const [proximosPartidos, setProximosPartidos] = useState<any[]>([])
-
   useEffect(() => {
     loadDashboardData()
   }, [])
@@ -350,14 +347,13 @@ function ClubDashboard() {
       setLoading(true)
 
       // Importar las funciones API
-      const { getJugadores, getEquipos, getTorneos, getPartidos } = await import('@/lib/api')
+      const { getJugadores, getEquipos, getTorneos } = await import('@/lib/api')
 
       // Cargar datos en paralelo
-      const [jugadores, equipos, torneos, partidos] = await Promise.all([
+      const [jugadores, equipos, torneos] = await Promise.all([
         getJugadores(),
         getEquipos(),
         getTorneos(),
-        getPartidos()
       ])
 
       // Calcular estadísticas
@@ -374,28 +370,6 @@ function ClubDashboard() {
         return finPoliza < hoy
       })
       setSinSeguro(jugadoresSinSeguro.length)
-
-      // Próximos partidos (solo programados, ordenados por fecha, máximo 3)
-      const hoyStr = new Date().toISOString().split('T')[0]
-      const partidosFuturos = partidos
-        .filter(p => p.estado === 'programado' && p.fecha >= hoyStr)
-        .sort((a, b) => {
-          const dateCompare = a.fecha.localeCompare(b.fecha)
-          if (dateCompare !== 0) return dateCompare
-          return a.hora.localeCompare(b.hora)
-        })
-        .slice(0, 3)
-        .map(p => ({
-          id: p.id,
-          fecha: p.fecha,
-          hora: p.hora,
-          equipo: p.equipo_local_nombre,
-          rival: p.equipo_visitante_nombre,
-          torneo: p.torneo_nombre,
-          ubicacion: p.ubicacion || 'Por definir'
-        }))
-
-      setProximosPartidos(partidosFuturos)
     } catch (error) {
       console.error('Error al cargar datos del dashboard:', error)
     } finally {
@@ -475,50 +449,6 @@ function ClubDashboard() {
         </div>
       </div>
 
-      {/* Proximos partidos */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-bold flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-primary" />
-            Proximos partidos
-          </h2>
-          <Link
-            href="/dashboard/club/calendario"
-            className="text-primary text-xs font-medium hover:underline"
-          >
-            Ver calendario
-          </Link>
-        </div>
-        <div className="flex flex-col gap-3">
-          {proximosPartidos.length > 0 ? proximosPartidos.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => router.push(`/dashboard/club/partidos/${p.id}`)}
-              className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 flex items-center gap-4 hover:border-primary transition-colors text-left w-full"
-            >
-              <div className="text-center min-w-[50px]">
-                <p className="text-xs text-slate-500 dark:text-slate-400">{new Date(p.fecha + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })}</p>
-                <p className="text-lg font-bold text-slate-900 dark:text-white">{p.hora}</p>
-              </div>
-              <div className="w-px h-10 bg-slate-200 dark:bg-slate-700" />
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-slate-900 dark:text-white truncate">
-                  {p.equipo} vs {p.rival}
-                </p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{p.torneo} · {p.ubicacion}</p>
-              </div>
-              <span className="hidden sm:inline-flex px-2.5 py-1 bg-primary/10 text-primary text-xs font-medium rounded-full">
-                {p.equipo}
-              </span>
-            </button>
-          )) : (
-            <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
-              <span className="material-symbols-outlined text-3xl text-slate-300 dark:text-slate-600">event_busy</span>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">No hay partidos próximos</p>
-            </div>
-          )}
-        </div>
-      </div>
     </div>
   )
 }
