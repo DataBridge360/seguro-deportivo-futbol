@@ -6,6 +6,22 @@ import { getTorneos } from '@/lib/api'
 import type { Torneo } from '@/types/club'
 import NotificationModal from '@/components/ui/NotificationModal'
 
+// Calcular estado automático basado en fechas
+function calcularEstado(torneo: Torneo): Torneo['estado'] {
+  // Si está cancelado, respetar ese estado
+  if (torneo.estado === 'cancelado') return 'cancelado'
+
+  const hoy = new Date().toISOString().split('T')[0]
+
+  if (hoy < torneo.fecha_inicio) {
+    return 'proximo'
+  } else if (hoy >= torneo.fecha_inicio && hoy <= torneo.fecha_fin) {
+    return 'en_curso'
+  } else {
+    return 'finalizado'
+  }
+}
+
 function getBadgeClasses(estado: Torneo['estado']) {
   switch (estado) {
     case 'en_curso':
@@ -102,7 +118,9 @@ export default function ClubTorneosPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {torneos.map((torneo) => (
+          {torneos.map((torneo) => {
+            const estadoCalculado = calcularEstado(torneo)
+            return (
             <div
               key={torneo.id}
               className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 flex flex-col gap-4"
@@ -113,11 +131,25 @@ export default function ClubTorneosPage() {
                   {torneo.nombre}
                 </h3>
                 <span
-                  className={`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getBadgeClasses(torneo.estado)}`}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getBadgeClasses(estadoCalculado)}`}
                 >
-                  {getEstadoLabel(torneo.estado)}
+                  {getEstadoLabel(estadoCalculado)}
                 </span>
               </div>
+
+              {/* Categorías */}
+              {torneo.categorias && torneo.categorias.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {torneo.categorias.map((cat) => (
+                    <span
+                      key={cat.id}
+                      className="px-2 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded-full"
+                    >
+                      {cat.nombre}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {/* Descripción */}
               {torneo.descripcion && (
@@ -172,7 +204,8 @@ export default function ClubTorneosPage() {
                 </Link>
               </div>
             </div>
-          ))}
+          )}
+          )}
         </div>
       )}
 

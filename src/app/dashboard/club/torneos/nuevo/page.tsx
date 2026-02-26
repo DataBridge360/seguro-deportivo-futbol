@@ -56,6 +56,14 @@ export default function NuevoTorneoPage() {
           : [...ids, catId],
       }
     })
+    // Limpiar error de categorías si existe
+    if (errors.categoria_ids) {
+      setErrors(prev => {
+        const next = { ...prev }
+        delete next.categoria_ids
+        return next
+      })
+    }
   }
 
   const validate = (): boolean => {
@@ -89,6 +97,10 @@ export default function NuevoTorneoPage() {
 
     if (!form.max_jugadores_por_equipo || form.max_jugadores_por_equipo < 1) {
       newErrors.max_jugadores_por_equipo = 'El máximo de jugadores es obligatorio (mínimo 1)'
+    }
+
+    if (!form.categoria_ids || form.categoria_ids.length === 0) {
+      newErrors.categoria_ids = 'Debe seleccionar al menos una categoría'
     }
 
     if (form.inscripcion_inicio && form.inscripcion_fin) {
@@ -300,12 +312,14 @@ export default function NuevoTorneoPage() {
         {categorias.length > 0 && (
           <div>
             <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">
-              Categorías del torneo
+              Categorías del torneo <span className="text-red-500">*</span>
             </label>
             <p className="text-xs text-slate-400 dark:text-slate-500 mb-3">
               Seleccioná las categorías que participarán en este torneo
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className={`grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 rounded-lg border ${
+              errors.categoria_ids ? 'border-red-500 bg-red-50/50 dark:bg-red-500/5' : 'border-transparent'
+            }`}>
               {categorias.map((cat) => (
                 <label
                   key={cat.id}
@@ -325,6 +339,7 @@ export default function NuevoTorneoPage() {
                 </label>
               ))}
             </div>
+            {errors.categoria_ids && <p className="text-red-400 text-xs mt-1">{errors.categoria_ids}</p>}
           </div>
         )}
 

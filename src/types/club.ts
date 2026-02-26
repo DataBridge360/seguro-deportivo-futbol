@@ -208,8 +208,12 @@ export interface JugadorEquipoTorneo {
   id: string
   jugador_id: string
   nombre_completo: string
+  nombre?: string | null
+  apellido?: string | null
   numero_camiseta?: number | null
   posicion?: string | null
   capitan: boolean
   foto_url?: string | null
+  dni?: string | null
+  fecha_nacimiento?: string | null
 }

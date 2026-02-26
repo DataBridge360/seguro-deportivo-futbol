@@ -223,7 +223,7 @@ export default function NuevoEquipoPage() {
                     onChange={() => toggleCategoria(cat.id)}
                     className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary/50"
                   />
-                  <span className="text-sm text-slate-900 dark:text-white">+{cat.nombre}</span>
+                  <span className="text-sm text-slate-900 dark:text-white">{cat.nombre}</span>
                 </label>
               ))}
             </div>

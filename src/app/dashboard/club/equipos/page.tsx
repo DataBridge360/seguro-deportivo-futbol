@@ -128,7 +128,7 @@ export default function EquiposPage() {
       // Reload equipos to update their category associations
       const equiposData = await getEquipos()
       setEquipos(equiposData)
-      setNotification({ open: true, title: 'Categoría eliminada', message: `Se eliminó "+${cat.nombre}"`, type: 'success' })
+      setNotification({ open: true, title: 'Categoría eliminada', message: `Se eliminó "${cat.nombre}"`, type: 'success' })
     } catch (err) {
       setNotification({ open: true, title: 'Error al eliminar', message: err instanceof Error ? err.message : 'Error desconocido', type: 'error' })
     }
@@ -149,11 +149,11 @@ export default function EquiposPage() {
         // Reload equipos to reflect updated category name
         const equiposData = await getEquipos()
         setEquipos(equiposData)
-        setNotification({ open: true, title: 'Categoría actualizada', message: `Categoría "+${catNombre}" actualizada`, type: 'success' })
+        setNotification({ open: true, title: 'Categoría actualizada', message: `Categoría "${catNombre}" actualizada`, type: 'success' })
       } else {
         const created = await createCategoria({ nombre: catNombre.trim() })
         setAllCategorias(prev => [...prev, created])
-        setNotification({ open: true, title: 'Categoría creada', message: `Categoría "+${catNombre}" creada`, type: 'success' })
+        setNotification({ open: true, title: 'Categoría creada', message: `Categoría "${catNombre}" creada`, type: 'success' })
       }
 
       setCatModal(false)
@@ -350,7 +350,7 @@ export default function EquiposPage() {
               <div className="flex flex-wrap gap-2 mb-3">
                 {allCategorias.map((cat) => (
                   <div key={cat.id} className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-1.5">
-                    <span className="text-sm font-bold text-slate-900 dark:text-white">+{cat.nombre}</span>
+                    <span className="text-sm font-bold text-slate-900 dark:text-white">{cat.nombre}</span>
                     <button
                       onClick={() => handleEditarCategoria(cat)}
                       className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors"
@@ -424,7 +424,7 @@ export default function EquiposPage() {
                       : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-primary/40'
                   }`}
                 >
-                  +{cat.nombre}
+                  {cat.nombre}
                 </button>
               ))}
             </div>
@@ -517,7 +517,7 @@ export default function EquiposPage() {
                         key={cat.id}
                         className="inline-block px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary"
                       >
-                        +{cat.nombre}
+                        {cat.nombre}
                       </span>
                     ))}
                   </div>
@@ -565,7 +565,7 @@ export default function EquiposPage() {
                       className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-900/50"
                     >
                       <span className="material-symbols-outlined text-lg text-green-500">check_circle</span>
-                      <p className="text-sm font-medium text-slate-900 dark:text-white">+{cat.nombre}</p>
+                      <p className="text-sm font-medium text-slate-900 dark:text-white">{cat.nombre}</p>
                     </div>
                   ))}
                 </div>
@@ -679,7 +679,7 @@ export default function EquiposPage() {
                         )}
                         className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-primary focus:ring-primary/50"
                       />
-                      <span className="text-sm text-slate-900 dark:text-white">+{cat.nombre}</span>
+                      <span className="text-sm text-slate-900 dark:text-white">{cat.nombre}</span>
                     </label>
                   ))}
                 </div>
@@ -800,7 +800,7 @@ export default function EquiposPage() {
                 autoFocus
               />
               {catError && <p className="text-red-400 text-xs mt-1">{catError}</p>}
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Se mostrará como +{catNombre || '30'}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Ejemplo: Senior, Sub-20, Libre, etc.</p>
             </div>
 
             <div className="flex gap-3">

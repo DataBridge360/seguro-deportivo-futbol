@@ -164,6 +164,14 @@ export async function createTorneo(data: CreateTorneoDTO): Promise<Torneo> {
   return res.data
 }
 
+export async function updateTorneo(torneoId: string, data: Partial<CreateTorneoDTO>): Promise<Torneo> {
+  const res = await apiFetch(`/clubes/torneos/${torneoId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+  return res.data
+}
+
 export async function deleteTorneo(torneoId: string, password: string): Promise<void> {
   await apiFetch(`/clubes/torneos/${torneoId}`, {
     method: 'DELETE',

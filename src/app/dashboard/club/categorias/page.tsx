@@ -138,7 +138,7 @@ export default function ClubCategoriasPage() {
         <div className="flex flex-wrap gap-3">
           {categorias.map((cat) => (
             <div key={cat.id} className="flex items-center gap-2 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 px-4 py-2.5">
-              <span className="text-sm font-bold text-slate-900 dark:text-white">+{cat.nombre}</span>
+              <span className="text-sm font-bold text-slate-900 dark:text-white">{cat.nombre}</span>
               <button
                 onClick={() => handleEditar(cat)}
                 className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
