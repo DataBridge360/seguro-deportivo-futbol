@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { getTorneos } from '@/lib/api'
 import type { Torneo } from '@/types/club'
@@ -54,6 +55,8 @@ function formatDate(dateString: string) {
 }
 
 export default function ClubTorneosPage() {
+  const pathname = usePathname()
+  const basePath = pathname
   const [torneos, setTorneos] = useState<Torneo[]>([])
   const [loading, setLoading] = useState(true)
   const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({ open: false, title: '', message: '', type: 'info' })
@@ -101,7 +104,7 @@ export default function ClubTorneosPage() {
           </p>
         </div>
         <Link
-          href="/dashboard/club/torneos/nuevo"
+          href={`${basePath}/nuevo`}
           className="px-5 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
         >
           <span className="material-symbols-outlined text-xl">add</span>
@@ -197,7 +200,7 @@ export default function ClubTorneosPage() {
               {/* Botón */}
               <div className="mt-auto">
                 <Link
-                  href={`/dashboard/club/torneos/${torneo.id}`}
+                  href={`${basePath}/${torneo.id}`}
                   className="block w-full px-4 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors text-center"
                 >
                   Gestionar

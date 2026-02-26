@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { createTorneo, getCategorias } from '@/lib/api'
 import type { CreateTorneoDTO, Categoria } from '@/types/club'
 import DatePicker from '@/components/ui/DatePicker'
@@ -9,6 +9,8 @@ import NotificationModal from '@/components/ui/NotificationModal'
 
 export default function NuevoTorneoPage() {
   const router = useRouter()
+  const pathname = usePathname()
+  const basePath = pathname.replace('/nuevo', '')
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' }>({
@@ -160,7 +162,7 @@ export default function NuevoTorneoPage() {
 
       // Redireccionar después de 2 segundos
       setTimeout(() => {
-        router.push('/dashboard/club/torneos')
+        router.push(basePath)
       }, 2000)
 
     } catch (error) {

@@ -5,7 +5,6 @@ import { useRouter, useParams } from 'next/navigation'
 import NotificationModal from '@/components/ui/NotificationModal'
 import DatePicker from '@/components/ui/DatePicker'
 import { MOCK_CLUBS, MOCK_JUGADORES } from '@/lib/mockData'
-import type { Club } from '@/lib/mockData'
 
 export default function EditarJugadorPage() {
   const router = useRouter()
@@ -17,8 +16,6 @@ export default function EditarJugadorPage() {
     dni: '',
     fechaNacimiento: '',
     clubId: '',
-    seguroInicio: '',
-    seguroFin: '',
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -34,8 +31,6 @@ export default function EditarJugadorPage() {
         dni: jugador.dni,
         fechaNacimiento: jugador.fechaNacimiento,
         clubId: jugador.clubId,
-        seguroInicio: jugador.seguroInicio,
-        seguroFin: jugador.seguroFin,
       })
     } else {
       setNotFound(true)
@@ -61,11 +56,6 @@ export default function EditarJugadorPage() {
     else if (!/^\d+$/.test(form.dni.trim())) newErrors.dni = 'El DNI debe ser numerico'
     if (!form.fechaNacimiento) newErrors.fechaNacimiento = 'La fecha de nacimiento es obligatoria'
     if (!form.clubId) newErrors.clubId = 'Debe seleccionar un club'
-    if (!form.seguroInicio) newErrors.seguroInicio = 'La fecha de inicio es obligatoria'
-    if (!form.seguroFin) newErrors.seguroFin = 'La fecha de finalizacion es obligatoria'
-    else if (form.seguroInicio && form.seguroFin && new Date(form.seguroFin) <= new Date(form.seguroInicio)) {
-      newErrors.seguroFin = 'La fecha de fin debe ser posterior a la de inicio'
-    }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -163,27 +153,13 @@ export default function EditarJugadorPage() {
           {errors.clubId && <p className="text-red-400 text-xs mt-1">{errors.clubId}</p>}
         </div>
 
-        {/* Fechas del seguro */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">Inicio del seguro</label>
-            <DatePicker
-              value={form.seguroInicio}
-              onChange={(val) => handleChange('seguroInicio', val)}
-              placeholder="Seleccionar fecha"
-              hasError={!!errors.seguroInicio}
-            />
-            {errors.seguroInicio && <p className="text-red-400 text-xs mt-1">{errors.seguroInicio}</p>}
-          </div>
-          <div>
-            <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">Finalizacion del seguro</label>
-            <DatePicker
-              value={form.seguroFin}
-              onChange={(val) => handleChange('seguroFin', val)}
-              placeholder="Seleccionar fecha"
-              hasError={!!errors.seguroFin}
-            />
-            {errors.seguroFin && <p className="text-red-400 text-xs mt-1">{errors.seguroFin}</p>}
+        {/* Info sobre póliza */}
+        <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-lg p-3">
+          <div className="flex items-start gap-2">
+            <span className="material-symbols-outlined text-blue-500 text-lg mt-0.5">info</span>
+            <p className="text-sm text-blue-700 dark:text-blue-400">
+              El estado de pago del seguro se gestiona desde el listado de jugadores con el toggle de pagado.
+            </p>
           </div>
         </div>
       </div>

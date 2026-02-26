@@ -1,52 +1,34 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { createJugador } from '@/lib/api'
 import NotificationModal from '@/components/ui/NotificationModal'
 import DatePicker from '@/components/ui/DatePicker'
-import { MOCK_CLUBS } from '@/lib/mockData'
 
-function getTodayStr(): string {
-  return new Date().toISOString().split('T')[0]
-}
-
-function calcFinDate(inicio: string, duracion: string): string {
-  if (!inicio) return ''
-  const d = new Date(inicio + 'T00:00:00')
-  switch (duracion) {
-    case 'mensual': d.setMonth(d.getMonth() + 1); break
-    case 'trimestral': d.setMonth(d.getMonth() + 3); break
-    case 'semestral': d.setMonth(d.getMonth() + 6); break
-    case 'anual': d.setFullYear(d.getFullYear() + 1); break
-  }
-  return d.toISOString().split('T')[0]
-}
-
-function formatDateShort(dateStr: string): string {
-  if (!dateStr) return ''
-  const [y, m, d] = dateStr.split('-')
-  return `${d}/${m}/${y}`
-}
+const CLUB_ID = '62fe34a2-17a0-41d6-a53d-85997094aabf'
+const CLUB_NOMBRE = 'clubplaza'
 
 export default function NuevoJugadorPage() {
   const router = useRouter()
 
   const [form, setForm] = useState({
-    nombreCompleto: '',
+    nombre: '',
+    apellido: '',
     dni: '',
     fechaNacimiento: '',
     telefono: '',
     direccion: '',
-    clubId: '',
-    seguroInicio: getTodayStr(),
-    duracion: 'anual' as 'mensual' | 'trimestral' | 'semestral' | 'anual',
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
-  const [notification, setNotification] = useState<{ open: boolean; title: string; message: string }>({ open: false, title: '', message: '' })
-
-  const seguroFin = calcFinDate(form.seguroInicio, form.duracion)
+  const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' }>({
+    open: false,
+    title: '',
+    message: '',
+    type: 'success'
+  })
 
   const handleChange = (field: string, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -59,17 +41,23 @@ export default function NuevoJugadorPage() {
     }
   }
 
+  // Generate password preview: Apellido (first uppercase) + last 3 DNI digits
+  const getPasswordPreview = (): string => {
+    if (!form.apellido.trim() || !form.dni.trim() || form.dni.trim().length < 3) return ''
+    const apellido = form.apellido.trim()
+    const formatted = apellido.charAt(0).toUpperCase() + apellido.slice(1).toLowerCase()
+    const lastThree = form.dni.trim().slice(-3)
+    return `${formatted}${lastThree}`
+  }
+
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {}
 
-    if (!form.nombreCompleto.trim()) newErrors.nombreCompleto = 'El nombre es obligatorio'
+    if (!form.nombre.trim()) newErrors.nombre = 'El nombre es obligatorio'
+    if (!form.apellido.trim()) newErrors.apellido = 'El apellido es obligatorio'
     if (!form.dni.trim()) newErrors.dni = 'El DNI es obligatorio'
-    else if (!/^\d+$/.test(form.dni.trim())) newErrors.dni = 'El DNI debe ser numerico'
+    else if (!/^\d+$/.test(form.dni.trim())) newErrors.dni = 'El DNI debe ser numérico'
     if (!form.fechaNacimiento) newErrors.fechaNacimiento = 'La fecha de nacimiento es obligatoria'
-    if (!form.telefono.trim()) newErrors.telefono = 'El telefono es obligatorio'
-    if (!form.direccion.trim()) newErrors.direccion = 'La direccion es obligatoria'
-    if (!form.clubId) newErrors.clubId = 'Debe seleccionar un club'
-    if (!form.seguroInicio) newErrors.seguroInicio = 'La fecha de inicio es obligatoria'
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -78,44 +66,84 @@ export default function NuevoJugadorPage() {
   const handleSubmit = async () => {
     if (!validate()) return
 
-    setLoading(true)
-    await new Promise(resolve => setTimeout(resolve, 500))
-    setLoading(false)
+    try {
+      setLoading(true)
 
-    const clubName = MOCK_CLUBS.find(c => c.id === form.clubId)?.nombre || ''
-    setNotification({
-      open: true,
-      title: 'Jugador registrado',
-      message: `${form.nombreCompleto} fue dado de alta en ${clubName} correctamente.`,
-    })
+      await createJugador({
+        nombre: form.nombre.trim(),
+        apellido: form.apellido.trim(),
+        dni: form.dni.trim(),
+        fecha_nacimiento: form.fechaNacimiento,
+        telefono: form.telefono.trim() || undefined,
+        direccion: form.direccion.trim() || undefined,
+        club_id: CLUB_ID,
+      })
+
+      setNotification({
+        open: true,
+        title: 'Jugador registrado',
+        message: `${form.apellido} ${form.nombre} fue dado de alta en ${CLUB_NOMBRE} correctamente.`,
+        type: 'success'
+      })
+    } catch (error) {
+      setNotification({
+        open: true,
+        title: 'Error al crear jugador',
+        message: error instanceof Error ? error.message : 'Error desconocido',
+        type: 'error'
+      })
+    } finally {
+      setLoading(false)
+    }
   }
+
+  const passwordPreview = getPasswordPreview()
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Nuevo Jugador</h1>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Completa los datos para dar de alta un nuevo jugador asegurado</p>
+        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Completá los datos para dar de alta un nuevo jugador asegurado</p>
       </div>
 
       {/* Formulario */}
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-6 space-y-5">
-        {/* Nombre */}
-        <div>
-          <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">Nombre completo</label>
-          <input
-            type="text"
-            value={form.nombreCompleto}
-            onChange={(e) => handleChange('nombreCompleto', e.target.value)}
-            placeholder="Ej: Juan Perez"
-            className={`w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-primary ${errors.nombreCompleto ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'}`}
-          />
-          {errors.nombreCompleto && <p className="text-red-400 text-xs mt-1">{errors.nombreCompleto}</p>}
+        {/* Nombre y Apellido */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">
+              Nombre <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={form.nombre}
+              onChange={(e) => handleChange('nombre', e.target.value)}
+              placeholder="Ej: Juan"
+              className={`w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-primary ${errors.nombre ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'}`}
+            />
+            {errors.nombre && <p className="text-red-400 text-xs mt-1">{errors.nombre}</p>}
+          </div>
+          <div>
+            <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">
+              Apellido <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={form.apellido}
+              onChange={(e) => handleChange('apellido', e.target.value)}
+              placeholder="Ej: Pérez"
+              className={`w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-primary ${errors.apellido ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'}`}
+            />
+            {errors.apellido && <p className="text-red-400 text-xs mt-1">{errors.apellido}</p>}
+          </div>
         </div>
 
         {/* DNI */}
         <div>
-          <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">DNI</label>
+          <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">
+            DNI <span className="text-red-500">*</span>
+          </label>
           <input
             type="text"
             value={form.dni}
@@ -128,7 +156,9 @@ export default function NuevoJugadorPage() {
 
         {/* Fecha de nacimiento */}
         <div>
-          <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">Fecha de nacimiento</label>
+          <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">
+            Fecha de nacimiento <span className="text-red-500">*</span>
+          </label>
           <DatePicker
             value={form.fechaNacimiento}
             onChange={(val) => handleChange('fechaNacimiento', val)}
@@ -141,106 +171,61 @@ export default function NuevoJugadorPage() {
         {/* Telefono y Direccion */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">Telefono</label>
+            <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">Teléfono</label>
             <input
               type="text"
               value={form.telefono}
               onChange={(e) => handleChange('telefono', e.target.value)}
               placeholder="Ej: 1155001234"
-              className={`w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-primary ${errors.telefono ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'}`}
+              className="w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-primary"
             />
-            {errors.telefono && <p className="text-red-400 text-xs mt-1">{errors.telefono}</p>}
           </div>
           <div>
-            <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">Direccion</label>
+            <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">Dirección</label>
             <input
               type="text"
               value={form.direccion}
               onChange={(e) => handleChange('direccion', e.target.value)}
               placeholder="Ej: Av. Siempreviva 742"
-              className={`w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-primary ${errors.direccion ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'}`}
+              className="w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-primary"
             />
-            {errors.direccion && <p className="text-red-400 text-xs mt-1">{errors.direccion}</p>}
           </div>
         </div>
 
-        {/* Club */}
+        {/* Club (hardcoded) */}
         <div>
           <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">Club</label>
-          <select
-            value={form.clubId}
-            onChange={(e) => handleChange('clubId', e.target.value)}
-            className={`w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:border-primary ${errors.clubId ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'}`}
-          >
-            <option value="">Seleccionar club</option>
-            {MOCK_CLUBS.map(club => (
-              <option key={club.id} value={club.id}>{club.nombre}</option>
-            ))}
-          </select>
-          {errors.clubId && <p className="text-red-400 text-xs mt-1">{errors.clubId}</p>}
-        </div>
-
-        {/* Fecha inicio seguro */}
-        <div>
-          <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">Inicio del seguro</label>
-          <DatePicker
-            value={form.seguroInicio}
-            onChange={(val) => handleChange('seguroInicio', val)}
-            placeholder="Seleccionar fecha"
-            hasError={!!errors.seguroInicio}
-          />
-          {errors.seguroInicio && <p className="text-red-400 text-xs mt-1">{errors.seguroInicio}</p>}
-        </div>
-
-        {/* Duracion del seguro */}
-        <div>
-          <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-2">Duracion del seguro</label>
-          <div className="grid grid-cols-2 gap-2">
-            {([
-              { value: 'mensual', label: 'Mensual', desc: '1 mes' },
-              { value: 'trimestral', label: 'Trimestral', desc: '3 meses' },
-              { value: 'semestral', label: 'Semestral', desc: '6 meses' },
-              { value: 'anual', label: 'Anual', desc: '12 meses' },
-            ] as const).map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setForm(prev => ({ ...prev, duracion: opt.value }))}
-                className={`flex items-center gap-2.5 p-3 rounded-lg border text-left transition-all ${
-                  form.duracion === opt.value
-                    ? 'border-green-500 bg-green-500/10'
-                    : 'border-slate-300 dark:border-slate-600 bg-slate-100 dark:bg-slate-900 hover:border-slate-400 dark:hover:border-slate-500'
-                }`}
-              >
-                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
-                  form.duracion === opt.value ? 'border-green-500' : 'border-slate-400 dark:border-slate-500'
-                }`}>
-                  {form.duracion === opt.value && (
-                    <div className="w-2 h-2 rounded-full bg-green-500" />
-                  )}
-                </div>
-                <div>
-                  <p className={`text-sm font-medium ${form.duracion === opt.value ? 'text-green-400' : 'text-slate-900 dark:text-white'}`}>{opt.label}</p>
-                  <p className="text-[11px] text-slate-400 dark:text-slate-500">{opt.desc}</p>
-                </div>
-              </button>
-            ))}
+          <div className="w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm">
+            {CLUB_NOMBRE}
           </div>
         </div>
 
-        {/* Resumen de vigencia */}
-        {form.seguroInicio && (
-          <div className="bg-slate-100 dark:bg-slate-900 rounded-lg p-3 text-sm">
-            <div className="flex justify-between text-slate-500 dark:text-slate-400 mb-1.5">
-              <span>Inicio:</span>
-              <span className="text-slate-900 dark:text-white font-medium">{formatDateShort(form.seguroInicio)}</span>
-            </div>
-            <div className="flex justify-between text-slate-500 dark:text-slate-400">
-              <span>Finalizacion:</span>
-              <span className="text-green-400 font-medium">{formatDateShort(seguroFin)}</span>
+        {/* Password preview */}
+        {passwordPreview && (
+          <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-lg p-3">
+            <div className="flex items-start gap-2">
+              <span className="material-symbols-outlined text-amber-500 text-lg mt-0.5">key</span>
+              <div>
+                <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                  Contraseña generada: <span className="font-mono bg-amber-100 dark:bg-amber-500/20 px-1.5 py-0.5 rounded">{passwordPreview}</span>
+                </p>
+                <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
+                  Formato: Apellido (primera mayúscula) + últimos 3 dígitos del DNI
+                </p>
+              </div>
             </div>
           </div>
         )}
+
+        {/* Info sobre póliza */}
+        <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-lg p-3">
+          <div className="flex items-start gap-2">
+            <span className="material-symbols-outlined text-blue-500 text-lg mt-0.5">info</span>
+            <p className="text-sm text-blue-700 dark:text-blue-400">
+              El jugador se creará con el estado de pago pendiente. El productor podrá marcarlo como pagado desde el listado de jugadores.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Botones */}
@@ -254,9 +239,19 @@ export default function NuevoJugadorPage() {
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="px-5 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+          className="px-5 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
         >
-          {loading ? 'Guardando...' : 'Guardar Jugador'}
+          {loading ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Guardando...
+            </>
+          ) : (
+            <>
+              <span className="material-symbols-outlined text-lg">person_add</span>
+              Guardar Jugador
+            </>
+          )}
         </button>
       </div>
 
@@ -265,11 +260,13 @@ export default function NuevoJugadorPage() {
         isOpen={notification.open}
         onClose={() => {
           setNotification(prev => ({ ...prev, open: false }))
-          router.push('/dashboard/productor/jugadores')
+          if (notification.type === 'success') {
+            router.push('/dashboard/productor/jugadores')
+          }
         }}
         title={notification.title}
         message={notification.message}
-        type="success"
+        type={notification.type}
       />
     </div>
   )

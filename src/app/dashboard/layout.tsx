@@ -7,6 +7,7 @@ import { useThemeStore } from '@/stores/themeStore'
 import { getNavigationForRole } from '@/lib/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
+import { getNoLeidasCount } from '@/lib/api'
 
 // Mobile nav items for jugador
 const jugadorNavItems = [
@@ -55,12 +56,19 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const backRoute = getBackRoute(pathname)
+  const [unreadCount, setUnreadCount] = useState(0)
 
   useEffect(() => {
     if (_hasHydrated && !isAuthenticated) {
       window.location.href = '/login'
     }
   }, [_hasHydrated, isAuthenticated])
+
+  useEffect(() => {
+    if (_hasHydrated && isAuthenticated && user?.role === 'jugador') {
+      getNoLeidasCount().then(setUnreadCount).catch(() => {})
+    }
+  }, [_hasHydrated, isAuthenticated, user?.role, pathname])
 
   if (!_hasHydrated || !user) return null
 
@@ -123,7 +131,7 @@ export default function DashboardLayout({
                 className="p-2.5 text-slate-600 dark:text-slate-300 hover:text-blue-500 dark:hover:text-blue-400 rounded-xl transition-colors relative"
               >
                 <span className="material-symbols-outlined text-[20px]">notifications</span>
-                <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white/80 dark:ring-slate-900/80"></span>
+                {unreadCount > 0 && <span className="absolute top-2 right-2 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white/80 dark:ring-slate-900/80"></span>}
               </Link>
             </div>
 
@@ -176,7 +184,7 @@ export default function DashboardLayout({
                 className="flex size-9 cursor-pointer items-center justify-center rounded-xl bg-white/60 dark:bg-white/10 text-slate-700 dark:text-white transition-colors hover:bg-white/80 dark:hover:bg-white/20 relative"
               >
                 <span className="material-symbols-outlined text-[20px]">notifications</span>
-                <span className="absolute top-1.5 right-1.5 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white/80"></span>
+                {unreadCount > 0 && <span className="absolute top-1.5 right-1.5 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white/80"></span>}
               </Link>
             </div>
           </div>

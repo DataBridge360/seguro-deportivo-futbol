@@ -7,7 +7,7 @@ export const navigationItems: NavItem[] = [
     href: '/dashboard',
     icon: 'Home',
     materialIcon: 'home',
-    roles: ['admin', 'club', 'jugador', 'cantina']
+    roles: ['admin', 'jugador', 'cantina']
   },
 
   // Admin
@@ -39,6 +39,20 @@ export const navigationItems: NavItem[] = [
     href: '/dashboard/productor/jugadores',
     icon: 'Users',
     materialIcon: 'groups',
+    roles: ['productor']
+  },
+  {
+    label: 'Equipos',
+    href: '/dashboard/productor/equipos',
+    icon: 'Shield',
+    materialIcon: 'shield',
+    roles: ['productor']
+  },
+  {
+    label: 'Torneos',
+    href: '/dashboard/productor/torneos',
+    icon: 'Trophy',
+    materialIcon: 'emoji_events',
     roles: ['productor']
   },
   {
@@ -158,7 +172,7 @@ export function getDefaultRouteForRole(role: UserRole): string {
     case 'productor':
       return '/dashboard/productor/jugadores'
     case 'club':
-      return '/dashboard'
+      return '/dashboard/club/torneos'
     case 'jugador':
       return '/dashboard'
     case 'cantina':

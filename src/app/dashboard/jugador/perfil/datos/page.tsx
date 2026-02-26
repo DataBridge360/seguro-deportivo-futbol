@@ -201,7 +201,7 @@ export default function DatosPersonalesPage() {
     )
   }
 
-  const vigente = perfil.poliza_fin ? new Date(perfil.poliza_fin) >= new Date() : false
+  const vigente = perfil.pagado
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
@@ -279,14 +279,14 @@ export default function DatosPersonalesPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[11px] text-[#617989] dark:text-slate-400 uppercase font-bold tracking-wider">Estado del seguro</p>
-                <p className="text-sm font-medium text-slate-900 dark:text-white mt-0.5">{vigente ? 'Activo' : 'Vencido / Sin seguro'}</p>
+                <p className="text-sm font-medium text-slate-900 dark:text-white mt-0.5">{vigente ? 'Pagado' : 'No pagado'}</p>
               </div>
               <span className={`px-2.5 py-1 text-[10px] font-semibold rounded-full whitespace-nowrap ${
                 vigente
                   ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400'
                   : 'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400'
               }`}>
-                {vigente ? 'Activo' : 'Vencido'}
+                {vigente ? 'Pagado' : 'No pagado'}
               </span>
             </div>
           </div>

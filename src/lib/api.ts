@@ -96,6 +96,7 @@ export interface JugadorResponse {
   telefono?: string
   email?: string
   activo: boolean
+  pagado: boolean
   clubes?: {
     id: string
     nombre: string
@@ -104,14 +105,44 @@ export interface JugadorResponse {
     fecha_alta?: string
     fecha_baja?: string
   }[]
-  poliza_inicio?: string | null
-  poliza_fin?: string | null
   created_at?: string
   updated_at?: string
 }
 
+export interface PolizaGeneral {
+  id: string
+  productor_id: string
+  fecha_inicio: string
+  fecha_fin: string
+  archivo_url?: string | null
+  observaciones?: string | null
+  activa: boolean
+  created_at: string
+}
+
 export async function getJugadores(): Promise<JugadorResponse[]> {
   const res = await apiFetch('/jugadores/mi-club')
+  return res.data
+}
+
+export async function getJugadoresProductor(): Promise<JugadorResponse[]> {
+  const res = await apiFetch('/jugadores/mis-jugadores')
+  return res.data
+}
+
+export async function createJugador(data: {
+  nombre: string
+  apellido: string
+  dni: string
+  fecha_nacimiento: string
+  telefono?: string
+  direccion?: string
+  club_id: string
+}): Promise<JugadorResponse> {
+  const res = await apiFetch('/jugadores', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
   return res.data
 }
 
@@ -152,6 +183,13 @@ export async function loginWithDNI(dni: string, password: string) {
 export async function getProfile() {
   const res = await apiFetch('/auth/profile')
   return res.data
+}
+
+export async function verifyPassword(password: string): Promise<void> {
+  await apiFetch('/auth/verify-password', {
+    method: 'POST',
+    body: JSON.stringify({ password }),
+  })
 }
 
 // Torneos API Functions
@@ -452,6 +490,59 @@ export async function desinscribirseEquipo(torneoId: string): Promise<void> {
   })
 }
 
+// Pólizas API Functions
+
+export async function getPolizaActiva(): Promise<PolizaGeneral | null> {
+  const res = await apiFetch('/polizas/activa')
+  return res.data
+}
+
+export async function getPolizas(): Promise<PolizaGeneral[]> {
+  const res = await apiFetch('/polizas')
+  return res.data
+}
+
+export async function createPoliza(data: { fecha_inicio: string; fecha_fin: string; observaciones?: string }): Promise<PolizaGeneral> {
+  const res = await apiFetch('/polizas', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+  return res.data
+}
+
+export async function uploadPoliza(polizaId: string, file: File): Promise<{ archivo_url: string }> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+
+  const res = await fetch(`${API_URL}/polizas/${polizaId}/upload`, {
+    method: 'POST',
+    headers: {
+      'ngrok-skip-browser-warning': 'true',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  })
+
+  const json = await res.json()
+
+  if (!res.ok) {
+    const errorMessage = json.error?.message || json.message || 'Error al subir la póliza'
+    throw new Error(errorMessage)
+  }
+
+  return json.data
+}
+
+export async function toggleJugadorPagado(jugadorId: string, pagado: boolean): Promise<JugadorResponse> {
+  const res = await apiFetch(`/jugadores/${jugadorId}/pagado`, {
+    method: 'PATCH',
+    body: JSON.stringify({ pagado }),
+  })
+  return res.data
+}
+
 // Auth API Functions
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> {
@@ -459,4 +550,163 @@ export async function changePassword(currentPassword: string, newPassword: strin
     method: 'POST',
     body: JSON.stringify({ currentPassword, newPassword }),
   })
+}
+
+// Notificaciones API Functions
+
+export interface NotificacionDestinatarioResponse {
+  id: string
+  leida: boolean
+  leida_at: string | null
+  created_at: string
+  notificaciones: {
+    id: string
+    titulo: string
+    mensaje: string
+    con_cupon: boolean
+    prioridad: string
+    created_at: string
+  }
+}
+
+export interface NotificacionEnviadaResponse {
+  id: string
+  titulo: string
+  mensaje: string
+  tipo_filtro: string
+  con_cupon: boolean
+  prioridad: string
+  created_at: string
+  notificacion_destinatario: { count: number }[]
+}
+
+export interface CreateNotificacionData {
+  titulo: string
+  mensaje: string
+  tipo_filtro: 'todos' | 'equipo' | 'categoria' | 'torneo' | 'seguro_vigente' | 'seguro_vencido'
+  filtro_id?: string
+  prioridad?: 'baja' | 'normal' | 'alta' | 'urgente'
+  con_cupon?: boolean
+  cupon?: {
+    titulo: string
+    descripcion?: string
+    tipo_descuento: 'porcentaje' | 'monto_fijo'
+    valor_descuento: number
+    fecha_vencimiento?: string
+  }
+}
+
+export async function createNotificacion(data: CreateNotificacionData): Promise<any> {
+  const res = await apiFetch('/notificaciones', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+  return res.data
+}
+
+export async function getMisNotificaciones(): Promise<NotificacionDestinatarioResponse[]> {
+  const res = await apiFetch('/notificaciones/mis-notificaciones')
+  return res.data
+}
+
+export async function getNoLeidasCount(): Promise<number> {
+  const res = await apiFetch('/notificaciones/no-leidas/count')
+  return res.data.count
+}
+
+export async function marcarNotificacionLeida(id: string): Promise<void> {
+  await apiFetch(`/notificaciones/${id}/leer`, { method: 'PATCH' })
+}
+
+export async function marcarTodasNotificacionesLeidas(): Promise<void> {
+  await apiFetch('/notificaciones/leer-todas', { method: 'PATCH' })
+}
+
+export async function getNotificacionesEnviadas(): Promise<NotificacionEnviadaResponse[]> {
+  const res = await apiFetch('/notificaciones/enviadas')
+  return res.data
+}
+
+// Cupones API Functions
+
+export interface CuponResponse {
+  id: string
+  club_id: string
+  jugador_id: string
+  notificacion_id: string | null
+  codigo: string
+  titulo: string
+  descripcion: string | null
+  tipo_descuento: 'porcentaje' | 'monto_fijo'
+  valor_descuento: number
+  monto_minimo_compra: number | null
+  fecha_vencimiento: string | null
+  usado: boolean
+  usado_at: string | null
+  monto_compra: number | null
+  monto_descuento: number | null
+  monto_total: number | null
+  canjeado_por: string | null
+  created_at: string
+  jugadores?: {
+    id: string
+    nombre: string
+    apellido: string
+    dni: string
+  }
+}
+
+export interface ResumenHoyResponse {
+  canjes_hoy: number
+  descuentos_hoy: number
+  cupones_activos: number
+}
+
+export interface ResumenCuponesResponse {
+  cupones: {
+    id: string
+    codigo: string
+    titulo: string
+    tipo_descuento: string
+    valor_descuento: number
+    monto_compra: number
+    monto_descuento: number
+    monto_total: number
+    usado_at: string
+    jugadores: { nombre: string; apellido: string }
+  }[]
+  totales: {
+    total_canjes: number
+    total_compras: number
+    total_descuentos: number
+    total_cobrado: number
+  }
+}
+
+export async function getMisCupones(): Promise<CuponResponse[]> {
+  const res = await apiFetch('/cupones/mis-cupones')
+  return res.data
+}
+
+export async function buscarCupon(codigo: string): Promise<CuponResponse> {
+  const res = await apiFetch(`/cupones/buscar/${encodeURIComponent(codigo)}`)
+  return res.data
+}
+
+export async function canjearCupon(id: string, montoCompra: number): Promise<CuponResponse> {
+  const res = await apiFetch(`/cupones/${id}/canjear`, {
+    method: 'POST',
+    body: JSON.stringify({ monto_compra: montoCompra }),
+  })
+  return res.data
+}
+
+export async function getResumenCupones(desde: string, hasta: string): Promise<ResumenCuponesResponse> {
+  const res = await apiFetch(`/cupones/resumen?desde=${encodeURIComponent(desde)}&hasta=${encodeURIComponent(hasta)}`)
+  return res.data
+}
+
+export async function getResumenHoy(): Promise<ResumenHoyResponse> {
+  const res = await apiFetch('/cupones/resumen-hoy')
+  return res.data
 }

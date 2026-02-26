@@ -1,108 +1,138 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import {
+  getMisNotificaciones,
+  marcarNotificacionLeida,
+  marcarTodasNotificacionesLeidas,
+  NotificacionDestinatarioResponse,
+} from '@/lib/api'
 
-// Example notifications
-const notifications = [
-  {
-    id: 1,
-    icon: 'sell',
-    title: 'Te ganaste un cupón de $15.000',
-    description: 'Canjealo en cualquier comercio adherido',
-    time: 'Hace 2 horas',
-    unread: true,
-  },
-  {
-    id: 2,
-    icon: 'sports_soccer',
-    title: 'El sábado juega tu equipo',
-    description: 'No te olvides de confirmar asistencia',
-    time: 'Hace 1 día',
-    unread: true,
-  },
-]
+function timeAgo(dateStr: string): string {
+  const now = new Date()
+  const date = new Date(dateStr)
+  const diffMs = now.getTime() - date.getTime()
+  const diffMin = Math.floor(diffMs / 60000)
+  if (diffMin < 1) return 'Ahora'
+  if (diffMin < 60) return `Hace ${diffMin} min`
+  const diffH = Math.floor(diffMin / 60)
+  if (diffH < 24) return `Hace ${diffH}h`
+  const diffD = Math.floor(diffH / 24)
+  if (diffD < 7) return `Hace ${diffD}d`
+  if (diffD < 30) return `Hace ${Math.floor(diffD / 7)} sem`
+  return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
 
 export default function NotificacionesPage() {
   const router = useRouter()
+  const [notificaciones, setNotificaciones] = useState<NotificacionDestinatarioResponse[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    getMisNotificaciones()
+      .then(setNotificaciones)
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const handleClick = async (notif: NotificacionDestinatarioResponse) => {
+    if (!notif.leida) {
+      await marcarNotificacionLeida(notif.id).catch(() => {})
+      setNotificaciones(prev =>
+        prev.map(n => n.id === notif.id ? { ...n, leida: true } : n)
+      )
+    }
+    if (notif.notificaciones.con_cupon) {
+      router.push('/dashboard/jugador/cupones')
+    }
+  }
+
+  const handleMarkAllRead = async () => {
+    await marcarTodasNotificacionesLeidas().catch(() => {})
+    setNotificaciones(prev => prev.map(n => ({ ...n, leida: true })))
+  }
+
+  const unreadCount = notificaciones.filter(n => !n.leida).length
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      {/* Header - Mobile */}
-      <div className="md:hidden mb-4">
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Notificaciones</h1>
-      </div>
-
-      {/* Header - Desktop */}
-      <div className="hidden md:flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Notificaciones</h1>
-        <button className="text-sm text-primary font-medium hover:underline">
-          Marcar todas como leídas
-        </button>
-      </div>
-
-      {/* Notifications List */}
-      <div className="rounded-2xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-lg shadow-black/5 overflow-hidden">
-        {notifications.length === 0 ? (
-          <div className="p-8 text-center">
-            <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600">notifications_off</span>
-            <p className="mt-2 text-slate-500 dark:text-slate-400">No tenés notificaciones</p>
-          </div>
-        ) : (
-          <div>
-            {notifications.map((notification, index) => (
-              <div
-                key={notification.id}
-                className={`p-4 hover:bg-white/50 dark:hover:bg-white/5 transition-colors cursor-pointer ${
-                  index !== notifications.length - 1 ? 'border-b border-slate-200/30 dark:border-slate-700/30' : ''
-                }`}
-              >
-                <div className="flex gap-4">
-                  <div className={`flex-shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center ${
-                    notification.unread
-                      ? 'bg-primary/10'
-                      : 'bg-slate-100 dark:bg-slate-800'
-                  }`}>
-                    <span className={`material-symbols-outlined text-[24px] ${
-                      notification.unread
-                        ? 'text-primary'
-                        : 'text-slate-400'
-                    }`}>
-                      {notification.icon}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className={`text-base ${
-                        notification.unread
-                          ? 'font-semibold text-slate-900 dark:text-white'
-                          : 'font-medium text-slate-600 dark:text-slate-300'
-                      }`}>
-                        {notification.title}
-                      </p>
-                      {notification.unread && (
-                        <span className="flex-shrink-0 block h-2.5 w-2.5 rounded-full bg-primary mt-1.5"></span>
-                      )}
-                    </div>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                      {notification.description}
-                    </p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
-                      {notification.time}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+    <div className="max-w-lg mx-auto space-y-4 pb-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Notificaciones</h1>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
+            {unreadCount > 0 ? `${unreadCount} sin leer` : 'Todas leidas'}
+          </p>
+        </div>
+        {unreadCount > 0 && (
+          <button
+            onClick={handleMarkAllRead}
+            className="text-xs text-primary hover:underline flex items-center gap-1"
+          >
+            <span className="material-symbols-outlined text-sm">done_all</span>
+            Marcar todas como leidas
+          </button>
         )}
       </div>
 
-      {/* Mobile: Mark all as read */}
-      <div className="md:hidden mt-4">
-        <button className="w-full py-3 text-center text-sm text-primary font-medium rounded-xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl border border-white/20 dark:border-white/10">
-          Marcar todas como leídas
-        </button>
-      </div>
+      {notificaciones.length === 0 ? (
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-8 text-center">
+          <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600">notifications_off</span>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">No tenes notificaciones</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {notificaciones.map((notif) => (
+            <button
+              key={notif.id}
+              onClick={() => handleClick(notif)}
+              className={`w-full text-left rounded-lg p-4 border transition-colors ${
+                !notif.leida
+                  ? 'bg-primary/5 dark:bg-primary/10 border-primary/20'
+                  : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+              } hover:border-primary`}
+            >
+              <div className="flex items-start gap-3">
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+                  !notif.leida ? 'bg-primary/10' : 'bg-slate-100 dark:bg-slate-700'
+                }`}>
+                  <span className={`material-symbols-outlined text-lg ${
+                    !notif.leida ? 'text-primary' : 'text-slate-400'
+                  }`}>
+                    {notif.notificaciones.con_cupon ? 'sell' : 'notifications'}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className={`text-sm font-medium truncate ${!notif.leida ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-300'}`}>
+                      {notif.notificaciones.titulo}
+                    </p>
+                    {!notif.leida && <div className="w-2 h-2 rounded-full bg-primary shrink-0" />}
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{notif.notificaciones.mensaje}</p>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500">{timeAgo(notif.notificaciones.created_at)}</span>
+                    {notif.notificaciones.con_cupon && (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-500/10 text-amber-500 text-[10px] font-semibold rounded-full border border-amber-500/20">
+                        <span className="material-symbols-outlined text-[10px]">confirmation_number</span>
+                        Cupon
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

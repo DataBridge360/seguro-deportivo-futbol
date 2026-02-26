@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter, useParams } from 'next/navigation'
-import { getTorneos, getEquiposInscritos, inscribirEquipo, desinscribirEquipo, getEquipos, getCategorias, toggleInscripciones, deleteTorneo, updateTorneo, getJugadoresEquipoTorneo, agregarJugadorEquipoTorneo, quitarJugadorEquipoTorneo, getJugadores } from '@/lib/api'
+import { useRouter, useParams, usePathname } from 'next/navigation'
+import { getTorneos, getEquiposInscritos, inscribirEquipo, desinscribirEquipo, getEquipos, getCategorias, toggleInscripciones, deleteTorneo, updateTorneo, getJugadoresEquipoTorneo, agregarJugadorEquipoTorneo, quitarJugadorEquipoTorneo, getJugadores, getJugadoresProductor } from '@/lib/api'
 import type { JugadorResponse } from '@/lib/api'
 import type { Torneo, Inscripcion, Equipo, Categoria, InscribirEquipoDTO, JugadorEquipoTorneo, CreateTorneoDTO } from '@/types/club'
 import NotificationModal from '@/components/ui/NotificationModal'
 import DatePicker from '@/components/ui/DatePicker'
+import { useAuthStore } from '@/stores/authStore'
 
 function formatDate(dateString: string) {
   const [y, m, d] = dateString.split('-')
@@ -31,13 +32,13 @@ function calcularEstado(torneo: Torneo): Torneo['estado'] {
 function getEstadoBadge(estado: Torneo['estado']) {
   switch (estado) {
     case 'en_curso':
-      return 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400'
+      return { bg: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20', dot: 'bg-emerald-500' }
     case 'proximo':
-      return 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400'
+      return { bg: 'bg-blue-500/10 text-blue-500 border-blue-500/20', dot: 'bg-blue-500' }
     case 'finalizado':
-      return 'bg-slate-100 text-slate-600 dark:bg-slate-600/30 dark:text-slate-400'
+      return { bg: 'bg-slate-500/10 text-slate-500 border-slate-500/20', dot: 'bg-slate-500' }
     case 'cancelado':
-      return 'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400'
+      return { bg: 'bg-red-500/10 text-red-500 border-red-500/20', dot: 'bg-red-500' }
   }
 }
 
@@ -57,7 +58,10 @@ function getEstadoLabel(estado: Torneo['estado']) {
 export default function DetalleTorneoPage() {
   const router = useRouter()
   const params = useParams()
+  const pathname = usePathname()
+  const basePath = pathname.replace(/\/[^/]+$/, '')
   const torneoId = params.id as string
+  const { user } = useAuthStore()
 
   const [torneo, setTorneo] = useState<Torneo | null>(null)
   const [inscripciones, setInscripciones] = useState<Inscripcion[]>([])
@@ -129,7 +133,7 @@ export default function DetalleTorneoPage() {
           message: 'El torneo solicitado no existe',
           type: 'error'
         })
-        router.push('/dashboard/club/torneos')
+        router.push(basePath)
         return
       }
 
@@ -152,9 +156,6 @@ export default function DetalleTorneoPage() {
   // Compute effective inscription status
   const getInscripcionesEfectivas = (): boolean => {
     if (!torneo) return false
-    const hoy = new Date().toISOString().split('T')[0]
-    // Hard cutoff: if inscripcion_fin passed, always closed
-    if (torneo.inscripcion_fin && hoy > torneo.inscripcion_fin) return false
     return torneo.inscripciones_abiertas
   }
 
@@ -270,7 +271,7 @@ export default function DetalleTorneoPage() {
         type: 'success'
       })
       setTimeout(() => {
-        router.push('/dashboard/club/torneos')
+        router.push(basePath)
       }, 1500)
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Error desconocido'
@@ -405,7 +406,7 @@ export default function DetalleTorneoPage() {
     // Load club players if not loaded
     if (jugadoresClub.length === 0) {
       try {
-        const jugadores = await getJugadores()
+        const jugadores = user?.role === 'productor' ? await getJugadoresProductor() : await getJugadores()
         setJugadoresClub(jugadores)
       } catch {
         // Silently fail, user will see empty list
@@ -550,6 +551,20 @@ export default function DetalleTorneoPage() {
     return `${d}/${m}/${y}`
   }
 
+  const loadLogoBase64 = async (src: string): Promise<string> => {
+    try {
+      const res = await fetch(src)
+      const blob = await res.blob()
+      return await new Promise<string>((resolve) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(reader.result as string)
+        reader.readAsDataURL(blob)
+      })
+    } catch {
+      return ''
+    }
+  }
+
   const handleGenerarPDF = async () => {
     if (equiposParaPDF.length === 0) {
       setNotification({
@@ -564,91 +579,96 @@ export default function DetalleTorneoPage() {
     try {
       setGenerandoPDF(true)
 
-      // Dynamic import html2pdf (browser only)
       const html2pdf = (await import('html2pdf.js')).default
+
+      // Load logos in parallel
+      const [logoLeft, logoCenter, logoRight] = await Promise.all([
+        loadLogoBase64('/logos/lucas-segura.png'),
+        loadLogoBase64('/logos/complejo-deportivo.png'),
+        loadLogoBase64('/logos/bbva-seguros.png'),
+      ])
 
       // Current date formatted
       const hoy = new Date()
-      const fechaActual = `${hoy.getDate().toString().padStart(2, '0')}/${(hoy.getMonth() + 1).toString().padStart(2, '0')}/${hoy.getFullYear()}`
+      const fecha = `${hoy.getDate().toString().padStart(2, '0')}/${(hoy.getMonth() + 1).toString().padStart(2, '0')}/${hoy.getFullYear()}`
 
-      // Generate PDF for each selected team
-      for (const equipoId of equiposParaPDF) {
+      const logoLeftImg = logoLeft ? `<img src="${logoLeft}" style="height:48px;width:auto;">` : ''
+      const logoCenterImg = logoCenter ? `<img src="${logoCenter}" style="height:80px;width:auto;">` : ''
+      const logoRightImg = logoRight ? `<img src="${logoRight}" style="height:38px;width:auto;">` : ''
+
+      const thStyle = 'color:#fff;font-weight:700;text-transform:uppercase;padding:5px 6px;text-align:center;font-size:9.5px;letter-spacing:0.3px;border:1px solid #2d2d2d;'
+      const tdBase = 'padding:4px 6px;text-align:center;vertical-align:middle;border:1px solid #bbb;font-size:10px;'
+
+      // Build one page section per team
+      const pages: string[] = []
+      for (let idx = 0; idx < equiposParaPDF.length; idx++) {
+        const equipoId = equiposParaPDF[idx]
         const inscripcion = inscripciones.find(i => i.equipo_id === equipoId)
         if (!inscripcion) continue
 
-        const jugadores = jugadoresPorEquipo[equipoId] || []
+        const jugadoresEquipo = jugadoresPorEquipo[equipoId] || []
+        const rows = jugadoresEquipo.map((j) => `
+          <tr>
+            <td style="${tdBase}"></td>
+            <td style="${tdBase}"></td>
+            <td style="${tdBase}font-weight:700;text-transform:uppercase;">${`${(j.apellido || '').toUpperCase()} ${(j.nombre || '').toUpperCase()}`.trim()}</td>
+            <td style="${tdBase}">${j.dni || '-'}</td>
+            <td style="${tdBase}">${formatFechaNacimiento(j.fecha_nacimiento)}</td>
+            <td style="${tdBase}font-weight:700;">${inscripcion.categoria_nombre}</td>
+            <td style="${tdBase}font-weight:700;text-transform:uppercase;">${inscripcion.equipo_nombre.toUpperCase()}</td>
+          </tr>`).join('')
 
-        // Build the HTML for this team
-        const html = `
-          <div style="font-family: Arial, sans-serif; padding: 20px; width: 100%;">
-            <div style="text-align: center; margin-bottom: 20px;">
-              <h2 style="margin: 0; font-size: 18px; color: #1e293b;">${torneo?.nombre || 'Torneo'}</h2>
-              <p style="margin: 5px 0 0 0; font-size: 14px; color: #64748b;">Plantel de Equipo - ${fechaActual}</p>
+        const pageBreak = idx < equiposParaPDF.length - 1 ? 'page-break-after: always;' : ''
+
+        pages.push(`
+          <div style="font-family: Calibri, 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #000; width: 100%; ${pageBreak}">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+              <div>${logoLeftImg}</div>
+              <div>${logoCenterImg}</div>
+              <div>${logoRightImg}</div>
             </div>
-
-            <div style="margin-bottom: 15px; padding: 10px; background: #f1f5f9; border-radius: 8px;">
-              <p style="margin: 0; font-size: 14px;"><strong>Equipo:</strong> ${inscripcion.equipo_nombre}</p>
-              <p style="margin: 5px 0 0 0; font-size: 14px;"><strong>Categoría:</strong> ${inscripcion.categoria_nombre}</p>
-            </div>
-
-            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+            <div style="font-size: 11px; margin-bottom: 4px;">FECHA: ${fecha}</div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
               <thead>
-                <tr style="background: #1e293b; color: white;">
-                  <th style="padding: 8px 4px; text-align: center; border: 1px solid #334155; width: 30px;">N°</th>
-                  <th style="padding: 8px 4px; text-align: center; border: 1px solid #334155; width: 35px;">#</th>
-                  <th style="padding: 8px 4px; text-align: left; border: 1px solid #334155;">APELLIDO Y NOMBRE</th>
-                  <th style="padding: 8px 4px; text-align: center; border: 1px solid #334155; width: 80px;">DNI</th>
-                  <th style="padding: 8px 4px; text-align: center; border: 1px solid #334155; width: 80px;">F/NACIMIENTO</th>
+                <tr style="background-color: #2d2d2d;">
+                  <th style="${thStyle}width:50px;">ORDEN</th>
+                  <th style="${thStyle}width:25px;">N</th>
+                  <th style="${thStyle}">APELLIDO Y NOMBRE</th>
+                  <th style="${thStyle}width:75px;">DNI</th>
+                  <th style="${thStyle}width:95px;">F/NACIMIENTO</th>
+                  <th style="${thStyle}width:78px;">CATEGOR\u00cdA</th>
+                  <th style="${thStyle}width:85px;">EQUIPO</th>
                 </tr>
               </thead>
               <tbody>
-                ${jugadores.length === 0
-                  ? `<tr><td colspan="5" style="padding: 20px; text-align: center; color: #64748b; border: 1px solid #e2e8f0;">Sin jugadores registrados</td></tr>`
-                  : jugadores.map((j, idx) => `
-                    <tr style="background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'};">
-                      <td style="padding: 6px 4px; text-align: center; border: 1px solid #e2e8f0;">${idx + 1}</td>
-                      <td style="padding: 6px 4px; text-align: center; border: 1px solid #e2e8f0;">${j.numero_camiseta ?? '-'}</td>
-                      <td style="padding: 6px 4px; text-align: left; border: 1px solid #e2e8f0; font-weight: 500;">${(j.apellido || '').toUpperCase()}, ${j.nombre || ''}${j.capitan ? ' (C)' : ''}</td>
-                      <td style="padding: 6px 4px; text-align: center; border: 1px solid #e2e8f0;">${j.dni || '-'}</td>
-                      <td style="padding: 6px 4px; text-align: center; border: 1px solid #e2e8f0;">${formatFechaNacimiento(j.fecha_nacimiento)}</td>
-                    </tr>
-                  `).join('')}
+                ${rows}
               </tbody>
             </table>
-
-            <div style="margin-top: 15px; text-align: right; font-size: 10px; color: #94a3b8;">
-              Total jugadores: ${jugadores.length}
-            </div>
-          </div>
-        `
-
-        // Create a temporary element
-        const container = document.createElement('div')
-        container.innerHTML = html
-
-        // Generate PDF
-        await html2pdf()
-          .set({
-            margin: [10, 10, 10, 10],
-            filename: `${inscripcion.equipo_nombre.replace(/[^a-zA-Z0-9]/g, '_')}_plantel.pdf`,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-          })
-          .from(container)
-          .save()
-
-        // Small delay between downloads
-        if (equiposParaPDF.indexOf(equipoId) < equiposParaPDF.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 500))
-        }
+          </div>`)
       }
+
+      const html = pages.join('')
+
+      const container = document.createElement('div')
+      container.innerHTML = html
+
+      await html2pdf()
+        .set({
+          margin: [12, 12, 12, 12],
+          filename: 'listado-equipos.pdf',
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          pagebreak: { mode: ['css'] },
+        })
+        .from(container)
+        .save()
 
       setShowModalPDF(false)
       setNotification({
         open: true,
-        title: 'PDFs generados',
-        message: `Se descargaron ${equiposParaPDF.length} PDF${equiposParaPDF.length > 1 ? 's' : ''}`,
+        title: 'PDF generado',
+        message: 'El listado de equipos fue descargado exitosamente',
         type: 'success'
       })
     } catch (error) {
@@ -676,284 +696,305 @@ export default function DetalleTorneoPage() {
 
   if (!torneo) return null
 
+  const estadoCalculado = calcularEstado(torneo)
+  const estadoBadge = getEstadoBadge(estadoCalculado)
+  const inscripcionesEfectivas = getInscripcionesEfectivas()
+  const hoyStr = new Date().toISOString().split('T')[0]
+  const inscripcionVencida = torneo.inscripcion_fin && hoyStr > torneo.inscripcion_fin
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1">
+    <div className="flex flex-col gap-8">
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="space-y-2">
           <button
             onClick={() => router.back()}
-            className="flex items-center gap-1 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-sm mb-2"
+            className="flex items-center gap-1 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 text-sm mb-1"
           >
             <span className="material-symbols-outlined text-lg">arrow_back</span>
             Volver
           </button>
-          <div className="flex items-start gap-3">
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{torneo.nombre}</h1>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-                {formatDate(torneo.fecha_inicio)} - {formatDate(torneo.fecha_fin)}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getEstadoBadge(calcularEstado(torneo))}`}>
-                {getEstadoLabel(calcularEstado(torneo))}
-              </span>
-              <button
-                onClick={handleOpenEditar}
-                className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-                title="Editar torneo"
-              >
-                <span className="material-symbols-outlined text-lg text-slate-400 hover:text-primary">edit</span>
-              </button>
-              <button
-                onClick={() => setShowConfirmEliminarTorneo(true)}
-                className="p-2 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
-                title="Eliminar torneo"
-              >
-                <span className="material-symbols-outlined text-lg text-slate-400 hover:text-red-500">delete</span>
-              </button>
-            </div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white">{torneo.nombre}</h1>
+            <span className={`px-3 py-1 text-xs font-bold uppercase rounded-full border flex items-center gap-1.5 whitespace-nowrap ${estadoBadge.bg}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${estadoBadge.dot} ${estadoCalculado === 'en_curso' ? 'animate-pulse' : ''}`} />
+              {getEstadoLabel(estadoCalculado)}
+            </span>
           </div>
+          <p className="text-slate-500 dark:text-slate-400 flex items-center gap-2">
+            <span className="material-symbols-outlined text-sm">event</span>
+            {formatDate(torneo.fecha_inicio)} - {formatDate(torneo.fecha_fin)}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleOpenEditar}
+            className="p-3 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 rounded-xl transition-colors"
+            title="Editar torneo"
+          >
+            <span className="material-symbols-outlined text-xl text-slate-600 dark:text-slate-300">edit</span>
+          </button>
+          <button
+            onClick={() => setShowConfirmEliminarTorneo(true)}
+            className="p-3 bg-slate-200 dark:bg-slate-800 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-xl transition-colors"
+            title="Eliminar torneo"
+          >
+            <span className="material-symbols-outlined text-xl text-slate-600 dark:text-slate-300 hover:text-red-500">delete</span>
+          </button>
+          {inscripciones.length > 0 && (
+            <button
+              onClick={handleOpenModalPDF}
+              className="flex-1 md:flex-none px-6 h-12 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-sm"
+            >
+              <span className="material-symbols-outlined text-xl">picture_as_pdf</span>
+              Descargar PDF
+            </button>
+          )}
+          <button
+            onClick={handleOpenModalInscripcion}
+            className="flex-1 md:flex-none px-6 h-12 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2 text-sm"
+          >
+            <span className="material-symbols-outlined text-xl">group_add</span>
+            Inscribir equipo
+          </button>
         </div>
       </div>
 
-      {/* Info del torneo */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
-        <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Información del torneo</h2>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {torneo.descripcion && (
-            <div className="md:col-span-2">
-              <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Descripción</p>
-              <p className="text-slate-900 dark:text-white">{torneo.descripcion}</p>
-            </div>
-          )}
-
-          {(torneo.inscripcion_inicio || torneo.inscripcion_fin) && (
-            <div>
-              <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Período de inscripción</p>
-              <p className="text-slate-900 dark:text-white">
-                {torneo.inscripcion_inicio ? formatDate(torneo.inscripcion_inicio) : '—'}
-                {' - '}
-                {torneo.inscripcion_fin ? formatDate(torneo.inscripcion_fin) : '—'}
-              </p>
-            </div>
-          )}
-
-          <div>
-            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Máx. jugadores por equipo</p>
-            <p className="text-slate-900 dark:text-white">{torneo.max_jugadores_por_equipo}</p>
-          </div>
-
-          {/* Categorías del torneo */}
-          {torneo.categorias && torneo.categorias.length > 0 && (
-            <div className="md:col-span-2">
-              <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">Categorías</p>
-              <div className="flex flex-wrap gap-2">
-                {torneo.categorias.map((cat) => (
-                  <span
-                    key={cat.id}
-                    className="px-3 py-1 bg-primary/10 text-primary text-sm font-medium rounded-full"
-                  >
-                    {cat.nombre}
-                  </span>
-                ))}
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Left Column - 2/3 */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Info Card */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-sm">
+            {/* Gradient header area (no image) */}
+            <div className="h-32 w-full relative bg-gradient-to-br from-primary/20 via-primary/10 to-slate-100 dark:from-primary/30 dark:via-slate-800 dark:to-slate-900">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="material-symbols-outlined text-6xl text-primary/30">emoji_events</span>
+              </div>
+              <div className="absolute bottom-4 left-6">
+                <span className="px-3 py-1 bg-primary text-white text-xs font-bold rounded-lg uppercase tracking-wider">
+                  Torneo Oficial
+                </span>
               </div>
             </div>
-          )}
-        </div>
 
-        {/* Switch inscripciones */}
-        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-          {(() => {
-            const efectiva = getInscripcionesEfectivas()
-            const hoy = new Date().toISOString().split('T')[0]
-            const vencido = torneo.inscripcion_fin && hoy > torneo.inscripcion_fin
-            return (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="material-symbols-outlined text-lg text-slate-400">how_to_reg</span>
+            <div className="p-6 space-y-4">
+              <div>
+                <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">Información del torneo</h3>
+                {torneo.descripcion && (
+                  <p className="text-slate-500 dark:text-slate-400">{torneo.descripcion}</p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                {(torneo.inscripcion_inicio || torneo.inscripcion_fin) && (
+                  <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+                    <span className="material-symbols-outlined text-primary">calendar_month</span>
+                    <div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold tracking-tight">Inscripción</p>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                        {torneo.inscripcion_inicio ? formatDate(torneo.inscripcion_inicio) : '—'} - {torneo.inscripcion_fin ? formatDate(torneo.inscripcion_fin) : '—'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+                  <span className="material-symbols-outlined text-primary">groups</span>
                   <div>
-                    <p className="text-sm font-medium text-slate-900 dark:text-white">Inscripciones</p>
-                    <p className={`text-xs font-semibold ${efectiva ? 'text-green-500' : 'text-red-400'}`}>
-                      {vencido ? 'Cerradas (fecha de cierre vencida)' : efectiva ? 'Abiertas' : 'Cerradas'}
-                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold tracking-tight">Capacidad Máx.</p>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">{torneo.max_jugadores_por_equipo} Jugadores por equipo</p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleToggleInscripciones}
-                  disabled={togglingInscripciones || !!vencido}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${
-                    efectiva ? 'bg-green-500' : 'bg-slate-300 dark:bg-slate-600'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      efectiva ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
               </div>
-            )
-          })()}
-        </div>
-      </div>
 
-      {/* Equipos inscritos */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-            Equipos inscritos ({inscripciones.length})
-          </h2>
-          <div className="flex gap-2">
-            {inscripciones.length > 0 && (
-              <button
-                onClick={handleOpenModalPDF}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-              >
-                <span className="material-symbols-outlined text-lg">picture_as_pdf</span>
-                Descargar PDF
-              </button>
-            )}
-            <button
-              onClick={handleOpenModalInscripcion}
-              className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-            >
-              <span className="material-symbols-outlined text-lg">add</span>
-              Inscribir equipo
-            </button>
-          </div>
-        </div>
-
-        {inscripciones.length === 0 ? (
-          <div className="text-center py-12">
-            <span className="material-symbols-outlined text-5xl text-slate-300 dark:text-slate-600">groups</span>
-            <p className="mt-3 text-slate-500 dark:text-slate-400 text-sm">No hay equipos inscritos</p>
-            <p className="mt-1 text-slate-400 dark:text-slate-500 text-xs">Inscribí equipos para que puedan participar del torneo</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {inscripciones.map((inscripcion) => {
-              const isExpanded = expandedEquipo === inscripcion.equipo_id
-              const jugadores = jugadoresPorEquipo[inscripcion.equipo_id] || []
-              const isLoadingJugadores = loadingJugadores === inscripcion.equipo_id
-
-              return (
-                <div
-                  key={inscripcion.id}
-                  className="rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden"
-                >
-                  {/* Header del equipo */}
-                  <div
-                    className="flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors cursor-pointer"
-                    onClick={() => handleToggleEquipo(inscripcion.equipo_id)}
-                  >
-                    <div className="flex items-center gap-4 flex-1">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <span className="material-symbols-outlined text-primary">shield</span>
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-slate-900 dark:text-white">{inscripcion.equipo_nombre}</p>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
-                          Categoría: <span className="font-medium text-primary">{inscripcion.categoria_nombre}</span>
-                          {jugadoresPorEquipo[inscripcion.equipo_id] && (
-                            <span className="ml-2 text-slate-400">
-                              · {jugadores.length} jugador{jugadores.length !== 1 ? 'es' : ''}
-                            </span>
-                          )}
-                        </p>
-                      </div>
+              {/* Categorías */}
+              {torneo.categorias && torneo.categorias.length > 0 && (
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {torneo.categorias.map((cat) => (
+                    <div
+                      key={cat.id}
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary border border-primary/20 rounded-xl"
+                    >
+                      <span className="material-symbols-outlined text-sm">label</span>
+                      <span className="text-sm font-bold">Categoría: {cat.nombre}</span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setShowConfirmDesinscribir({ id: inscripcion.id, nombre: inscripcion.equipo_nombre }) }}
-                        className="p-2 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Teams Section */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between px-2">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                Equipos inscritos
+                <span className="bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded-md text-sm">{inscripciones.length}</span>
+              </h3>
+            </div>
+
+            {inscripciones.length === 0 ? (
+              <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
+                <span className="material-symbols-outlined text-5xl text-slate-300 dark:text-slate-600">groups</span>
+                <p className="mt-3 text-slate-500 dark:text-slate-400 text-sm">No hay equipos inscritos</p>
+                <p className="mt-1 text-slate-400 dark:text-slate-500 text-xs">Inscribí equipos para que puedan participar del torneo</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {inscripciones.map((inscripcion) => {
+                  const isExpanded = expandedEquipo === inscripcion.equipo_id
+                  const jugadores = jugadoresPorEquipo[inscripcion.equipo_id] || []
+                  const isLoadingJugadores = loadingJugadores === inscripcion.equipo_id
+
+                  return (
+                    <div
+                      key={inscripcion.id}
+                      className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden hover:border-primary/50 transition-all"
+                    >
+                      {/* Header del equipo */}
+                      <div
+                        className="flex items-center justify-between p-4 cursor-pointer"
+                        onClick={() => handleToggleEquipo(inscripcion.equipo_id)}
                       >
-                        <span className="material-symbols-outlined text-lg text-slate-400 hover:text-red-500">delete</span>
-                      </button>
-                      <span className={`material-symbols-outlined text-lg text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-                        expand_more
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Panel expandible de jugadores */}
-                  {isExpanded && (
-                    <div className="border-t border-slate-200 dark:border-slate-700 p-4 bg-slate-50/50 dark:bg-slate-900/30">
-                      {isLoadingJugadores ? (
-                        <div className="flex items-center justify-center py-6">
-                          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                          <span className="ml-2 text-sm text-slate-500 dark:text-slate-400">Cargando jugadores...</span>
+                        <div className="flex items-center gap-4 flex-1">
+                          <div className="h-14 w-14 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-primary border border-slate-200 dark:border-slate-700">
+                            <span className="material-symbols-outlined text-3xl">shield</span>
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-lg text-slate-900 dark:text-white">{inscripcion.equipo_nombre}</h4>
+                            <span className="text-xs font-bold text-slate-500 uppercase">{inscripcion.categoria_nombre}</span>
+                            {jugadoresPorEquipo[inscripcion.equipo_id] && (
+                              <span className="text-xs text-slate-400 ml-2">
+                                · {jugadores.length} jugador{jugadores.length !== 1 ? 'es' : ''}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      ) : (
-                        <>
-                          {jugadores.length === 0 ? (
-                            <p className="text-center text-sm text-slate-400 dark:text-slate-500 py-4">
-                              No hay jugadores agregados a este equipo
-                            </p>
-                          ) : (
-                            <div className="space-y-2 mb-3">
-                              {jugadores.map((jugador) => (
-                                <div
-                                  key={jugador.id}
-                                  className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    {jugador.foto_url ? (
-                                      <img
-                                        src={jugador.foto_url}
-                                        alt={jugador.nombre_completo}
-                                        className="w-8 h-8 rounded-full object-cover"
-                                      />
-                                    ) : (
-                                      <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
-                                        <span className="material-symbols-outlined text-sm text-slate-400">person</span>
-                                      </div>
-                                    )}
-                                    <div>
-                                      <p className="text-sm font-medium text-slate-900 dark:text-white">
-                                        {jugador.nombre_completo}
-                                        {jugador.capitan && (
-                                          <span className="ml-1.5 text-xs font-semibold text-amber-500">(C)</span>
-                                        )}
-                                      </p>
-                                      <p className="text-xs text-slate-500 dark:text-slate-400">
-                                        {[
-                                          jugador.posicion,
-                                          jugador.numero_camiseta != null ? `#${jugador.numero_camiseta}` : null,
-                                        ].filter(Boolean).join(' · ') || 'Sin datos adicionales'}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <button
-                                    onClick={() => setShowConfirmQuitarJugador({ equipoId: inscripcion.equipo_id, jugador })}
-                                    className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
-                                  >
-                                    <span className="material-symbols-outlined text-base text-slate-400 hover:text-red-500">close</span>
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
+                        <div className="flex items-center gap-2">
                           <button
-                            onClick={(e) => { e.stopPropagation(); handleOpenAgregarJugador(inscripcion.equipo_id, inscripcion.equipo_nombre) }}
-                            className="w-full px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                            onClick={(e) => { e.stopPropagation(); setShowConfirmDesinscribir({ id: inscripcion.id, nombre: inscripcion.equipo_nombre }) }}
+                            className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-slate-400 hover:text-red-500 transition-colors"
                           >
-                            <span className="material-symbols-outlined text-lg">person_add</span>
-                            Agregar jugador
+                            <span className="material-symbols-outlined">delete</span>
                           </button>
-                        </>
+                          <span className={`material-symbols-outlined text-lg text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
+                            expand_more
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Panel expandible de jugadores */}
+                      {isExpanded && (
+                        <div className="border-t border-slate-200 dark:border-slate-800 p-4 bg-slate-50/50 dark:bg-slate-900/30">
+                          {isLoadingJugadores ? (
+                            <div className="flex items-center justify-center py-6">
+                              <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                              <span className="ml-2 text-sm text-slate-500 dark:text-slate-400">Cargando jugadores...</span>
+                            </div>
+                          ) : (
+                            <>
+                              {jugadores.length === 0 ? (
+                                <p className="text-center text-sm text-slate-400 dark:text-slate-500 py-4">
+                                  No hay jugadores agregados a este equipo
+                                </p>
+                              ) : (
+                                <div className="space-y-2 mb-3">
+                                  {jugadores.map((jugador) => (
+                                    <div
+                                      key={jugador.id}
+                                      className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700"
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        {jugador.foto_url ? (
+                                          <img
+                                            src={jugador.foto_url}
+                                            alt={jugador.nombre_completo}
+                                            className="w-8 h-8 rounded-full object-cover"
+                                          />
+                                        ) : (
+                                          <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+                                            <span className="material-symbols-outlined text-sm text-slate-400">person</span>
+                                          </div>
+                                        )}
+                                        <div>
+                                          <p className="text-sm font-medium text-slate-900 dark:text-white">
+                                            {jugador.nombre_completo}
+                                            {jugador.capitan && (
+                                              <span className="ml-1.5 text-xs font-semibold text-amber-500">(C)</span>
+                                            )}
+                                          </p>
+                                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                                            {[
+                                              jugador.posicion,
+                                              jugador.numero_camiseta != null ? `#${jugador.numero_camiseta}` : null,
+                                            ].filter(Boolean).join(' · ') || 'Sin datos adicionales'}
+                                          </p>
+                                        </div>
+                                      </div>
+                                      <button
+                                        onClick={() => setShowConfirmQuitarJugador({ equipoId: inscripcion.equipo_id, jugador })}
+                                        className="p-1.5 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                                      >
+                                        <span className="material-symbols-outlined text-base text-slate-400 hover:text-red-500">close</span>
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleOpenAgregarJugador(inscripcion.equipo_id, inscripcion.equipo_nombre) }}
+                                className="w-full px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                              >
+                                <span className="material-symbols-outlined text-lg">person_add</span>
+                                Agregar jugador
+                              </button>
+                            </>
+                          )}
+                        </div>
                       )}
                     </div>
-                  )}
-                </div>
-              )
-            })}
+                  )
+                })}
+              </div>
+            )}
           </div>
-        )}
+        </div>
+
+        {/* Right Column - Side Panel */}
+        <div className="space-y-6">
+          {/* Registration Toggle Card */}
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+            <div className="flex items-start justify-between">
+              <div className="space-y-1">
+                <p className="font-bold text-lg text-slate-900 dark:text-white">Inscripciones</p>
+                <p className={`text-sm font-medium ${inscripcionesEfectivas ? 'text-emerald-500' : 'text-red-500'}`}>
+                  {inscripcionesEfectivas ? 'Abiertas' : 'Cerradas'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleToggleInscripciones}
+                disabled={togglingInscripciones}
+                className={`relative inline-flex h-[31px] w-[51px] items-center rounded-full p-0.5 transition-colors focus:outline-none disabled:cursor-not-allowed ${
+                  inscripcionesEfectivas ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-800'
+                }`}
+              >
+                <div className={`h-full w-[27px] rounded-full shadow-sm transition-transform ${
+                  inscripcionesEfectivas
+                    ? 'translate-x-[20px] bg-white'
+                    : 'translate-x-0 bg-slate-400 dark:bg-slate-600'
+                }`} />
+              </button>
+            </div>
+            {inscripcionVencida && (
+              <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 rounded-xl text-xs font-medium">
+                <span className="material-symbols-outlined text-sm">info</span>
+                Fecha de cierre vencida
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Modal inscribir equipo */}
@@ -1065,7 +1106,7 @@ export default function DetalleTorneoPage() {
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">Desinscribir equipo</h3>
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-5">
-              ¿Estás seguro de desinscribir a <span className="font-semibold text-slate-900 dark:text-white">"{showConfirmDesinscribir.nombre}"</span> del torneo?
+              ¿Estás seguro de desinscribir a <span className="font-semibold text-slate-900 dark:text-white">&quot;{showConfirmDesinscribir.nombre}&quot;</span> del torneo?
             </p>
             <div className="flex gap-3">
               <button
@@ -1096,7 +1137,7 @@ export default function DetalleTorneoPage() {
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">Eliminar torneo</h3>
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
-              ¿Estás seguro de eliminar el torneo <span className="font-semibold text-slate-900 dark:text-white">"{torneo.nombre}"</span>? Ya no será visible para el club ni los jugadores.
+              ¿Estás seguro de eliminar el torneo <span className="font-semibold text-slate-900 dark:text-white">&quot;{torneo.nombre}&quot;</span>? Ya no será visible para el club ni los jugadores.
             </p>
             <div className="mb-5">
               <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">
@@ -1268,7 +1309,7 @@ export default function DetalleTorneoPage() {
               <h3 className="text-lg font-bold text-slate-900 dark:text-white">Quitar jugador</h3>
             </div>
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-5">
-              ¿Estás seguro de quitar a <span className="font-semibold text-slate-900 dark:text-white">"{showConfirmQuitarJugador.jugador.nombre_completo}"</span> del equipo?
+              ¿Estás seguro de quitar a <span className="font-semibold text-slate-900 dark:text-white">&quot;{showConfirmQuitarJugador.jugador.nombre_completo}&quot;</span> del equipo?
             </p>
             <div className="flex gap-3">
               <button

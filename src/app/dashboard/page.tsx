@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { QRCodeSVG } from 'qrcode.react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { getResumenHoy } from '@/lib/api'
 
 // Modal QR
 function QRModal({ isOpen, onClose, dni }: { isOpen: boolean; onClose: () => void; dni: string }) {
@@ -112,11 +113,11 @@ function CredentialCard({ memberData, onShowQR, variant = 'mobile' }: {
           </div>
           {memberData.status === 'activo' ? (
             <span className={`${isDesktop ? 'bg-emerald-400 text-emerald-950 text-[10px] font-black px-3 py-1 ring-4 ring-emerald-400/20' : 'bg-green-500/20 backdrop-blur-md border border-green-400/30 text-green-300 text-[10px] px-2.5 py-0.5'} rounded-full uppercase tracking-wider font-bold`}>
-              ACTIVO
+              PAGADO
             </span>
           ) : (
             <span className={`${isDesktop ? 'bg-red-400 text-red-950 text-[10px] font-black px-3 py-1 ring-4 ring-red-400/20' : 'bg-red-500/20 backdrop-blur-md border border-red-400/30 text-red-300 text-[10px] px-2.5 py-0.5'} rounded-full uppercase tracking-wider font-bold`}>
-              VENCIDO
+              NO PAGADO
             </span>
           )}
         </div>
@@ -214,17 +215,19 @@ function JugadorDashboard() {
 
   const loadPerfil = async () => {
     try {
-      const { getJugadorPerfil } = await import('@/lib/api')
-      const perfil = await getJugadorPerfil()
+      const { getJugadorPerfil, getPolizaActiva } = await import('@/lib/api')
+      const [perfil, poliza] = await Promise.all([
+        getJugadorPerfil(),
+        getPolizaActiva(),
+      ])
 
       const formatDate = (dateStr: string | null | undefined) => {
         if (!dateStr) return '-'
-        const date = new Date(dateStr)
+        const date = new Date(dateStr + 'T00:00:00')
         return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
       }
 
       const clubNombre = perfil.clubes?.[0]?.nombre || ''
-      const vigente = perfil.poliza_fin ? new Date(perfil.poliza_fin) >= new Date() : false
 
       setDniRaw(perfil.dni)
       setMemberData({
@@ -232,9 +235,9 @@ function JugadorDashboard() {
         club: clubNombre,
         dni: perfil.dni.replace(/\B(?=(\d{3})+(?!\d))/g, '.'),
         birthDate: formatDate(perfil.fecha_nacimiento),
-        insuranceStart: formatDate(perfil.poliza_inicio),
-        insuranceEnd: formatDate(perfil.poliza_fin),
-        status: vigente ? 'activo' : 'inactivo',
+        insuranceStart: poliza ? formatDate(poliza.fecha_inicio) : '-',
+        insuranceEnd: poliza ? formatDate(poliza.fecha_fin) : '-',
+        status: perfil.pagado ? 'activo' : 'inactivo',
       })
     } catch (error) {
       console.error('Error al cargar perfil:', error)
@@ -329,137 +332,14 @@ function AdminDashboard() {
   )
 }
 
-// Dashboard del Club
-function ClubDashboard() {
-  const { user } = useAuthStore()
-
-  const [loading, setLoading] = useState(true)
-  const [jugadoresTotal, setJugadoresTotal] = useState(0)
-  const [equiposTotal, setEquiposTotal] = useState(0)
-  const [torneosActivos, setTorneosActivos] = useState(0)
-  const [sinSeguro, setSinSeguro] = useState(0)
-  useEffect(() => {
-    loadDashboardData()
-  }, [])
-
-  const loadDashboardData = async () => {
-    try {
-      setLoading(true)
-
-      // Importar las funciones API
-      const { getJugadores, getEquipos, getTorneos } = await import('@/lib/api')
-
-      // Cargar datos en paralelo
-      const [jugadores, equipos, torneos] = await Promise.all([
-        getJugadores(),
-        getEquipos(),
-        getTorneos(),
-      ])
-
-      // Calcular estadísticas
-      setJugadoresTotal(jugadores.length)
-      setEquiposTotal(equipos.length)
-      // Torneos activos = próximos + en curso (no finalizados ni cancelados)
-      setTorneosActivos(torneos.filter(t => t.estado === 'proximo' || t.estado === 'en_curso').length)
-
-      // Jugadores sin seguro (sin poliza_inicio o poliza_fin, o poliza vencida)
-      const hoy = new Date()
-      const jugadoresSinSeguro = jugadores.filter(j => {
-        if (!j.poliza_inicio || !j.poliza_fin) return true
-        const finPoliza = new Date(j.poliza_fin)
-        return finPoliza < hoy
-      })
-      setSinSeguro(jugadoresSinSeguro.length)
-    } catch (error) {
-      console.error('Error al cargar datos del dashboard:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-slate-500 dark:text-slate-400 text-sm">Cargando dashboard...</p>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Saludo */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold">
-          Hola, {user?.name}
-        </h1>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Resumen de tu club</p>
-      </div>
-
-      {/* Tarjetas de resumen */}
-      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
-        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-5 border border-slate-200 dark:border-slate-700">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-primary">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-            </div>
-            <h3 className="text-slate-500 dark:text-slate-400 text-xs font-medium">Jugadores</h3>
-          </div>
-          <p className="text-2xl sm:text-3xl font-bold">{jugadoresTotal}</p>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-5 border border-slate-200 dark:border-slate-700">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg bg-indigo-500/10">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-indigo-400">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-            </div>
-            <h3 className="text-slate-500 dark:text-slate-400 text-xs font-medium">Equipos</h3>
-          </div>
-          <p className="text-2xl sm:text-3xl font-bold text-indigo-400">{equiposTotal}</p>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-5 border border-slate-200 dark:border-slate-700">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg bg-amber-500/10">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-amber-400">
-                <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-              </svg>
-            </div>
-            <h3 className="text-slate-500 dark:text-slate-400 text-xs font-medium">Torneos</h3>
-          </div>
-          <p className="text-2xl sm:text-3xl font-bold text-amber-400">{torneosActivos}</p>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-5 border border-slate-200 dark:border-slate-700">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg bg-red-500/10">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-red-400">
-                <circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line x1="12" x2="12.01" y1="16" y2="16" />
-              </svg>
-            </div>
-            <h3 className="text-slate-500 dark:text-slate-400 text-xs font-medium">Sin seguro</h3>
-          </div>
-          <p className="text-2xl sm:text-3xl font-bold text-red-400">{sinSeguro}</p>
-        </div>
-      </div>
-
-    </div>
-  )
-}
-
 // Dashboard de Cantina
 function CantinaDashboard() {
   const { user } = useAuthStore()
+  const [stats, setStats] = useState({ canjes_hoy: 0, descuentos_hoy: 0, cupones_activos: 0 })
 
-  const cuponesHoy = 5
-  const montoTotalHoy = 3500
-  const cuponesDisponibles = 12
+  useEffect(() => {
+    getResumenHoy().then(setStats).catch(() => {})
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -478,7 +358,7 @@ function CantinaDashboard() {
             </div>
             <h3 className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium">Canjes hoy</h3>
           </div>
-          <p className="text-2xl sm:text-3xl font-bold text-green-400">{cuponesHoy}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-green-400">{stats.canjes_hoy}</p>
         </div>
 
         <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-5 border border-slate-200 dark:border-slate-700">
@@ -488,7 +368,7 @@ function CantinaDashboard() {
             </div>
             <h3 className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium">Descuentos otorgados</h3>
           </div>
-          <p className="text-2xl sm:text-3xl font-bold">${montoTotalHoy.toLocaleString()}</p>
+          <p className="text-2xl sm:text-3xl font-bold">${stats.descuentos_hoy.toLocaleString()}</p>
         </div>
 
         <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-5 border border-slate-200 dark:border-slate-700">
@@ -498,7 +378,7 @@ function CantinaDashboard() {
             </div>
             <h3 className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium">Cupones activos</h3>
           </div>
-          <p className="text-2xl sm:text-3xl font-bold text-amber-400">{cuponesDisponibles}</p>
+          <p className="text-2xl sm:text-3xl font-bold text-amber-400">{stats.cupones_activos}</p>
         </div>
       </div>
 
@@ -541,10 +421,12 @@ export default function DashboardPage() {
   const { user } = useAuthStore()
   const router = useRouter()
 
-  // Redirect productor to jugadores page
+  // Redirect productor and club to their default pages
   useEffect(() => {
     if (user?.role === 'productor') {
       router.replace('/dashboard/productor/jugadores')
+    } else if (user?.role === 'club') {
+      router.replace('/dashboard/club/torneos')
     }
   }, [user?.role, router])
 
@@ -552,12 +434,8 @@ export default function DashboardPage() {
     return <JugadorDashboard />
   }
 
-  if (user?.role === 'productor') {
+  if (user?.role === 'productor' || user?.role === 'club') {
     return null // Redirecting...
-  }
-
-  if (user?.role === 'club') {
-    return <ClubDashboard />
   }
 
   if (user?.role === 'cantina') {

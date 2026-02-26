@@ -1,21 +1,26 @@
 'use client'
 
-import { useState } from 'react'
-import { MOCK_CUPONES } from '@/lib/mockData'
-import type { Cupon } from '@/lib/mockData'
+import { useState, useEffect } from 'react'
+import { getMisCupones, CuponResponse } from '@/lib/api'
 
-function getEstadoBadge(estado: Cupon['estado']) {
+function getEstado(cupon: CuponResponse): 'disponible' | 'usado' | 'vencido' {
+  if (cupon.usado) return 'usado'
+  if (cupon.fecha_vencimiento && new Date(cupon.fecha_vencimiento) < new Date(new Date().toDateString())) return 'vencido'
+  return 'disponible'
+}
+
+function estadoBadge(estado: 'disponible' | 'usado' | 'vencido') {
   switch (estado) {
     case 'disponible':
-      return 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400'
+      return 'bg-green-500/10 text-green-500 border-green-500/20'
     case 'usado':
-      return 'bg-slate-100 text-slate-600 dark:bg-slate-600/30 dark:text-slate-400'
+      return 'bg-slate-500/10 text-slate-400 border-slate-500/20'
     case 'vencido':
-      return 'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400'
+      return 'bg-red-500/10 text-red-400 border-red-500/20'
   }
 }
 
-function getEstadoLabel(estado: Cupon['estado']) {
+function estadoLabel(estado: 'disponible' | 'usado' | 'vencido') {
   switch (estado) {
     case 'disponible': return 'Disponible'
     case 'usado': return 'Usado'
@@ -23,146 +28,169 @@ function getEstadoLabel(estado: Cupon['estado']) {
   }
 }
 
-export default function JugadorCuponesPage() {
-  const [cuponModal, setCuponModal] = useState<Cupon | null>(null)
-  const [copiedId, setCopiedId] = useState<string | null>(null)
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00')
+  return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
 
-  // Filtrar cupones del jugador actual (id: '1' para mock)
-  const cupones = MOCK_CUPONES.filter(c => c.jugadorId === '1')
+function timeAgo(dateStr: string): string {
+  const now = new Date()
+  const date = new Date(dateStr)
+  const diffMs = now.getTime() - date.getTime()
+  const diffMin = Math.floor(diffMs / 60000)
+  if (diffMin < 1) return 'Ahora'
+  if (diffMin < 60) return `Hace ${diffMin} min`
+  const diffH = Math.floor(diffMin / 60)
+  if (diffH < 24) return `Hace ${diffH}h`
+  const diffD = Math.floor(diffH / 24)
+  if (diffD < 7) return `Hace ${diffD}d`
+  return formatDate(dateStr.split('T')[0])
+}
 
-  const handleCopiar = (codigo: string, id: string) => {
-    navigator.clipboard.writeText(codigo)
-    setCopiedId(id)
-    setTimeout(() => setCopiedId(null), 2000)
+export default function CuponesPage() {
+  const [cupones, setCupones] = useState<CuponResponse[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selected, setSelected] = useState<CuponResponse | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    getMisCupones()
+      .then(setCupones)
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  const copyCode = (code: string) => {
+    navigator.clipboard.writeText(code)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto">
-      {/* Header */}
+    <div className="max-w-lg mx-auto space-y-4 pb-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#111518] dark:text-white">Mis Cupones</h1>
-        <p className="text-sm text-[#617989] dark:text-slate-400 mt-1">
-          Descuentos exclusivos para jugadores asegurados
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Mis Cupones</h1>
+        <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
+          {cupones.length === 0 ? 'No tenes cupones' : `${cupones.length} cupon${cupones.length !== 1 ? 'es' : ''}`}
         </p>
       </div>
 
-      {/* Lista de cupones */}
-      <div className="flex flex-col gap-3">
-        {cupones.map((cupon) => (
-          <button
-            key={cupon.id}
-            onClick={() => setCuponModal(cupon)}
-            className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex items-center gap-4 hover:border-primary/30 transition-all active:scale-[0.98] text-left w-full"
-          >
-            <div className={`size-12 rounded-xl flex items-center justify-center shrink-0 ${
-              cupon.estado === 'disponible' ? 'bg-primary/10 text-primary' :
-              cupon.estado === 'usado' ? 'bg-slate-100 dark:bg-slate-700 text-slate-400' :
-              'bg-red-100 dark:bg-red-500/10 text-red-400'
-            }`}>
-              <span className="material-symbols-outlined text-2xl">confirmation_number</span>
+      {cupones.length === 0 ? (
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-8 text-center">
+          <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600">confirmation_number</span>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">No tenes cupones disponibles</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {cupones.map((cupon) => {
+            const estado = getEstado(cupon)
+            return (
+              <button
+                key={cupon.id}
+                onClick={() => setSelected(cupon)}
+                className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 text-left hover:border-primary transition-colors"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full border ${estadoBadge(estado)}`}>
+                        {estadoLabel(estado)}
+                      </span>
+                      <span className="text-slate-400 dark:text-slate-500 text-xs">{timeAgo(cupon.created_at)}</span>
+                    </div>
+                    <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{cupon.titulo}</p>
+                    {cupon.descripcion && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">{cupon.descripcion}</p>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-lg font-bold text-primary">
+                      {cupon.tipo_descuento === 'porcentaje' ? `${cupon.valor_descuento}%` : `$${cupon.valor_descuento.toLocaleString()}`}
+                    </p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                      {cupon.tipo_descuento === 'porcentaje' ? 'descuento' : 'de descuento'}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {selected && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSelected(null)} />
+          <div className="relative bg-white dark:bg-slate-800 rounded-xl w-full max-w-sm p-5 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Detalle del cupon</h3>
+              <button onClick={() => setSelected(null)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md">
+                <span className="material-symbols-outlined text-slate-400">close</span>
+              </button>
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <p className="font-bold text-[#111518] dark:text-white text-sm truncate">{cupon.descripcion}</p>
-                <span className={`px-2 py-0.5 text-[10px] font-semibold rounded-full whitespace-nowrap ${getEstadoBadge(cupon.estado)}`}>
-                  {getEstadoLabel(cupon.estado)}
-                </span>
-              </div>
-              <p className="text-xs text-[#617989] dark:text-slate-400">
-                {cupon.tipo === 'porcentaje' ? `${cupon.valor}% de descuento` : `$${cupon.valor} de descuento`}
+
+            <div className="text-center py-3">
+              <p className="text-3xl font-bold text-primary">
+                {selected.tipo_descuento === 'porcentaje' ? `${selected.valor_descuento}%` : `$${selected.valor_descuento.toLocaleString()}`}
               </p>
-              <p className="text-[10px] text-[#617989] dark:text-slate-500 mt-0.5">
-                Vence: {new Date(cupon.fechaVencimiento + 'T00:00:00').toLocaleDateString('es-AR')}
-              </p>
-            </div>
-            <span className="material-symbols-outlined text-[#617989]">chevron_right</span>
-          </button>
-        ))}
-
-        {cupones.length === 0 && (
-          <div className="text-center py-12">
-            <span className="material-symbols-outlined text-5xl text-slate-300 dark:text-slate-600 mb-3 block">confirmation_number</span>
-            <p className="text-slate-500 dark:text-slate-400">No tenes cupones disponibles</p>
-          </div>
-        )}
-      </div>
-
-      {/* Modal detalle de cupon */}
-      {cuponModal && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-          onClick={() => setCuponModal(null)}
-        >
-          <div
-            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="text-center mb-5">
-              <div className={`size-16 rounded-2xl flex items-center justify-center mx-auto mb-3 ${
-                cuponModal.estado === 'disponible' ? 'bg-primary/10 text-primary' :
-                cuponModal.estado === 'usado' ? 'bg-slate-100 dark:bg-slate-700 text-slate-400' :
-                'bg-red-100 dark:bg-red-500/10 text-red-400'
-              }`}>
-                <span className="material-symbols-outlined text-4xl">confirmation_number</span>
-              </div>
-              <h3 className="text-lg font-bold text-[#111518] dark:text-white">{cuponModal.descripcion}</h3>
-              <span className={`inline-block mt-2 px-3 py-1 text-xs font-semibold rounded-full ${getEstadoBadge(cuponModal.estado)}`}>
-                {getEstadoLabel(cuponModal.estado)}
-              </span>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{selected.titulo}</p>
             </div>
 
-            {/* Codigo */}
-            <div className="bg-slate-100 dark:bg-slate-900 rounded-xl p-4 mb-4">
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider mb-1">Codigo del cupon</p>
-              <div className="flex items-center justify-between">
-                <p className="font-mono text-lg font-bold text-[#111518] dark:text-white tracking-wider">{cuponModal.codigo}</p>
-                {cuponModal.estado === 'disponible' && (
-                  <button
-                    onClick={() => handleCopiar(cuponModal.codigo, cuponModal.id)}
-                    className="flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-xs font-medium hover:bg-primary/20 transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-sm">
-                      {copiedId === cuponModal.id ? 'check' : 'content_copy'}
-                    </span>
-                    {copiedId === cuponModal.id ? 'Copiado' : 'Copiar'}
-                  </button>
-                )}
-              </div>
+            <div className="bg-slate-100 dark:bg-slate-900 rounded-lg p-3 flex items-center justify-between">
+              <span className="font-mono text-sm text-slate-900 dark:text-white font-bold">{selected.codigo}</span>
+              <button
+                onClick={() => copyCode(selected.codigo)}
+                className="text-xs text-primary hover:underline flex items-center gap-1"
+              >
+                <span className="material-symbols-outlined text-sm">{copied ? 'check' : 'content_copy'}</span>
+                {copied ? 'Copiado' : 'Copiar'}
+              </button>
             </div>
 
-            {/* Detalle */}
-            <div className="space-y-2 mb-5 text-sm">
+            <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Descuento</span>
-                <span className="font-medium text-[#111518] dark:text-white">
-                  {cuponModal.tipo === 'porcentaje' ? `${cuponModal.valor}%` : `$${cuponModal.valor}`}
+                <span className="text-slate-500 dark:text-slate-400">Estado</span>
+                <span className={`font-medium ${getEstado(selected) === 'disponible' ? 'text-green-500' : getEstado(selected) === 'usado' ? 'text-slate-400' : 'text-red-400'}`}>
+                  {estadoLabel(getEstado(selected))}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Vencimiento</span>
-                <span className="font-medium text-[#111518] dark:text-white">
-                  {new Date(cuponModal.fechaVencimiento + 'T00:00:00').toLocaleDateString('es-AR')}
-                </span>
-              </div>
-              {cuponModal.canjeadoPor && (
+              {selected.fecha_vencimiento && (
+                <div className="flex justify-between">
+                  <span className="text-slate-500 dark:text-slate-400">Vencimiento</span>
+                  <span className="text-slate-900 dark:text-white">{formatDate(selected.fecha_vencimiento)}</span>
+                </div>
+              )}
+              {selected.usado && selected.usado_at && (
                 <>
+                  <div className="border-t border-slate-200 dark:border-slate-700 pt-2 mt-2" />
                   <div className="flex justify-between">
-                    <span className="text-slate-500 dark:text-slate-400">Canjeado en</span>
-                    <span className="font-medium text-[#111518] dark:text-white">{cuponModal.canjeadoPor}</span>
+                    <span className="text-slate-500 dark:text-slate-400">Monto compra</span>
+                    <span className="text-slate-900 dark:text-white">${Number(selected.monto_compra).toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500 dark:text-slate-400">Fecha de canje</span>
-                    <span className="font-medium text-[#111518] dark:text-white">
-                      {new Date(cuponModal.fechaCanje! + 'T00:00:00').toLocaleDateString('es-AR')}
-                    </span>
+                    <span className="text-slate-500 dark:text-slate-400">Descuento aplicado</span>
+                    <span className="text-green-500 font-medium">-${Number(selected.monto_descuento).toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">Total pagado</span>
+                    <span className="text-slate-900 dark:text-white font-bold">${Number(selected.monto_total).toLocaleString()}</span>
                   </div>
                 </>
               )}
             </div>
 
             <button
-              onClick={() => setCuponModal(null)}
-              className="w-full bg-primary text-white font-bold py-3 rounded-xl hover:bg-primary/90 transition-colors"
+              onClick={() => setSelected(null)}
+              className="w-full py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors"
             >
               Cerrar
             </button>

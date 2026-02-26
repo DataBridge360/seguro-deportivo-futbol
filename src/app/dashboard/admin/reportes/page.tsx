@@ -1,14 +1,11 @@
 'use client'
 
-import { MOCK_JUGADORES, MOCK_CUPONES, MOCK_TORNEOS } from '@/lib/mockData'
+import { MOCK_JUGADORES, MOCK_TORNEOS } from '@/lib/mockData'
 
 export default function AdminReportesPage() {
   const totalJugadores = MOCK_JUGADORES.length
-  const jugadoresActivos = MOCK_JUGADORES.filter(j => new Date(j.seguroFin) >= new Date()).length
+  const jugadoresActivos = MOCK_JUGADORES.filter(j => j.pagado).length
   const jugadoresSinSeguro = totalJugadores - jugadoresActivos
-  const totalCupones = MOCK_CUPONES.length
-  const cuponesUsados = MOCK_CUPONES.filter(c => c.estado === 'usado').length
-  const cuponesDisponibles = MOCK_CUPONES.filter(c => c.estado === 'disponible').length
   const torneosActivos = MOCK_TORNEOS.filter(t => t.estado !== 'Finalizado').length
 
   const stats = [
@@ -16,9 +13,6 @@ export default function AdminReportesPage() {
     { label: 'Seguros Activos', value: jugadoresActivos, icon: 'verified_user', color: 'bg-green-500/10 text-green-400' },
     { label: 'Sin Seguro', value: jugadoresSinSeguro, icon: 'warning', color: 'bg-red-500/10 text-red-400' },
     { label: 'Torneos Activos', value: torneosActivos, icon: 'emoji_events', color: 'bg-amber-500/10 text-amber-400' },
-    { label: 'Total Cupones', value: totalCupones, icon: 'confirmation_number', color: 'bg-indigo-500/10 text-indigo-400' },
-    { label: 'Cupones Usados', value: cuponesUsados, icon: 'check_circle', color: 'bg-slate-500/10 text-slate-400' },
-    { label: 'Cupones Disponibles', value: cuponesDisponibles, icon: 'redeem', color: 'bg-orange-500/10 text-orange-400' },
     { label: 'Clubs', value: 5, icon: 'domain', color: 'bg-purple-500/10 text-purple-400' },
   ]
 
