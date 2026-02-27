@@ -161,7 +161,7 @@ export default function HomePage() {
                 <span className="bg-primary text-white rounded-full w-7 h-7 flex items-center justify-center flex-shrink-0 text-sm font-bold">1</span>
                 <div>
                   <p className="text-[#111518] dark:text-white">Tocá el botón <strong>Compartir</strong></p>
-                  <div className="bg-[#f6f7f8] dark:bg-[#101a22] rounded-lg p-2 mt-2 inline-flex items-center gap-2">
+                  <div className="bg-[#f6f7f8] dark:bg-[#0a0a0a] rounded-lg p-2 mt-2 inline-flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary">ios_share</span>
                     <span className="text-sm text-[#617989]">Compartir</span>
                   </div>
@@ -171,7 +171,7 @@ export default function HomePage() {
                 <span className="bg-primary text-white rounded-full w-7 h-7 flex items-center justify-center flex-shrink-0 text-sm font-bold">2</span>
                 <div>
                   <p className="text-[#111518] dark:text-white">Deslizá y seleccioná <strong>&quot;Agregar a Inicio&quot;</strong></p>
-                  <div className="bg-[#f6f7f8] dark:bg-[#101a22] rounded-lg p-2 mt-2 inline-flex items-center gap-2">
+                  <div className="bg-[#f6f7f8] dark:bg-[#0a0a0a] rounded-lg p-2 mt-2 inline-flex items-center gap-2">
                     <span className="material-symbols-outlined text-[#617989]">add_box</span>
                     <span className="text-sm text-[#617989]">Agregar a Inicio</span>
                   </div>

@@ -245,7 +245,7 @@ export default function DashboardLayout({
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-50
         w-64 border-r border-slate-200 dark:border-white/[0.06] flex flex-col h-screen lg:h-auto
-        bg-white dark:bg-[#151f2e]
+        bg-white dark:bg-[#111111]
         transform transition-transform duration-200 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
@@ -329,7 +329,7 @@ export default function DashboardLayout({
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0">
         {/* Mobile header */}
-        <header className="lg:hidden h-16 border-b border-slate-200 dark:border-white/[0.06] bg-white/80 dark:bg-[#151f2e]/80 backdrop-blur-md sticky top-0 z-40 px-4 flex items-center gap-4">
+        <header className="lg:hidden h-16 border-b border-slate-200 dark:border-white/[0.06] bg-white/80 dark:bg-[#0a0a0a]/80 backdrop-blur-md sticky top-0 z-40 px-4 flex items-center gap-4">
           <button
             onClick={() => setSidebarOpen(true)}
             className="p-2 hover:bg-slate-100 dark:hover:bg-white/[0.06] rounded-lg transition-colors text-slate-700 dark:text-white"

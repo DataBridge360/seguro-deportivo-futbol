@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#101a22',
+  themeColor: '#0a0a0a',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -46,6 +46,9 @@ export default function RootLayout({
                 try {
                   var theme = JSON.parse(localStorage.getItem('theme-storage'))?.state?.theme || 'dark';
                   document.documentElement.classList.add(theme);
+                  var colors = { light: '#f6f7f8', dark: '#0a0a0a' };
+                  var meta = document.querySelector('meta[name="theme-color"]');
+                  if (meta) meta.setAttribute('content', colors[theme] || colors.dark);
                 } catch (e) {
                   document.documentElement.classList.add('dark');
                 }

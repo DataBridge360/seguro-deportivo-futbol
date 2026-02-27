@@ -1,15 +1,17 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { getMisCupones, CuponResponse } from '@/lib/api'
 
-function getEstado(cupon: CuponResponse): 'disponible' | 'usado' | 'vencido' {
+type Estado = 'disponible' | 'usado' | 'vencido'
+
+function getEstado(cupon: CuponResponse): Estado {
   if (cupon.usado) return 'usado'
   if (cupon.fecha_vencimiento && new Date(cupon.fecha_vencimiento) < new Date(new Date().toDateString())) return 'vencido'
   return 'disponible'
 }
 
-function estadoBadge(estado: 'disponible' | 'usado' | 'vencido') {
+function estadoBadge(estado: Estado) {
   switch (estado) {
     case 'disponible':
       return 'bg-green-500/10 text-green-500 border-green-500/20'
@@ -20,7 +22,7 @@ function estadoBadge(estado: 'disponible' | 'usado' | 'vencido') {
   }
 }
 
-function estadoLabel(estado: 'disponible' | 'usado' | 'vencido') {
+function estadoLabel(estado: Estado) {
   switch (estado) {
     case 'disponible': return 'Disponible'
     case 'usado': return 'Usado'
@@ -47,11 +49,18 @@ function timeAgo(dateStr: string): string {
   return formatDate(dateStr.split('T')[0])
 }
 
+const tabs: { key: Estado; label: string; icon: string }[] = [
+  { key: 'disponible', label: 'Disponibles', icon: 'confirmation_number' },
+  { key: 'usado', label: 'Usados', icon: 'check_circle' },
+  { key: 'vencido', label: 'Vencidos', icon: 'event_busy' },
+]
+
 export default function CuponesPage() {
   const [cupones, setCupones] = useState<CuponResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<CuponResponse | null>(null)
   const [copied, setCopied] = useState(false)
+  const [activeTab, setActiveTab] = useState<Estado>('disponible')
 
   useEffect(() => {
     getMisCupones()
@@ -59,6 +68,14 @@ export default function CuponesPage() {
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
+
+  const grouped = useMemo(() => {
+    const groups: Record<Estado, CuponResponse[]> = { disponible: [], usado: [], vencido: [] }
+    cupones.forEach(c => groups[getEstado(c)].push(c))
+    return groups
+  }, [cupones])
+
+  const filtered = grouped[activeTab]
 
   const copyCode = (code: string) => {
     navigator.clipboard.writeText(code)
@@ -79,24 +96,64 @@ export default function CuponesPage() {
       <div>
         <h1 className="text-xl font-bold text-slate-900 dark:text-white">Mis Cupones</h1>
         <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
-          {cupones.length === 0 ? 'No tenes cupones' : `${cupones.length} cupon${cupones.length !== 1 ? 'es' : ''}`}
+          {cupones.length === 0 ? 'No tenés cupones' : `${cupones.length} cupón${cupones.length !== 1 ? 'es' : ''}`}
         </p>
       </div>
 
-      {cupones.length === 0 ? (
+      {/* Tabs */}
+      <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 gap-1">
+        {tabs.map(tab => {
+          const count = grouped[tab.key].length
+          const isActive = activeTab === tab.key
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-md text-xs font-medium transition-all ${
+                isActive
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+            >
+              <span className="material-symbols-outlined text-sm" style={{ fontSize: '16px' }}>{tab.icon}</span>
+              <span>{tab.label}</span>
+              {count > 0 && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+                  isActive
+                    ? 'bg-primary/10 text-primary'
+                    : 'bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-400'
+                }`}>
+                  {count}
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* List */}
+      {filtered.length === 0 ? (
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-8 text-center">
-          <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600">confirmation_number</span>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">No tenes cupones disponibles</p>
+          <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600">
+            {activeTab === 'disponible' ? 'confirmation_number' : activeTab === 'usado' ? 'check_circle' : 'event_busy'}
+          </span>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">
+            {activeTab === 'disponible' && 'No tenés cupones disponibles'}
+            {activeTab === 'usado' && 'No tenés cupones usados'}
+            {activeTab === 'vencido' && 'No tenés cupones vencidos'}
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
-          {cupones.map((cupon) => {
+          {filtered.map((cupon) => {
             const estado = getEstado(cupon)
             return (
               <button
                 key={cupon.id}
                 onClick={() => setSelected(cupon)}
-                className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 text-left hover:border-primary transition-colors"
+                className={`w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 text-left hover:border-primary transition-colors ${
+                  estado !== 'disponible' ? 'opacity-60' : ''
+                }`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
@@ -132,7 +189,7 @@ export default function CuponesPage() {
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSelected(null)} />
           <div className="relative bg-white dark:bg-slate-800 rounded-xl w-full max-w-sm p-5 space-y-4 shadow-xl">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Detalle del cupon</h3>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Detalle del cupón</h3>
               <button onClick={() => setSelected(null)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md">
                 <span className="material-symbols-outlined text-slate-400">close</span>
               </button>
