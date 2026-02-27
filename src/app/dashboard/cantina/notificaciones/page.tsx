@@ -30,19 +30,27 @@ export default function CantinaNotificacionesPage() {
   const [tipoCupon, setTipoCupon] = useState<'porcentaje' | 'monto_fijo'>('porcentaje')
   const [valorCupon, setValorCupon] = useState('')
   const [tituloCupon, setTituloCupon] = useState('')
+  const [fechaVencimiento, setFechaVencimiento] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [sending, setSending] = useState(false)
-  const [showNotification, setShowNotification] = useState(false)
-  const [notifMessage, setNotifMessage] = useState('')
+  const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' }>({
+    open: false, title: '', message: '', type: 'success'
+  })
+  const [lastSendSuccess, setLastSendSuccess] = useState(false)
 
   const [historial, setHistorial] = useState<NotificacionEnviadaResponse[]>([])
   const [loadingHistorial, setLoadingHistorial] = useState(true)
+  const [historialError, setHistorialError] = useState('')
+
+  const fetchHistorial = () => {
+    getNotificacionesEnviadas()
+      .then((data) => { setHistorial(data); setHistorialError('') })
+      .catch((err) => setHistorialError(err instanceof Error ? err.message : 'Error al cargar historial'))
+      .finally(() => setLoadingHistorial(false))
+  }
 
   useEffect(() => {
-    getNotificacionesEnviadas()
-      .then(setHistorial)
-      .catch(() => {})
-      .finally(() => setLoadingHistorial(false))
+    fetchHistorial()
   }, [])
 
   const validate = () => {
@@ -52,6 +60,7 @@ export default function CantinaNotificacionesPage() {
     if (incluirCupon) {
       if (!tituloCupon.trim()) newErrors.tituloCupon = 'El titulo del cupon es obligatorio'
       if (!valorCupon || parseFloat(valorCupon) <= 0) newErrors.valorCupon = 'El valor del cupon es obligatorio'
+      if (!fechaVencimiento) newErrors.fechaVencimiento = 'La fecha de vencimiento es obligatoria'
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -74,31 +83,43 @@ export default function CantinaNotificacionesPage() {
           titulo: tituloCupon.trim(),
           tipo_descuento: tipoCupon,
           valor_descuento: parseFloat(valorCupon),
+          fecha_vencimiento: new Date(fechaVencimiento + 'T23:59:59').toISOString(),
         }
       }
       const result = await createNotificacion(data)
-      setNotifMessage(
-        incluirCupon
+      setLastSendSuccess(true)
+      setNotification({
+        open: true,
+        title: 'Notificacion enviada',
+        message: incluirCupon
           ? `Notificacion enviada a ${result.destinatarios_count} jugadores con cupon de ${tipoCupon === 'porcentaje' ? `${valorCupon}%` : `$${valorCupon}`}.`
-          : `Notificacion enviada a ${result.destinatarios_count} jugadores.`
-      )
-      setShowNotification(true)
+          : `Notificacion enviada a ${result.destinatarios_count} jugadores.`,
+        type: 'success'
+      })
     } catch (error) {
-      setNotifMessage(error instanceof Error ? error.message : 'Error al enviar')
-      setShowNotification(true)
+      setLastSendSuccess(false)
+      setNotification({
+        open: true,
+        title: 'Error al enviar',
+        message: error instanceof Error ? error.message : 'Error al enviar la notificacion',
+        type: 'error'
+      })
     } finally {
       setSending(false)
     }
   }
 
   const handleNotificationClose = () => {
-    setShowNotification(false)
-    setAsunto('')
-    setMensaje('')
-    setIncluirCupon(false)
-    setValorCupon('')
-    setTituloCupon('')
-    getNotificacionesEnviadas().then(setHistorial).catch(() => {})
+    setNotification(prev => ({ ...prev, open: false }))
+    if (lastSendSuccess) {
+      setAsunto('')
+      setMensaje('')
+      setIncluirCupon(false)
+      setValorCupon('')
+      setTituloCupon('')
+      setFechaVencimiento('')
+      fetchHistorial()
+    }
   }
 
   const clearError = (field: string) => {
@@ -177,6 +198,14 @@ export default function CantinaNotificacionesPage() {
                 />
                 {errors.valorCupon && <p className="text-red-400 text-xs mt-1">{errors.valorCupon}</p>}
               </div>
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 text-xs font-medium mb-1.5">Fecha de vencimiento</label>
+                <input type="date" value={fechaVencimiento} onChange={(e) => { setFechaVencimiento(e.target.value); clearError('fechaVencimiento') }}
+                  min={new Date().toISOString().split('T')[0]}
+                  className={`w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:border-primary ${errors.fechaVencimiento ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'}`}
+                />
+                {errors.fechaVencimiento && <p className="text-red-400 text-xs mt-1">{errors.fechaVencimiento}</p>}
+              </div>
             </div>
           )}
         </div>
@@ -200,9 +229,17 @@ export default function CantinaNotificacionesPage() {
           <div className="flex justify-center py-8">
             <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
+        ) : historialError ? (
+          <div className="bg-white dark:bg-slate-800 border border-red-300 dark:border-red-500/30 rounded-lg p-6 text-center">
+            <span className="material-symbols-outlined text-3xl text-red-400">error</span>
+            <p className="text-red-400 text-sm mt-2">{historialError}</p>
+            <button onClick={() => { setLoadingHistorial(true); fetchHistorial() }}
+              className="mt-3 text-xs text-primary hover:underline">Reintentar</button>
+          </div>
         ) : historial.length === 0 ? (
           <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-6 text-center">
-            <p className="text-slate-500 dark:text-slate-400 text-sm">No hay notificaciones enviadas</p>
+            <span className="material-symbols-outlined text-3xl text-slate-300 dark:text-slate-600">notifications_off</span>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">No hay notificaciones enviadas</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -226,7 +263,13 @@ export default function CantinaNotificacionesPage() {
         )}
       </div>
 
-      <NotificationModal isOpen={showNotification} onClose={handleNotificationClose} title="Notificacion enviada" message={notifMessage} type="success" />
+      <NotificationModal
+        isOpen={notification.open}
+        onClose={handleNotificationClose}
+        title={notification.title}
+        message={notification.message}
+        type={notification.type}
+      />
     </div>
   )
 }

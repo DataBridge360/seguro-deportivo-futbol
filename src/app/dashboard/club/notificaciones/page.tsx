@@ -50,6 +50,7 @@ export default function NotificacionesPage() {
   const [tipoCupon, setTipoCupon] = useState<'porcentaje' | 'monto_fijo'>('porcentaje')
   const [valorCupon, setValorCupon] = useState('')
   const [tituloCupon, setTituloCupon] = useState('')
+  const [fechaVencimiento, setFechaVencimiento] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [sending, setSending] = useState(false)
   const [showNotification, setShowNotification] = useState(false)
@@ -82,6 +83,7 @@ export default function NotificacionesPage() {
     if (incluirCupon) {
       if (!tituloCupon.trim()) newErrors.tituloCupon = 'El titulo del cupon es obligatorio'
       if (!valorCupon || parseFloat(valorCupon) <= 0) newErrors.valorCupon = 'El valor del cupon es obligatorio'
+      if (!fechaVencimiento) newErrors.fechaVencimiento = 'La fecha de vencimiento es obligatoria'
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -105,6 +107,7 @@ export default function NotificacionesPage() {
           titulo: tituloCupon.trim(),
           tipo_descuento: tipoCupon,
           valor_descuento: parseFloat(valorCupon),
+          fecha_vencimiento: new Date(fechaVencimiento + 'T23:59:59').toISOString(),
         }
       }
       const result = await createNotificacion(data)
@@ -131,6 +134,7 @@ export default function NotificacionesPage() {
     setIncluirCupon(false)
     setValorCupon('')
     setTituloCupon('')
+    setFechaVencimiento('')
     getNotificacionesEnviadas().then(setHistorial).catch(() => {})
   }
 
@@ -261,6 +265,17 @@ export default function NotificacionesPage() {
                   min="1"
                 />
                 {errors.valorCupon && <p className="text-red-400 text-xs mt-1">{errors.valorCupon}</p>}
+              </div>
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 text-xs font-medium mb-1.5">Fecha de vencimiento</label>
+                <input
+                  type="date"
+                  value={fechaVencimiento}
+                  onChange={(e) => { setFechaVencimiento(e.target.value); clearError('fechaVencimiento') }}
+                  min={new Date().toISOString().split('T')[0]}
+                  className={`w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:border-primary ${errors.fechaVencimiento ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'}`}
+                />
+                {errors.fechaVencimiento && <p className="text-red-400 text-xs mt-1">{errors.fechaVencimiento}</p>}
               </div>
             </div>
           )}

@@ -7,7 +7,7 @@ export const navigationItems: NavItem[] = [
     href: '/dashboard',
     icon: 'Home',
     materialIcon: 'home',
-    roles: ['admin', 'jugador', 'cantina']
+    roles: ['admin', 'jugador']
   },
 
   // Admin
@@ -132,16 +132,9 @@ export const navigationItems: NavItem[] = [
 
   // Cantina
   {
-    label: 'Validar Cupones',
+    label: 'Caja',
     href: '/dashboard/cantina/cupones',
     icon: 'ScanLine',
-    materialIcon: 'qr_code_scanner',
-    roles: ['cantina']
-  },
-  {
-    label: 'Cierre de Caja',
-    href: '/dashboard/cantina/cierre',
-    icon: 'Calculator',
     materialIcon: 'point_of_sale',
     roles: ['cantina']
   },

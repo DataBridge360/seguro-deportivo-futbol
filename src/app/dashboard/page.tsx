@@ -6,7 +6,6 @@ import { useAuthStore } from '@/stores/authStore'
 import { QRCodeSVG } from 'qrcode.react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { getResumenHoy } from '@/lib/api'
 
 // Modal QR
 function QRModal({ isOpen, onClose, dni }: { isOpen: boolean; onClose: () => void; dni: string }) {
@@ -332,101 +331,18 @@ function AdminDashboard() {
   )
 }
 
-// Dashboard de Cantina
-function CantinaDashboard() {
-  const { user } = useAuthStore()
-  const [stats, setStats] = useState({ canjes_hoy: 0, descuentos_hoy: 0, cupones_activos: 0 })
-
-  useEffect(() => {
-    getResumenHoy().then(setStats).catch(() => {})
-  }, [])
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold">
-          Hola, {user?.name}
-        </h1>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Resumen del dia</p>
-      </div>
-
-      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
-        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-5 border border-slate-200 dark:border-slate-700">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg bg-green-500/10">
-              <span className="material-symbols-outlined text-green-400">check_circle</span>
-            </div>
-            <h3 className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium">Canjes hoy</h3>
-          </div>
-          <p className="text-2xl sm:text-3xl font-bold text-green-400">{stats.canjes_hoy}</p>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-5 border border-slate-200 dark:border-slate-700">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <span className="material-symbols-outlined text-primary">payments</span>
-            </div>
-            <h3 className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium">Descuentos otorgados</h3>
-          </div>
-          <p className="text-2xl sm:text-3xl font-bold">${stats.descuentos_hoy.toLocaleString()}</p>
-        </div>
-
-        <div className="bg-white dark:bg-slate-800 rounded-xl p-4 sm:p-5 border border-slate-200 dark:border-slate-700">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 rounded-lg bg-amber-500/10">
-              <span className="material-symbols-outlined text-amber-400">confirmation_number</span>
-            </div>
-            <h3 className="text-slate-500 dark:text-slate-400 text-xs sm:text-sm font-medium">Cupones activos</h3>
-          </div>
-          <p className="text-2xl sm:text-3xl font-bold text-amber-400">{stats.cupones_activos}</p>
-        </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Link
-          href="/dashboard/cantina/cupones"
-          className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 hover:border-primary transition-colors group"
-        >
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-primary/10 group-hover:bg-primary group-hover:text-white text-primary transition-colors">
-              <span className="material-symbols-outlined text-2xl">qr_code_scanner</span>
-            </div>
-            <div>
-              <h3 className="font-bold text-slate-900 dark:text-white">Validar cupon</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Escanear o ingresar codigo</p>
-            </div>
-          </div>
-        </Link>
-
-        <Link
-          href="/dashboard/cantina/cierre"
-          className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 hover:border-primary transition-colors group"
-        >
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-indigo-500/10 group-hover:bg-indigo-500 group-hover:text-white text-indigo-500 transition-colors">
-              <span className="material-symbols-outlined text-2xl">calculate</span>
-            </div>
-            <div>
-              <h3 className="font-bold text-slate-900 dark:text-white">Cierre de caja</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Resumen y detalle del dia</p>
-            </div>
-          </div>
-        </Link>
-      </div>
-    </div>
-  )
-}
-
 export default function DashboardPage() {
   const { user } = useAuthStore()
   const router = useRouter()
 
-  // Redirect productor and club to their default pages
+  // Redirect roles that don't use /dashboard as home
   useEffect(() => {
     if (user?.role === 'productor') {
       router.replace('/dashboard/productor/jugadores')
     } else if (user?.role === 'club') {
       router.replace('/dashboard/club/torneos')
+    } else if (user?.role === 'cantina') {
+      router.replace('/dashboard/cantina/cupones')
     }
   }, [user?.role, router])
 
@@ -434,12 +350,8 @@ export default function DashboardPage() {
     return <JugadorDashboard />
   }
 
-  if (user?.role === 'productor' || user?.role === 'club') {
+  if (user?.role === 'productor' || user?.role === 'club' || user?.role === 'cantina') {
     return null // Redirecting...
-  }
-
-  if (user?.role === 'cantina') {
-    return <CantinaDashboard />
   }
 
   return <AdminDashboard />

@@ -652,7 +652,8 @@ export default function DetalleTorneoPage() {
       const container = document.createElement('div')
       container.innerHTML = html
 
-      await html2pdf()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (html2pdf() as any)
         .set({
           margin: [12, 12, 12, 12],
           filename: 'listado-equipos.pdf',
