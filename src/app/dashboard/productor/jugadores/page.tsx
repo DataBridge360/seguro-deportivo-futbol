@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/authStore'
 import NotificationModal from '@/components/ui/NotificationModal'
 import DatePicker from '@/components/ui/DatePicker'
 import BulkImportWizard from '@/components/bulk-import/BulkImportWizard'
+import TournamentImportWizard from '@/components/bulk-import/TournamentImportWizard'
 import { getJugadoresProductor, getPolizaActiva, createPoliza, uploadPoliza, toggleJugadorPagado, verifyPassword, type JugadorResponse, type PolizaGeneral } from '@/lib/api'
 
 function formatDate(dateStr: string | null | undefined): string {
@@ -23,6 +24,8 @@ export default function ProductorJugadoresPage() {
   const [loading, setLoading] = useState(true)
   const [filtroEstado, setFiltroEstado] = useState<'' | 'pagado' | 'no_pagado'>('')
   const [busqueda, setBusqueda] = useState('')
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 50
 
   // Three-dot menu
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
@@ -52,8 +55,10 @@ export default function ProductorJugadoresPage() {
   // Modal de notificación
   const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({ open: false, title: '', message: '', type: 'info' })
 
-  // Bulk Import Wizard
+  // Bulk Import
+  const [showImportSelector, setShowImportSelector] = useState(false)
   const [showBulkImport, setShowBulkImport] = useState(false)
+  const [showTournamentImport, setShowTournamentImport] = useState(false)
 
   // Fetch jugadores and poliza from API
   const fetchData = useCallback(async () => {
@@ -111,6 +116,15 @@ export default function ProductorJugadoresPage() {
       return matchBusqueda && matchEstado
     })
   }, [jugadores, filtroEstado, busqueda])
+
+  // Reset page when filters/search change
+  useEffect(() => { setPage(1) }, [busqueda, filtroEstado])
+
+  const totalPages = Math.max(1, Math.ceil(jugadoresFiltrados.length / PAGE_SIZE))
+  const jugadoresPaginados = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE
+    return jugadoresFiltrados.slice(start, start + PAGE_SIZE)
+  }, [jugadoresFiltrados, page])
 
   // Card click filter
   const handleCardClick = (tipo: '' | 'pagado' | 'no_pagado') => {
@@ -271,7 +285,7 @@ export default function ProductorJugadoresPage() {
             <span className="hidden sm:inline">Descargar</span>
           </button>
           <button
-            onClick={() => setShowBulkImport(true)}
+            onClick={() => setShowImportSelector(true)}
             className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
           >
             <span className="material-symbols-outlined text-lg sm:text-xl">upload_file</span>
@@ -331,48 +345,33 @@ export default function ProductorJugadoresPage() {
 
       {/* Summary Cards - Mobile: compact row / Desktop: full cards */}
       {/* Mobile compact stats */}
-      <div className="flex gap-2 md:hidden">
+      <div className="grid grid-cols-3 gap-2 md:hidden">
         <button
           onClick={() => handleCardClick('')}
-          className={`flex-1 flex items-center gap-2.5 p-3 rounded-xl transition-all
+          className={`flex flex-col items-center justify-center p-2.5 rounded-xl transition-all
             bg-white/80 dark:bg-white/[0.03] backdrop-blur-xl border
             ${filtroEstado === '' ? 'border-primary/50 ring-2 ring-primary/20' : 'border-slate-200 dark:border-white/10'}`}
         >
-          <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
-            <span className="material-symbols-outlined text-lg">person</span>
-          </div>
-          <div>
-            <p className="text-xl font-black leading-none">{stats.total}</p>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total</p>
-          </div>
+          <p className="text-lg font-black leading-none text-slate-900 dark:text-white">{stats.total}</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Total</p>
         </button>
         <button
           onClick={() => handleCardClick('pagado')}
-          className={`flex-1 flex items-center gap-2.5 p-3 rounded-xl transition-all
+          className={`flex flex-col items-center justify-center p-2.5 rounded-xl transition-all
             bg-white/80 dark:bg-white/[0.03] backdrop-blur-xl border
             ${filtroEstado === 'pagado' ? 'border-emerald-500/50 ring-2 ring-emerald-500/20' : 'border-slate-200 dark:border-white/10'}`}
         >
-          <div className="size-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0">
-            <span className="material-symbols-outlined text-lg">check_circle</span>
-          </div>
-          <div>
-            <p className="text-xl font-black leading-none">{stats.pagados}</p>
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pagados</p>
-          </div>
+          <p className="text-lg font-black leading-none text-emerald-500">{stats.pagados}</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Pagados</p>
         </button>
         <button
           onClick={() => handleCardClick('no_pagado')}
-          className={`flex-1 flex items-center gap-2.5 p-3 rounded-xl transition-all
+          className={`flex flex-col items-center justify-center p-2.5 rounded-xl transition-all
             bg-white/80 dark:bg-white/[0.03] backdrop-blur-xl border
             ${filtroEstado === 'no_pagado' ? 'border-rose-500/50 ring-2 ring-rose-500/20' : 'border-slate-200 dark:border-white/10'}`}
         >
-          <div className="size-8 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-500 shrink-0">
-            <span className="material-symbols-outlined text-lg">cancel</span>
-          </div>
-          <div>
-            <p className="text-xl font-black leading-none">{stats.noPagados}</p>
-            <p className="text-[10px] font-bold text-rose-500 uppercase tracking-wider">No Pagado</p>
-          </div>
+          <p className="text-lg font-black leading-none text-rose-500">{stats.noPagados}</p>
+          <p className="text-[10px] font-bold text-rose-500 uppercase tracking-wider mt-0.5">No pagado</p>
         </button>
       </div>
 
@@ -493,7 +492,7 @@ export default function ProductorJugadoresPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                  {jugadoresFiltrados.map((jugador) => {
+                  {jugadoresPaginados.map((jugador) => {
                     const nombreCompleto = `${jugador.apellido} ${jugador.nombre}`.toUpperCase()
                     const isToggling = togglingPagado === jugador.id
                     return (
@@ -566,18 +565,38 @@ export default function ProductorJugadoresPage() {
               </table>
             </div>
             {/* Pagination Footer */}
-            <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                Mostrando {jugadoresFiltrados.length} de {jugadores.length} jugadores
+            <div className="px-4 sm:px-6 py-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 shrink-0">
+                {jugadoresFiltrados.length > PAGE_SIZE
+                  ? `${(page - 1) * PAGE_SIZE + 1}-${Math.min(page * PAGE_SIZE, jugadoresFiltrados.length)} de ${jugadoresFiltrados.length}`
+                  : `${jugadoresFiltrados.length} jugadores`}
                 {filtroEstado && (
-                  <button
-                    onClick={() => setFiltroEstado('')}
-                    className="ml-2 text-primary hover:underline"
-                  >
+                  <button onClick={() => setFiltroEstado('')} className="ml-2 text-primary hover:underline">
                     Limpiar filtro
                   </button>
                 )}
               </p>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                    className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-lg text-slate-600 dark:text-slate-300">chevron_left</span>
+                  </button>
+                  <span className="text-xs font-bold text-slate-600 dark:text-slate-300 min-w-[4rem] text-center">
+                    {page} / {totalPages}
+                  </span>
+                  <button
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page === totalPages}
+                    className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-lg text-slate-600 dark:text-slate-300">chevron_right</span>
+                  </button>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -768,10 +787,70 @@ export default function ProductorJugadoresPage() {
         type={notification.type}
       />
 
+      {/* Import Selector Modal */}
+      {showImportSelector && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setShowImportSelector(false)}>
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-center mb-4">
+              <div className="bg-primary/10 p-3 rounded-full">
+                <span className="material-symbols-outlined text-primary text-2xl">upload_file</span>
+              </div>
+            </div>
+            <h3 className="text-slate-900 dark:text-white text-lg font-bold text-center mb-1">Carga Masiva</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm text-center mb-5">
+              Seleccioná el tipo de importación que querés realizar
+            </p>
+            <div className="space-y-3">
+              <button
+                onClick={() => { setShowImportSelector(false); setShowBulkImport(true) }}
+                className="w-full flex items-center gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-primary/50 hover:bg-primary/5 dark:hover:bg-primary/5 transition-all group"
+              >
+                <div className="size-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0 group-hover:bg-blue-500/20 transition-colors">
+                  <span className="material-symbols-outlined">person_add</span>
+                </div>
+                <div className="text-left flex-1">
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">Carga Masiva de Jugadores</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Importar jugadores desde Excel (DNI, nombre, apellido, fecha nac.)</p>
+                </div>
+                <span className="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">chevron_right</span>
+              </button>
+              <button
+                onClick={() => { setShowImportSelector(false); setShowTournamentImport(true) }}
+                className="w-full flex items-center gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-primary/50 hover:bg-primary/5 dark:hover:bg-primary/5 transition-all group"
+              >
+                <div className="size-10 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500 shrink-0 group-hover:bg-purple-500/20 transition-colors">
+                  <span className="material-symbols-outlined">emoji_events</span>
+                </div>
+                <div className="text-left flex-1">
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">Carga Masiva de Torneo</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Crear torneo completo: categorías, equipos y jugadores desde Excel</p>
+                </div>
+                <span className="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">chevron_right</span>
+              </button>
+            </div>
+            <button
+              onClick={() => setShowImportSelector(false)}
+              className="w-full mt-4 px-4 py-2.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl text-sm font-bold transition-all text-slate-500 dark:text-slate-400"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Bulk Import Wizard */}
       <BulkImportWizard
         isOpen={showBulkImport}
         onClose={() => setShowBulkImport(false)}
+        onImportComplete={() => {
+          fetchData()
+        }}
+      />
+
+      {/* Tournament Import Wizard */}
+      <TournamentImportWizard
+        isOpen={showTournamentImport}
+        onClose={() => setShowTournamentImport(false)}
         onImportComplete={() => {
           fetchData()
         }}

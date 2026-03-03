@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { getMisCupones, CuponResponse } from '@/lib/api'
 
 type Estado = 'disponible' | 'usado' | 'vencido'
@@ -11,48 +11,20 @@ function getEstado(cupon: CuponResponse): Estado {
   return 'disponible'
 }
 
-function estadoBadge(estado: Estado) {
-  switch (estado) {
-    case 'disponible':
-      return 'bg-green-500/10 text-green-500 border-green-500/20'
-    case 'usado':
-      return 'bg-slate-500/10 text-slate-400 border-slate-500/20'
-    case 'vencido':
-      return 'bg-red-500/10 text-red-400 border-red-500/20'
-  }
-}
-
-function estadoLabel(estado: Estado) {
-  switch (estado) {
-    case 'disponible': return 'Disponible'
-    case 'usado': return 'Usado'
-    case 'vencido': return 'Vencido'
-  }
-}
-
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00')
   return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-function timeAgo(dateStr: string): string {
-  const now = new Date()
-  const date = new Date(dateStr)
-  const diffMs = now.getTime() - date.getTime()
-  const diffMin = Math.floor(diffMs / 60000)
-  if (diffMin < 1) return 'Ahora'
-  if (diffMin < 60) return `Hace ${diffMin} min`
-  const diffH = Math.floor(diffMin / 60)
-  if (diffH < 24) return `Hace ${diffH}h`
-  const diffD = Math.floor(diffH / 24)
-  if (diffD < 7) return `Hace ${diffD}d`
-  return formatDate(dateStr.split('T')[0])
+function formatDateShort(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00')
+  return d.toLocaleDateString('es-AR', { day: 'numeric', month: 'numeric' })
 }
 
-const tabs: { key: Estado; label: string; icon: string }[] = [
-  { key: 'disponible', label: 'Disponibles', icon: 'confirmation_number' },
-  { key: 'usado', label: 'Usados', icon: 'check_circle' },
-  { key: 'vencido', label: 'Vencidos', icon: 'event_busy' },
+const tabs: { key: Estado; label: string }[] = [
+  { key: 'disponible', label: 'Disponibles' },
+  { key: 'usado', label: 'Usados' },
+  { key: 'vencido', label: 'Vencidos' },
 ]
 
 export default function CuponesPage() {
@@ -61,13 +33,25 @@ export default function CuponesPage() {
   const [selected, setSelected] = useState<CuponResponse | null>(null)
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<Estado>('disponible')
+  const initialLoadDone = useRef(false)
+
+  const fetchCupones = useCallback(async () => {
+    try {
+      if (!initialLoadDone.current) setLoading(true)
+      const data = await getMisCupones()
+      setCupones(data)
+      initialLoadDone.current = true
+    } catch {
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
-    getMisCupones()
-      .then(setCupones)
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+    fetchCupones()
+    const interval = setInterval(fetchCupones, 30000)
+    return () => clearInterval(interval)
+  }, [fetchCupones])
 
   const grouped = useMemo(() => {
     const groups: Record<Estado, CuponResponse[]> = { disponible: [], usado: [], vencido: [] }
@@ -92,16 +76,19 @@ export default function CuponesPage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto space-y-4 pb-6">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Mis Cupones</h1>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
-          {cupones.length === 0 ? 'No tenés cupones' : `${cupones.length} cupón${cupones.length !== 1 ? 'es' : ''}`}
-        </p>
+    <div className="max-w-lg mx-auto pb-6">
+      {/* Header con gradiente */}
+      <div className="-mx-3 -mt-4 md:-mx-4 md:-mt-8 mb-0">
+        <div className="bg-gradient-to-b from-primary/10 to-transparent dark:from-primary/5 pt-2 pb-6 px-4">
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Mis cupones</h1>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
+            {cupones.length === 0 ? 'No tenes cupones' : `${cupones.length} cupon${cupones.length !== 1 ? 'es' : ''}`}
+          </p>
+        </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 gap-1">
+      {/* Tabs - Estilo underline */}
+      <div className="flex border-b border-slate-200 dark:border-slate-700 mb-4 -mx-3 px-3 md:-mx-4 md:px-4">
         {tabs.map(tab => {
           const count = grouped[tab.key].length
           const isActive = activeTab === tab.key
@@ -109,148 +96,210 @@ export default function CuponesPage() {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-md text-xs font-medium transition-all ${
+              className={`flex-1 py-3 text-sm font-semibold text-center transition-all relative ${
                 isActive
-                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                  ? 'text-primary'
+                  : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
               }`}
             >
-              <span className="material-symbols-outlined text-sm" style={{ fontSize: '16px' }}>{tab.icon}</span>
-              <span>{tab.label}</span>
+              {tab.label}
               {count > 0 && (
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
-                  isActive
-                    ? 'bg-primary/10 text-primary'
-                    : 'bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-400'
-                }`}>
-                  {count}
+                <span className={`ml-1.5 text-xs ${isActive ? 'text-primary' : 'text-slate-400'}`}>
+                  ({count})
                 </span>
+              )}
+              {isActive && (
+                <div className="absolute bottom-0 left-4 right-4 h-[3px] bg-primary rounded-t-full" />
               )}
             </button>
           )
         })}
       </div>
 
-      {/* List */}
-      {filtered.length === 0 ? (
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-8 text-center">
-          <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600">
-            {activeTab === 'disponible' ? 'confirmation_number' : activeTab === 'usado' ? 'check_circle' : 'event_busy'}
-          </span>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">
-            {activeTab === 'disponible' && 'No tenés cupones disponibles'}
-            {activeTab === 'usado' && 'No tenés cupones usados'}
-            {activeTab === 'vencido' && 'No tenés cupones vencidos'}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {filtered.map((cupon) => {
+      {/* Lista de cupones */}
+      <div className="space-y-4 px-0">
+        {filtered.length === 0 ? (
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-10 text-center">
+            <span className="material-symbols-outlined text-5xl text-slate-300 dark:text-slate-600">
+              {activeTab === 'disponible' ? 'confirmation_number' : activeTab === 'usado' ? 'check_circle' : 'event_busy'}
+            </span>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-3">
+              {activeTab === 'disponible' && 'No tenes cupones disponibles'}
+              {activeTab === 'usado' && 'No tenes cupones usados'}
+              {activeTab === 'vencido' && 'No tenes cupones vencidos'}
+            </p>
+          </div>
+        ) : (
+          filtered.map((cupon) => {
             const estado = getEstado(cupon)
             return (
-              <button
+              <div
                 key={cupon.id}
-                onClick={() => setSelected(cupon)}
-                className={`w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 text-left hover:border-primary transition-colors ${
+                className={`bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm ${
                   estado !== 'disponible' ? 'opacity-60' : ''
                 }`}
               >
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex p-4 gap-4">
+                  {/* Icono / Imagen del cupon */}
+                  <div className={`size-16 rounded-xl flex items-center justify-center shrink-0 ${
+                    estado === 'disponible'
+                      ? 'bg-primary/10'
+                      : estado === 'usado'
+                      ? 'bg-slate-100 dark:bg-slate-700'
+                      : 'bg-red-50 dark:bg-red-500/10'
+                  }`}>
+                    <span className={`material-symbols-outlined text-3xl ${
+                      estado === 'disponible'
+                        ? 'text-primary'
+                        : estado === 'usado'
+                        ? 'text-slate-400'
+                        : 'text-red-400'
+                    }`}>
+                      {cupon.tipo_descuento === 'porcentaje' ? 'percent' : 'payments'}
+                    </span>
+                  </div>
+
+                  {/* Contenido */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full border ${estadoBadge(estado)}`}>
-                        {estadoLabel(estado)}
-                      </span>
-                      <span className="text-slate-400 dark:text-slate-500 text-xs">{timeAgo(cupon.created_at)}</span>
-                    </div>
-                    <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{cupon.titulo}</p>
+                    <h3 className="text-[15px] font-bold text-primary line-clamp-2 leading-snug">
+                      {cupon.tipo_descuento === 'porcentaje'
+                        ? `${cupon.valor_descuento}% - ${cupon.titulo}`
+                        : `$${cupon.valor_descuento.toLocaleString()} - ${cupon.titulo}`
+                      }
+                    </h3>
                     {cupon.descripcion && (
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">{cupon.descripcion}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
+                        {cupon.descripcion}
+                      </p>
+                    )}
+                    {cupon.fecha_vencimiento && (
+                      <span className="inline-block mt-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2.5 py-0.5 rounded-full">
+                        {estado === 'disponible'
+                          ? `Hasta el ${formatDateShort(cupon.fecha_vencimiento)}`
+                          : estado === 'vencido'
+                          ? `Vencido el ${formatDateShort(cupon.fecha_vencimiento)}`
+                          : `Usado`
+                        }
+                      </span>
                     )}
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-lg font-bold text-primary">
-                      {cupon.tipo_descuento === 'porcentaje' ? `${cupon.valor_descuento}%` : `$${cupon.valor_descuento.toLocaleString()}`}
-                    </p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                      {cupon.tipo_descuento === 'porcentaje' ? 'descuento' : 'de descuento'}
-                    </p>
-                  </div>
                 </div>
-              </button>
+
+                {/* Footer con acciones */}
+                {estado === 'disponible' && (
+                  <div className="flex items-center border-t border-slate-100 dark:border-slate-700">
+                    <button
+                      onClick={() => setSelected(cupon)}
+                      className="flex-1 flex items-center justify-center gap-1 py-3 text-sm font-semibold text-primary hover:bg-primary/5 transition-colors"
+                    >
+                      Ver detalles
+                      <span className="material-symbols-outlined text-base">chevron_right</span>
+                    </button>
+                    <div className="w-px h-8 bg-slate-100 dark:bg-slate-700" />
+                    <button
+                      onClick={() => copyCode(cupon.codigo)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-bold text-white bg-primary hover:bg-primary/90 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-base">{copied ? 'check' : 'content_copy'}</span>
+                      {copied ? 'Copiado' : 'Copiar codigo'}
+                    </button>
+                  </div>
+                )}
+
+                {estado !== 'disponible' && (
+                  <div className="border-t border-slate-100 dark:border-slate-700">
+                    <button
+                      onClick={() => setSelected(cupon)}
+                      className="w-full flex items-center justify-center gap-1 py-3 text-sm font-semibold text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                    >
+                      Ver detalles
+                      <span className="material-symbols-outlined text-base">chevron_right</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             )
-          })}
-        </div>
-      )}
+          })
+        )}
+      </div>
 
       {/* Detail Modal */}
       {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSelected(null)} />
-          <div className="relative bg-white dark:bg-slate-800 rounded-xl w-full max-w-sm p-5 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Detalle del cupón</h3>
-              <button onClick={() => setSelected(null)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md">
-                <span className="material-symbols-outlined text-slate-400">close</span>
-              </button>
-            </div>
-
-            <div className="text-center py-3">
-              <p className="text-3xl font-bold text-primary">
-                {selected.tipo_descuento === 'porcentaje' ? `${selected.valor_descuento}%` : `$${selected.valor_descuento.toLocaleString()}`}
-              </p>
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{selected.titulo}</p>
-            </div>
-
-            <div className="bg-slate-100 dark:bg-slate-900 rounded-lg p-3 flex items-center justify-between">
-              <span className="font-mono text-sm text-slate-900 dark:text-white font-bold">{selected.codigo}</span>
-              <button
-                onClick={() => copyCode(selected.codigo)}
-                className="text-xs text-primary hover:underline flex items-center gap-1"
-              >
-                <span className="material-symbols-outlined text-sm">{copied ? 'check' : 'content_copy'}</span>
-                {copied ? 'Copiado' : 'Copiar'}
-              </button>
-            </div>
-
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-500 dark:text-slate-400">Estado</span>
-                <span className={`font-medium ${getEstado(selected) === 'disponible' ? 'text-green-500' : getEstado(selected) === 'usado' ? 'text-slate-400' : 'text-red-400'}`}>
-                  {estadoLabel(getEstado(selected))}
-                </span>
+          <div className="relative bg-white dark:bg-slate-800 rounded-2xl w-full max-w-sm shadow-xl animate-slide-up max-h-[85vh] overflow-y-auto">
+            <div className="p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Detalle del cupon</h3>
+                <button onClick={() => setSelected(null)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md">
+                  <span className="material-symbols-outlined text-slate-400">close</span>
+                </button>
               </div>
-              {selected.fecha_vencimiento && (
-                <div className="flex justify-between">
-                  <span className="text-slate-500 dark:text-slate-400">Vencimiento</span>
-                  <span className="text-slate-900 dark:text-white">{formatDate(selected.fecha_vencimiento)}</span>
-                </div>
-              )}
-              {selected.usado && selected.usado_at && (
-                <>
-                  <div className="border-t border-slate-200 dark:border-slate-700 pt-2 mt-2" />
-                  <div className="flex justify-between">
-                    <span className="text-slate-500 dark:text-slate-400">Monto compra</span>
-                    <span className="text-slate-900 dark:text-white">${Number(selected.monto_compra).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500 dark:text-slate-400">Descuento aplicado</span>
-                    <span className="text-green-500 font-medium">-${Number(selected.monto_descuento).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500 dark:text-slate-400">Total pagado</span>
-                    <span className="text-slate-900 dark:text-white font-bold">${Number(selected.monto_total).toLocaleString()}</span>
-                  </div>
-                </>
-              )}
-            </div>
 
-            <button
-              onClick={() => setSelected(null)}
-              className="w-full py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              Cerrar
-            </button>
+              <div className="text-center py-4">
+                <div className="size-16 mx-auto rounded-2xl bg-primary/10 flex items-center justify-center mb-3">
+                  <span className="material-symbols-outlined text-primary text-3xl">
+                    {selected.tipo_descuento === 'porcentaje' ? 'percent' : 'payments'}
+                  </span>
+                </div>
+                <p className="text-3xl font-bold text-primary">
+                  {selected.tipo_descuento === 'porcentaje' ? `${selected.valor_descuento}%` : `$${selected.valor_descuento.toLocaleString()}`}
+                </p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{selected.titulo}</p>
+              </div>
+
+              <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3.5 flex items-center justify-between">
+                <span className="font-mono text-sm text-slate-900 dark:text-white font-bold tracking-wider">{selected.codigo}</span>
+                <button
+                  onClick={() => copyCode(selected.codigo)}
+                  className="text-xs text-primary hover:underline flex items-center gap-1 font-semibold"
+                >
+                  <span className="material-symbols-outlined text-sm">{copied ? 'check' : 'content_copy'}</span>
+                  {copied ? 'Copiado' : 'Copiar'}
+                </button>
+              </div>
+
+              <div className="space-y-2.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-500 dark:text-slate-400">Estado</span>
+                  <span className={`font-semibold ${
+                    getEstado(selected) === 'disponible' ? 'text-green-500' : getEstado(selected) === 'usado' ? 'text-slate-400' : 'text-red-400'
+                  }`}>
+                    {getEstado(selected) === 'disponible' ? 'Disponible' : getEstado(selected) === 'usado' ? 'Usado' : 'Vencido'}
+                  </span>
+                </div>
+                {selected.fecha_vencimiento && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-500 dark:text-slate-400">Vencimiento</span>
+                    <span className="text-slate-900 dark:text-white">{formatDate(selected.fecha_vencimiento)}</span>
+                  </div>
+                )}
+                {selected.usado && selected.usado_at && (
+                  <>
+                    <div className="border-t border-slate-200 dark:border-slate-700 pt-2.5 mt-2.5" />
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 dark:text-slate-400">Monto compra</span>
+                      <span className="text-slate-900 dark:text-white">${Number(selected.monto_compra).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 dark:text-slate-400">Descuento aplicado</span>
+                      <span className="text-green-500 font-medium">-${Number(selected.monto_descuento).toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 dark:text-slate-400">Total pagado</span>
+                      <span className="text-slate-900 dark:text-white font-bold">${Number(selected.monto_total).toLocaleString()}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <button
+                onClick={() => setSelected(null)}
+                className="w-full py-3 bg-primary hover:bg-primary/90 text-white rounded-xl text-sm font-bold transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}

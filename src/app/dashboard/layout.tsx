@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
@@ -57,6 +57,13 @@ export default function DashboardLayout({
 
   const backRoute = getBackRoute(pathname)
   const [unreadCount, setUnreadCount] = useState(0)
+  const unreadIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const fetchUnreadCount = useCallback(() => {
+    if (_hasHydrated && isAuthenticated && user?.role === 'jugador') {
+      getNoLeidasCount().then(setUnreadCount).catch(() => {})
+    }
+  }, [_hasHydrated, isAuthenticated, user?.role])
 
   useEffect(() => {
     if (_hasHydrated && !isAuthenticated) {
@@ -65,10 +72,12 @@ export default function DashboardLayout({
   }, [_hasHydrated, isAuthenticated])
 
   useEffect(() => {
-    if (_hasHydrated && isAuthenticated && user?.role === 'jugador') {
-      getNoLeidasCount().then(setUnreadCount).catch(() => {})
+    fetchUnreadCount()
+    unreadIntervalRef.current = setInterval(fetchUnreadCount, 30000)
+    return () => {
+      if (unreadIntervalRef.current) clearInterval(unreadIntervalRef.current)
     }
-  }, [_hasHydrated, isAuthenticated, user?.role, pathname])
+  }, [fetchUnreadCount])
 
   if (!_hasHydrated || !user) return null
 
@@ -243,8 +252,8 @@ export default function DashboardLayout({
 
       {/* Sidebar */}
       <aside className={`
-        fixed lg:static inset-y-0 left-0 z-50
-        w-64 border-r border-slate-200 dark:border-white/[0.06] flex flex-col h-screen lg:h-auto
+        fixed lg:sticky lg:top-0 inset-y-0 left-0 z-50
+        w-64 border-r border-slate-200 dark:border-white/[0.06] flex flex-col h-screen
         bg-white dark:bg-[#111111]
         transform transition-transform duration-200 ease-in-out
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}

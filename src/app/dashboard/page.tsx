@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { QRCodeSVG } from 'qrcode.react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { getMisCupones, CuponResponse } from '@/lib/api'
 
 // Modal QR
 function QRModal({ isOpen, onClose, dni }: { isOpen: boolean; onClose: () => void; dni: string }) {
@@ -37,85 +38,78 @@ function QRModal({ isOpen, onClose, dni }: { isOpen: boolean; onClose: () => voi
   )
 }
 
-// Tarjeta de credencial reutilizable
-function CredentialCard({ memberData, onShowQR, variant = 'mobile' }: {
+// Tarjeta de credencial original
+function CredentialCard({ memberData, onShowQR }: {
   memberData: any;
   onShowQR: () => void;
-  variant?: 'mobile' | 'desktop';
 }) {
-  const isDesktop = variant === 'desktop'
-
   return (
     <div
-      className={`relative overflow-hidden text-white shadow-xl ${
-        isDesktop
-          ? 'rounded-2xl p-6 shadow-primary/20'
-          : 'w-full aspect-[1.7/1] rounded-[24px] shadow-2xl border border-white/10'
-      }`}
+      className="relative overflow-hidden text-white w-full aspect-[1.7/1] rounded-[24px] shadow-2xl border border-white/10"
       style={{
         background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.9) 0%, rgba(3, 105, 161, 0.95) 100%)',
         backdropFilter: 'blur(12px)',
       }}
     >
       {/* Background club logo */}
-      <div className={`absolute pointer-events-none ${isDesktop ? '-right-10 -bottom-10 group-hover:scale-110 transition-transform duration-700' : 'right-[-30px] bottom-[-30px]'}`}>
+      <div className="absolute pointer-events-none right-[-30px] bottom-[-30px]">
         <Image
           src="/logo.png"
           alt=""
-          width={isDesktop ? 320 : 360}
-          height={isDesktop ? 320 : 360}
+          width={360}
+          height={360}
           className="opacity-[0.12] rotate-12"
           style={{ filter: 'brightness(2) grayscale(0.3)' }}
         />
       </div>
 
       {/* Card content */}
-      <div className={`relative ${isDesktop ? '' : 'h-full p-5'} flex flex-col ${isDesktop ? 'gap-6' : 'justify-between'}`}>
+      <div className="relative h-full p-5 flex flex-col justify-between">
         {/* Top section - Name */}
-        <div className={`flex justify-between items-start ${isDesktop ? 'mb-2' : ''} relative z-10`}>
+        <div className="flex justify-between items-start relative z-10">
           <div>
-            <h1 className={`${isDesktop ? 'text-2xl' : 'text-2xl'} font-bold leading-tight tracking-tight`}>
+            <h1 className="text-2xl font-bold leading-tight tracking-tight">
               {memberData.name}
             </h1>
-            <p className={`${isDesktop ? 'text-sky-100 text-sm' : 'text-xs'} opacity-90 mt-0.5`}>{memberData.club}</p>
+            <p className="text-xs opacity-90 mt-0.5">{memberData.club}</p>
           </div>
         </div>
 
         {/* QR Button */}
-        <div className={`flex ${isDesktop ? 'justify-end mb-2' : 'justify-end'} relative z-10`}>
+        <div className="flex justify-end relative z-10">
           <button
             onClick={onShowQR}
-            className={`flex items-center gap-2 bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-lg font-bold border border-white/30 hover:bg-white/30 transition-all ${isDesktop ? 'text-xs' : 'text-[10px]'}`}
+            className="flex items-center gap-2 bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-lg font-bold border border-white/30 hover:bg-white/30 transition-all text-[10px]"
           >
-            <span className={`material-symbols-outlined ${isDesktop ? 'text-sm' : 'text-lg'}`}>qr_code_2</span>
+            <span className="material-symbols-outlined text-lg">qr_code_2</span>
             VER QR
           </button>
         </div>
 
         {/* DNI and Birth date */}
-        <div className={`grid grid-cols-2 gap-4 ${isDesktop ? 'mb-2' : ''} relative z-10`}>
+        <div className="grid grid-cols-2 gap-4 relative z-10">
           <div>
-            <p className={`${isDesktop ? 'text-[10px] text-sky-200' : 'text-[8px] opacity-60'} uppercase font-bold tracking-wider`}>DNI</p>
-            <p className={`${isDesktop ? 'font-bold' : 'text-xs font-semibold'}`}>{memberData.dni}</p>
+            <p className="text-[8px] opacity-60 uppercase font-bold tracking-wider">DNI</p>
+            <p className="text-xs font-semibold">{memberData.dni}</p>
           </div>
           <div>
-            <p className={`${isDesktop ? 'text-[10px] text-sky-200' : 'text-[8px] opacity-60'} uppercase font-bold tracking-wider`}>Nacimiento</p>
-            <p className={`${isDesktop ? 'font-bold' : 'text-xs font-semibold'}`}>{memberData.birthDate}</p>
+            <p className="text-[8px] opacity-60 uppercase font-bold tracking-wider">Nacimiento</p>
+            <p className="text-xs font-semibold">{memberData.birthDate}</p>
           </div>
         </div>
 
         {/* Separator and insurance validity */}
-        <div className={`${isDesktop ? 'pt-6' : 'pt-2'} border-t border-white/20 flex items-center justify-between relative z-10`}>
+        <div className="pt-2 border-t border-white/20 flex items-center justify-between relative z-10">
           <div>
-            <p className={`${isDesktop ? 'text-[10px] text-sky-200' : 'text-[8px] opacity-60'} uppercase font-bold tracking-wider`}>Vigencia del Seguro</p>
-            <p className={`${isDesktop ? 'text-sm font-semibold' : 'text-xs font-semibold'}`}>{memberData.insuranceStart} - {memberData.insuranceEnd}</p>
+            <p className="text-[8px] opacity-60 uppercase font-bold tracking-wider">Vigencia del Seguro</p>
+            <p className="text-xs font-semibold">{memberData.insuranceStart} - {memberData.insuranceEnd}</p>
           </div>
           {memberData.status === 'activo' ? (
-            <span className={`${isDesktop ? 'bg-emerald-400 text-emerald-950 text-[10px] font-black px-3 py-1 ring-4 ring-emerald-400/20' : 'bg-green-500/20 backdrop-blur-md border border-green-400/30 text-green-300 text-[10px] px-2.5 py-0.5'} rounded-full uppercase tracking-wider font-bold`}>
+            <span className="bg-green-500/20 backdrop-blur-md border border-green-400/30 text-green-300 text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider font-bold">
               PAGADO
             </span>
           ) : (
-            <span className={`${isDesktop ? 'bg-red-400 text-red-950 text-[10px] font-black px-3 py-1 ring-4 ring-red-400/20' : 'bg-red-500/20 backdrop-blur-md border border-red-400/30 text-red-300 text-[10px] px-2.5 py-0.5'} rounded-full uppercase tracking-wider font-bold`}>
+            <span className="bg-red-500/20 backdrop-blur-md border border-red-400/30 text-red-300 text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider font-bold">
               NO PAGADO
             </span>
           )}
@@ -125,71 +119,10 @@ function CredentialCard({ memberData, onShowQR, variant = 'mobile' }: {
   )
 }
 
-// Atajos rapidos para mobile
-function MobileShortcuts() {
-  return (
-    <div className="flex flex-col gap-3">
-      <Link href="/dashboard/jugador/cupones" className="group flex items-center gap-3 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.04)] border border-transparent hover:border-orange-500/20 transition-all active:scale-[0.98]">
-        <div className="size-12 rounded-2xl bg-orange-100 dark:bg-orange-500/20 flex items-center justify-center text-orange-500 transition-colors group-hover:bg-orange-500 group-hover:text-white">
-          <span className="material-symbols-outlined text-2xl">confirmation_number</span>
-        </div>
-        <div className="flex-1 text-left">
-          <p className="font-bold text-[#111518] dark:text-white text-base">Ver cupones</p>
-          <p className="text-[11px] text-[#617989] dark:text-slate-400">Descuentos exclusivos y beneficios</p>
-        </div>
-        <span className="material-symbols-outlined text-[#617989] transition-transform group-hover:translate-x-1">chevron_right</span>
-      </Link>
-
-      <Link href="/dashboard/jugador/torneos" className="group flex items-center gap-3 p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.04)] border border-transparent hover:border-primary/20 transition-all active:scale-[0.98]">
-        <div className="size-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary transition-colors group-hover:bg-primary group-hover:text-white">
-          <span className="material-symbols-outlined text-2xl">emoji_events</span>
-        </div>
-        <div className="flex-1 text-left">
-          <p className="font-bold text-[#111518] dark:text-white text-base">Torneos</p>
-          <p className="text-[11px] text-[#617989] dark:text-slate-400">Inscripciones y mis torneos</p>
-        </div>
-        <span className="material-symbols-outlined text-[#617989] transition-transform group-hover:translate-x-1">chevron_right</span>
-      </Link>
-
-    </div>
-  )
-}
-
-// Atajos rapidos para desktop (grid 2x2)
-function DesktopShortcuts() {
-  const shortcuts = [
-    { icon: 'confirmation_number', title: 'Ver cupones', desc: 'Descuentos exclusivos y beneficios', color: 'orange', href: '/dashboard/jugador/cupones' },
-    { icon: 'emoji_events', title: 'Torneos', desc: 'Inscripciones y mis torneos', color: 'blue', href: '/dashboard/jugador/torneos' },
-    // { icon: 'description', title: 'Documentos', desc: 'DNI, ficha medica y contratos', color: 'purple', href: '/dashboard/jugador/documentos' },
-  ]
-
-  const colorClasses: Record<string, string> = {
-    blue: 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
-    orange: 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400',
-    indigo: 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400',
-    purple: 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
-  }
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {shortcuts.map((shortcut, idx) => (
-        <Link
-          key={idx}
-          href={shortcut.href}
-          className="group flex items-center p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-primary transition-all duration-300"
-        >
-          <div className={`${colorClasses[shortcut.color]} p-3 rounded-lg mr-4 group-hover:scale-110 transition-transform`}>
-            <span className="material-symbols-outlined">{shortcut.icon}</span>
-          </div>
-          <div className="flex-1">
-            <h4 className="font-bold text-slate-900 dark:text-white">{shortcut.title}</h4>
-            <p className="text-xs text-slate-500">{shortcut.desc}</p>
-          </div>
-          <span className="material-symbols-outlined text-slate-400 group-hover:translate-x-1 transition-transform">chevron_right</span>
-        </Link>
-      ))}
-    </div>
-  )
+function getEstado(cupon: CuponResponse): 'disponible' | 'usado' | 'vencido' {
+  if (cupon.usado) return 'usado'
+  if (cupon.fecha_vencimiento && new Date(cupon.fecha_vencimiento) < new Date(new Date().toDateString())) return 'vencido'
+  return 'disponible'
 }
 
 // Componente del dashboard para jugador
@@ -198,6 +131,7 @@ function JugadorDashboard() {
   const [showQR, setShowQR] = useState(false)
   const [loading, setLoading] = useState(true)
   const [dniRaw, setDniRaw] = useState('')
+  const [cupones, setCupones] = useState<CuponResponse[]>([])
   const [memberData, setMemberData] = useState({
     name: user?.name || 'Usuario',
     club: '',
@@ -209,12 +143,13 @@ function JugadorDashboard() {
   })
 
   useEffect(() => {
-    loadPerfil()
+    loadData()
   }, [])
 
-  const loadPerfil = async () => {
+  const loadData = async () => {
     try {
       const { getJugadorPerfil, getPolizaActiva } = await import('@/lib/api')
+
       const [perfil, poliza] = await Promise.all([
         getJugadorPerfil(),
         getPolizaActiva(),
@@ -238,12 +173,17 @@ function JugadorDashboard() {
         insuranceEnd: poliza ? formatDate(poliza.fecha_fin) : '-',
         status: perfil.pagado ? 'activo' : 'inactivo',
       })
+
+      // Cupones en paralelo pero sin romper si falla
+      getMisCupones().then(setCupones).catch(() => {})
     } catch (error) {
       console.error('Error al cargar perfil:', error)
     } finally {
       setLoading(false)
     }
   }
+
+  const cuponesDisponibles = cupones.filter(c => getEstado(c) === 'disponible')
 
   if (loading) {
     return (
@@ -256,46 +196,132 @@ function JugadorDashboard() {
     )
   }
 
+  const quickActions = [
+    { icon: 'confirmation_number', label: 'Mis Cupones', href: '/dashboard/jugador/cupones', highlighted: true },
+    { icon: 'emoji_events', label: 'Torneos', href: '/dashboard/jugador/torneos', highlighted: false },
+    { icon: 'qr_code_2', label: 'Mi QR', href: '#', highlighted: false, action: () => setShowQR(true) },
+    { icon: 'person', label: 'Mi Perfil', href: '/dashboard/jugador/perfil', highlighted: false },
+  ]
+
   return (
     <>
       <QRModal isOpen={showQR} onClose={() => setShowQR(false)} dni={dniRaw} />
 
-      {/* Mobile Layout */}
-      <div className="md:hidden space-y-6">
-        {/* Credencial Digital */}
-        <div>
-          <p className="text-[11px] font-bold text-[#617989] dark:text-slate-400 mb-4 uppercase tracking-widest px-1">
-            Credencial Digital
-          </p>
-          <CredentialCard memberData={memberData} onShowQR={() => setShowQR(true)} variant="mobile" />
+      <div className="space-y-6">
+        {/* Header - Saludo */}
+        <div className="flex items-center gap-3">
+          <div className="size-11 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center ring-2 ring-primary/20">
+            <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-xl">person</span>
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-slate-900 dark:text-white">
+              Hola {memberData.name.split(' ')[0]}!
+            </h1>
+            {memberData.club && (
+              <p className="text-xs text-slate-500 dark:text-slate-400">{memberData.club}</p>
+            )}
+          </div>
         </div>
 
-        {/* Atajos Rapidos */}
-        <div>
-          <p className="text-[11px] font-bold text-[#617989] dark:text-slate-400 mb-4 uppercase tracking-widest px-1">
-            Atajos Rapidos
-          </p>
-          <MobileShortcuts />
-        </div>
-      </div>
+        {/* Credencial Digital - Tarjeta original */}
+        <CredentialCard memberData={memberData} onShowQR={() => setShowQR(true)} />
 
-      {/* Desktop Layout */}
-      <div className="hidden md:block">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Left column - Credential */}
-          <div className="lg:col-span-5">
-            <h2 className="text-xs font-bold tracking-[0.2em] text-slate-400 uppercase mb-4">Credencial Digital</h2>
-            <div className="group">
-              <CredentialCard memberData={memberData} onShowQR={() => setShowQR(true)} variant="desktop" />
+        {/* Acciones Rapidas - Horizontal scroll estilo Carrefour */}
+        <div className="flex gap-3 overflow-x-auto pt-3 pb-1 scrollbar-hide">
+          {quickActions.map((action, idx) => {
+            const content = (
+              <div key={idx} className="flex flex-col items-center gap-1.5 min-w-[72px]">
+                <div
+                  className={`relative size-[60px] rounded-2xl flex items-center justify-center transition-all active:scale-95 shadow-sm ${
+                    action.highlighted
+                      ? 'bg-white dark:bg-slate-800 border-2 border-primary/40 shadow-primary/10 shadow-md'
+                      : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  {action.highlighted && (
+                    <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-[7px] font-bold px-2 py-[3px] rounded-full whitespace-nowrap leading-none">
+                      Destacado
+                    </span>
+                  )}
+                  <span className={`material-symbols-outlined text-[26px] ${action.highlighted ? 'text-primary' : 'text-primary'}`}>
+                    {action.icon}
+                  </span>
+                </div>
+                <span className="text-[10px] font-medium text-slate-600 dark:text-slate-300 text-center leading-tight max-w-[72px]">
+                  {action.label}
+                </span>
+              </div>
+            )
+
+            if (action.action) {
+              return (
+                <button key={idx} onClick={action.action} className="shrink-0">
+                  {content}
+                </button>
+              )
+            }
+            return (
+              <Link key={idx} href={action.href} className="shrink-0">
+                {content}
+              </Link>
+            )
+          })}
+        </div>
+
+        {/* Solicitar Seguro */}
+        <a
+          href="https://wa.me/542996130664?text=Hola%2C%20quiero%20solicitar%20un%20seguro%20deportivo"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm hover:border-primary/30 transition-colors active:scale-[0.99]"
+        >
+          <Image
+            src="/logos/seguro.png"
+            alt="Seguro Deportivo"
+            width={40}
+            height={40}
+            className="size-10 rounded-full object-cover shrink-0"
+          />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-slate-900 dark:text-white">Solicitar un seguro</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Contactanos por WhatsApp</p>
+          </div>
+          <span className="material-symbols-outlined text-green-500 text-2xl">chat</span>
+        </a>
+
+        {/* Cupones Destacados */}
+        {cuponesDisponibles.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">Cupones disponibles</h2>
+              <Link href="/dashboard/jugador/cupones" className="text-xs font-semibold text-primary hover:underline">
+                Ver todos
+              </Link>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+              {cuponesDisponibles.slice(0, 4).map((cupon) => (
+                <Link
+                  key={cupon.id}
+                  href="/dashboard/jugador/cupones"
+                  className="min-w-[200px] bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm hover:border-primary transition-colors"
+                >
+                  <p className="text-2xl font-bold text-primary">
+                    {cupon.tipo_descuento === 'porcentaje' ? `${cupon.valor_descuento}%` : `$${cupon.valor_descuento.toLocaleString()}`}
+                  </p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white mt-1 line-clamp-1">{cupon.titulo}</p>
+                  {cupon.descripcion && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{cupon.descripcion}</p>
+                  )}
+                  {cupon.fecha_vencimiento && (
+                    <span className="inline-block mt-2 text-[10px] font-semibold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10 px-2 py-0.5 rounded-full">
+                      Vence {new Date(cupon.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}
+                    </span>
+                  )}
+                </Link>
+              ))}
             </div>
           </div>
-
-          {/* Right column - Shortcuts */}
-          <div className="lg:col-span-7">
-            <h2 className="text-xs font-bold tracking-[0.2em] text-slate-400 uppercase mb-4">Atajos Rapidos</h2>
-            <DesktopShortcuts />
-          </div>
-        </div>
+        )}
       </div>
     </>
   )

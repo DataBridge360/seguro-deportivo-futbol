@@ -1,9 +1,18 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { getJugadorTorneos, getJugadorInscripciones, getEquiposTorneo, inscribirseEquipo, desinscribirseEquipo } from '@/lib/api'
+import { useState, useEffect, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
+import { getJugadorTorneos, getJugadorInscripciones, getEquiposTorneo } from '@/lib/api'
 import type { JugadorTorneo, JugadorInscripcion, EquipoTorneo } from '@/lib/api'
 import NotificationModal from '@/components/ui/NotificationModal'
+
+function calcularEstado(torneo: JugadorTorneo): string {
+  if (torneo.estado === 'cancelado') return 'cancelado'
+  const hoy = new Date().toISOString().split('T')[0]
+  if (hoy < torneo.fecha_inicio) return 'proximo'
+  if (hoy > torneo.fecha_fin) return 'finalizado'
+  return 'en_curso'
+}
 
 function getBadgeClasses(estado: string) {
   switch (estado) {
@@ -37,11 +46,8 @@ function formatDate(dateStr: string) {
 }
 
 function isInscripcionAbierta(torneo: JugadorTorneo) {
+  if (torneo.inscripciones_abiertas) return true
   const hoy = new Date().toISOString().split('T')[0]
-  if (torneo.inscripciones_abiertas) {
-    if (torneo.inscripcion_fin && hoy > torneo.inscripcion_fin) return false
-    return true
-  }
   if (torneo.inscripcion_inicio && torneo.inscripcion_fin) {
     return hoy >= torneo.inscripcion_inicio && hoy <= torneo.inscripcion_fin
   }
@@ -49,6 +55,7 @@ function isInscripcionAbierta(torneo: JugadorTorneo) {
 }
 
 export default function JugadorTorneosPage() {
+  const router = useRouter()
   const [torneos, setTorneos] = useState<JugadorTorneo[]>([])
   const [inscripciones, setInscripciones] = useState<JugadorInscripcion[]>([])
   const [loading, setLoading] = useState(true)
@@ -59,10 +66,8 @@ export default function JugadorTorneosPage() {
   const [selectedTorneo, setSelectedTorneo] = useState<JugadorTorneo | null>(null)
   const [equiposTorneo, setEquiposTorneo] = useState<EquipoTorneo[]>([])
   const [loadingEquipos, setLoadingEquipos] = useState(false)
-  const [inscribiendo, setInscribiendo] = useState(false)
-  const [desinscribiendo, setDesinscribiendo] = useState(false)
-  const [showConfirmSalir, setShowConfirmSalir] = useState(false)
-  const [expandedEquipo, setExpandedEquipo] = useState<string | null>(null)
+  const [categoriaTab, setCategoriaTab] = useState<string>('todos')
+  const [busqueda, setBusqueda] = useState('')
 
   const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' }>({
     open: false, title: '', message: '', type: 'success',
@@ -89,13 +94,53 @@ export default function JugadorTorneosPage() {
     fetchData()
   }, [])
 
+  const categoriasDelTorneo = useMemo(() => {
+    const map = new Map<string, { nombre: string; count: number }>()
+    equiposTorneo.forEach(e => {
+      const existing = map.get(e.categoria_nombre)
+      if (existing) {
+        existing.count++
+      } else {
+        map.set(e.categoria_nombre, { nombre: e.categoria_nombre, count: 1 })
+      }
+    })
+    return Array.from(map.values())
+  }, [equiposTorneo])
+
+  const equiposFiltrados = useMemo(() => {
+    let result = equiposTorneo
+    if (categoriaTab !== 'todos') {
+      result = result.filter(e => e.categoria_nombre === categoriaTab)
+    }
+    if (busqueda.trim()) {
+      const q = busqueda.trim().toLowerCase()
+      result = result.filter(e => e.equipo_nombre.toLowerCase().includes(q))
+    }
+    // Mis equipos primero
+    const misInscs = inscripciones.filter(i => i.torneo_id === selectedTorneo?.id)
+    if (misInscs.length > 0) {
+      const misEquipoIds = new Set(misInscs.map(i => i.torneo_equipo_id))
+      result = [...result].sort((a, b) => {
+        const aEs = misEquipoIds.has(a.id) ? 0 : 1
+        const bEs = misEquipoIds.has(b.id) ? 0 : 1
+        return aEs - bEs
+      })
+    }
+    return result
+  }, [equiposTorneo, categoriaTab, busqueda, inscripciones, selectedTorneo])
+
+  const estadoOrden: Record<string, number> = { en_curso: 0, proximo: 1, finalizado: 2, cancelado: 3 }
+
   const inscritosIds = new Set(inscripciones.map(i => i.torneo_id))
   const torneosDisponibles = torneos.filter(t => !inscritosIds.has(t.id))
-  const torneosInscritos = torneos.filter(t => inscritosIds.has(t.id))
+  const torneosInscritos = torneos
+    .filter(t => inscritosIds.has(t.id))
+    .sort((a, b) => (estadoOrden[calcularEstado(a)] ?? 9) - (estadoOrden[calcularEstado(b)] ?? 9))
 
   const handleOpenTorneo = async (torneo: JugadorTorneo) => {
     setSelectedTorneo(torneo)
-    setExpandedEquipo(null)
+    setCategoriaTab('todos')
+    setBusqueda('')
     setLoadingEquipos(true)
     try {
       const equipos = await getEquiposTorneo(torneo.id)
@@ -108,50 +153,6 @@ export default function JugadorTorneosPage() {
       setSelectedTorneo(null)
     } finally {
       setLoadingEquipos(false)
-    }
-  }
-
-  const handleInscribirse = async (torneoEquipoId: string) => {
-    if (!selectedTorneo) return
-    try {
-      setInscribiendo(true)
-      await inscribirseEquipo(selectedTorneo.id, torneoEquipoId)
-      setSelectedTorneo(null)
-      setNotification({
-        open: true, title: 'Inscripcion exitosa',
-        message: 'Te inscribiste correctamente al equipo', type: 'success',
-      })
-      await fetchData()
-    } catch (err: any) {
-      setNotification({
-        open: true, title: 'Error al inscribirse',
-        message: err.message || 'No se pudo completar la inscripcion', type: 'error',
-      })
-    } finally {
-      setInscribiendo(false)
-    }
-  }
-
-  const handleDesinscribirse = async () => {
-    if (!selectedTorneo) return
-    try {
-      setDesinscribiendo(true)
-      await desinscribirseEquipo(selectedTorneo.id)
-      setShowConfirmSalir(false)
-      setSelectedTorneo(null)
-      setNotification({
-        open: true, title: 'Desinscripcion exitosa',
-        message: 'Saliste del equipo correctamente', type: 'success',
-      })
-      await fetchData()
-    } catch (err: any) {
-      setShowConfirmSalir(false)
-      setNotification({
-        open: true, title: 'Error',
-        message: err.message || 'No se pudo completar la desinscripcion', type: 'error',
-      })
-    } finally {
-      setDesinscribiendo(false)
     }
   }
 
@@ -184,8 +185,7 @@ export default function JugadorTorneosPage() {
   // Vista de detalle de torneo
   if (selectedTorneo) {
     const abierto = isInscripcionAbierta(selectedTorneo)
-    const yaInscrito = inscritosIds.has(selectedTorneo.id)
-    const miInscripcion = inscripciones.find(i => i.torneo_id === selectedTorneo.id)
+    const misInscripcionesTorneo = inscripciones.filter(i => i.torneo_id === selectedTorneo.id)
 
     return (
       <div className="space-y-6 max-w-2xl mx-auto">
@@ -202,8 +202,8 @@ export default function JugadorTorneosPage() {
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
           <div className="flex items-start justify-between gap-3 mb-3">
             <h1 className="text-xl font-bold text-slate-900 dark:text-white">{selectedTorneo.nombre}</h1>
-            <span className={`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getBadgeClasses(selectedTorneo.estado)}`}>
-              {getEstadoLabel(selectedTorneo.estado)}
+            <span className={`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getBadgeClasses(calcularEstado(selectedTorneo))}`}>
+              {getEstadoLabel(calcularEstado(selectedTorneo))}
             </span>
           </div>
           <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-2">
@@ -223,31 +223,84 @@ export default function JugadorTorneosPage() {
           </div>
         </div>
 
-        {/* Mi equipo actual */}
-        {yaInscrito && miInscripcion && (
-          <div className={`rounded-xl border-2 p-4 ${abierto ? 'border-primary/30 bg-primary/5 dark:bg-primary/10' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'}`}>
-            <div className="flex items-center gap-3 mb-1">
+        {/* Mis equipos */}
+        {misInscripcionesTorneo.length > 0 && (
+          <div className="rounded-xl border-2 border-primary/30 bg-primary/5 dark:bg-primary/10 p-4">
+            <div className="flex items-center gap-3 mb-2">
               <span className="material-symbols-outlined text-primary text-lg">check_circle</span>
-              <p className="text-sm font-bold text-slate-900 dark:text-white">Estas inscrito en: {miInscripcion.equipo_nombre}</p>
+              <p className="text-sm font-bold text-slate-900 dark:text-white">
+                {misInscripcionesTorneo.length === 1 ? 'Estas inscrito en:' : 'Estas inscrito en:'}
+              </p>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 ml-9">Categoria: {miInscripcion.categoria_nombre}</p>
-            {abierto && (
-              <button
-                onClick={() => setShowConfirmSalir(true)}
-                className="mt-3 ml-9 flex items-center gap-1.5 text-xs font-medium text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 transition-colors"
-              >
-                <span className="material-symbols-outlined text-sm">logout</span>
-                Salir del equipo
-              </button>
-            )}
+            <div className="ml-9 flex flex-col gap-1.5">
+              {misInscripcionesTorneo.map(insc => (
+                <div key={insc.id} className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{insc.equipo_nombre}</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">{insc.categoria_nombre}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
         {/* Equipos */}
         <div>
           <h2 className="text-sm font-bold text-[#617989] dark:text-slate-400 uppercase tracking-wider mb-3">
-            Equipos ({equiposTorneo.length})
+            Equipos ({equiposFiltrados.length})
           </h2>
+
+          {/* Category tabs */}
+          {!loadingEquipos && categoriasDelTorneo.length > 1 && (
+            <div className="mb-3 overflow-x-auto -mx-1 px-1">
+              <div className="flex gap-1.5 min-w-max">
+                <button
+                  onClick={() => setCategoriaTab('todos')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                    categoriaTab === 'todos'
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                  }`}
+                >
+                  Todos ({equiposTorneo.length})
+                </button>
+                {categoriasDelTorneo.map(cat => (
+                  <button
+                    key={cat.nombre}
+                    onClick={() => setCategoriaTab(cat.nombre)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                      categoriaTab === cat.nombre
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                    }`}
+                  >
+                    {cat.nombre} ({cat.count})
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Search bar */}
+          {!loadingEquipos && equiposTorneo.length > 0 && (
+            <div className="relative mb-3">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+              <input
+                type="text"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar equipo..."
+                className="w-full pl-9 pr-9 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+              />
+              {busqueda && (
+                <button
+                  onClick={() => setBusqueda('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors"
+                >
+                  <span className="material-symbols-outlined text-slate-400 text-lg">close</span>
+                </button>
+              )}
+            </div>
+          )}
 
           {loadingEquipos ? (
             <div className="flex items-center justify-center py-8">
@@ -258,18 +311,28 @@ export default function JugadorTorneosPage() {
               <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2 block">group_off</span>
               <p className="text-sm text-slate-500 dark:text-slate-400">No hay equipos inscriptos en este torneo</p>
             </div>
+          ) : equiposFiltrados.length === 0 ? (
+            <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+              <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2 block">search_off</span>
+              <p className="text-sm text-slate-500 dark:text-slate-400">No se encontraron equipos</p>
+              <button
+                onClick={() => { setCategoriaTab('todos'); setBusqueda('') }}
+                className="mt-2 text-xs text-primary hover:underline"
+              >
+                Limpiar filtros
+              </button>
+            </div>
           ) : (
             <div className="flex flex-col gap-3">
-              {equiposTorneo.map((equipo) => {
-                const isExpanded = expandedEquipo === equipo.id
-                const esMiEquipo = miInscripcion?.torneo_equipo_id === equipo.id
+              {equiposFiltrados.map((equipo) => {
+                const esMiEquipo = misInscripcionesTorneo.some(i => i.torneo_equipo_id === equipo.id)
                 return (
-                  <div key={equipo.id} className={`bg-white dark:bg-slate-800 rounded-xl border overflow-hidden ${esMiEquipo ? 'border-primary/40 dark:border-primary/30' : 'border-slate-200 dark:border-slate-700'}`}>
-                    {/* Header del equipo */}
-                    <button
-                      onClick={() => setExpandedEquipo(isExpanded ? null : equipo.id)}
-                      className="w-full flex items-center gap-4 p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors text-left"
-                    >
+                  <div
+                    key={equipo.id}
+                    onClick={() => router.push(`/dashboard/jugador/torneos/${selectedTorneo.id}/equipo/${equipo.id}`)}
+                    className={`bg-white dark:bg-slate-800 rounded-xl border p-4 cursor-pointer hover:border-primary/50 dark:hover:border-primary/30 transition-colors active:scale-[0.99] ${esMiEquipo ? 'border-primary/40 dark:border-primary/30' : 'border-slate-200 dark:border-slate-700'}`}
+                  >
+                    <div className="flex items-center gap-3">
                       <div className={`size-10 rounded-xl flex items-center justify-center shrink-0 ${esMiEquipo ? 'bg-primary/20' : 'bg-primary/10'}`}>
                         <span className="material-symbols-outlined text-primary text-lg">groups</span>
                       </div>
@@ -284,117 +347,14 @@ export default function JugadorTorneosPage() {
                           {equipo.categoria_nombre} &middot; {equipo.jugadores.length} jugador{equipo.jugadores.length !== 1 ? 'es' : ''}
                         </p>
                       </div>
-                      <span className={`material-symbols-outlined text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}>
-                        expand_more
-                      </span>
-                    </button>
-
-                    {/* Lista de jugadores expandida */}
-                    {isExpanded && (
-                      <div className="border-t border-slate-200 dark:border-slate-700">
-                        {equipo.jugadores.length === 0 ? (
-                          <p className="text-sm text-slate-400 dark:text-slate-500 p-4 text-center">Sin jugadores inscriptos</p>
-                        ) : (
-                          <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
-                            {equipo.jugadores.map((jugador) => (
-                              <div key={jugador.id} className="flex items-center gap-3 px-4 py-3">
-                                <div className="size-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center shrink-0">
-                                  <span className="material-symbols-outlined text-slate-400 text-sm">person</span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm text-slate-900 dark:text-white truncate">
-                                    {jugador.nombre} {jugador.apellido}
-                                  </p>
-                                </div>
-                                {jugador.numero_camiseta && (
-                                  <span className="text-xs text-slate-400">#{jugador.numero_camiseta}</span>
-                                )}
-                                {jugador.capitan && (
-                                  <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">C</span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Boton inscribirse dentro del equipo */}
-                        {abierto && !yaInscrito && (
-                          <div className="p-3 border-t border-slate-200 dark:border-slate-700">
-                            <button
-                              onClick={() => handleInscribirse(equipo.id)}
-                              disabled={inscribiendo}
-                              className="w-full flex items-center justify-center gap-2 p-2.5 rounded-lg font-bold text-sm transition-colors active:scale-[0.98] bg-primary hover:bg-primary/90 text-white disabled:opacity-50"
-                            >
-                              {inscribiendo ? (
-                                <>
-                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                  Inscribiendo...
-                                </>
-                              ) : (
-                                <>
-                                  <span className="material-symbols-outlined text-base">person_add</span>
-                                  Unirme a este equipo
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                      <span className="material-symbols-outlined text-slate-400 text-lg shrink-0">chevron_right</span>
+                    </div>
                   </div>
                 )
               })}
             </div>
           )}
         </div>
-
-        {/* Modal confirmar salir del equipo */}
-        {showConfirmSalir && (
-          <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-            onClick={() => !desinscribiendo && setShowConfirmSalir(false)}
-          >
-            <div
-              className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex justify-center mb-4">
-                <div className="w-14 h-14 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-red-500 text-2xl">group_remove</span>
-                </div>
-              </div>
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white text-center mb-2">
-                Salir del equipo
-              </h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400 text-center mb-6">
-                Vas a salir de <span className="font-semibold text-slate-700 dark:text-slate-300">{miInscripcion?.equipo_nombre}</span>. Podras volver a inscribirte mientras las inscripciones sigan abiertas.
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowConfirmSalir(false)}
-                  disabled={desinscribiendo}
-                  className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-bold transition-colors disabled:opacity-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleDesinscribirse}
-                  disabled={desinscribiendo}
-                  className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {desinscribiendo ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Saliendo...
-                    </>
-                  ) : (
-                    'Salir'
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         <NotificationModal
           isOpen={notification.open}
@@ -454,8 +414,8 @@ export default function JugadorTorneosPage() {
               >
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">{torneo.nombre}</h3>
-                  <span className={`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getBadgeClasses(torneo.estado)}`}>
-                    {getEstadoLabel(torneo.estado)}
+                  <span className={`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getBadgeClasses(calcularEstado(torneo))}`}>
+                    {getEstadoLabel(calcularEstado(torneo))}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-2">
@@ -498,8 +458,8 @@ export default function JugadorTorneosPage() {
               >
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">{torneo.nombre}</h3>
-                  <span className={`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getBadgeClasses(torneo.estado)}`}>
-                    {getEstadoLabel(torneo.estado)}
+                  <span className={`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getBadgeClasses(calcularEstado(torneo))}`}>
+                    {getEstadoLabel(calcularEstado(torneo))}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-2">

@@ -22,7 +22,6 @@ export default function JugadorPerfilPage() {
     // { icon: 'folder', label: 'Documentos personales', href: '/dashboard/jugador/documentos' },
     { icon: 'lock', label: 'Cambiar contraseña', href: '/dashboard/jugador/perfil/cambiar-contrasena' },
     { icon: 'help', label: 'Ayuda y soporte', href: WHATSAPP_URL, external: true },
-    { icon: 'description', label: 'Términos y condiciones', href: '#' },
   ]
 
   return (

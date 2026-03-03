@@ -1,4 +1,4 @@
-import type { PreviewResponse, ConfirmRequest, ImportResult, Club } from '@/types/bulk-import'
+import type { PreviewResponse, ConfirmRequest, ImportResult, Club, TournamentPreviewResponse, TournamentConfirmRequest, TournamentImportResult } from '@/types/bulk-import'
 import type {
   CreateTorneoDTO,
   Torneo,
@@ -77,6 +77,78 @@ export async function bulkImportPreview(file: File): Promise<PreviewResponse> {
 
 export async function bulkImportConfirm(data: ConfirmRequest): Promise<ImportResult> {
   return apiFetch('/bulk-import/confirm', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+// Tournament Import API Functions
+
+export async function tournamentImportPreview(
+  file: File,
+  sheetName?: string,
+  onUploadProgress?: (progress: number) => void,
+): Promise<TournamentPreviewResponse> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+  const url = sheetName
+    ? `${API_URL}/bulk-import/tournament-preview?sheet_name=${encodeURIComponent(sheetName)}`
+    : `${API_URL}/bulk-import/tournament-preview`
+
+  if (onUploadProgress) {
+    // Use XHR for upload progress tracking
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', url)
+      xhr.setRequestHeader('ngrok-skip-browser-warning', 'true')
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          onUploadProgress(Math.round((e.loaded / e.total) * 100))
+        }
+      }
+
+      xhr.onload = () => {
+        try {
+          const json = JSON.parse(xhr.responseText)
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(json)
+          } else {
+            reject(new Error(json.message || 'Error al procesar el archivo'))
+          }
+        } catch {
+          reject(new Error('Error al procesar la respuesta'))
+        }
+      }
+
+      xhr.onerror = () => reject(new Error('Error de red al subir el archivo'))
+      xhr.send(formData)
+    })
+  }
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'ngrok-skip-browser-warning': 'true',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  })
+
+  const json = await res.json()
+
+  if (!res.ok) {
+    throw new Error(json.message || 'Error al procesar el archivo')
+  }
+
+  return json
+}
+
+export async function tournamentImportConfirm(data: TournamentConfirmRequest): Promise<TournamentImportResult> {
+  return apiFetch('/bulk-import/tournament-confirm', {
     method: 'POST',
     body: JSON.stringify(data),
   })
@@ -456,6 +528,8 @@ export interface EquipoTorneoJugador {
   id: string
   nombre: string
   apellido: string
+  dni?: string | null
+  fecha_nacimiento?: string | null
   numero_camiseta?: number | null
   posicion?: string | null
   capitan: boolean
@@ -484,8 +558,8 @@ export async function inscribirseEquipo(torneoId: string, torneoEquipoId: string
   return res.data
 }
 
-export async function desinscribirseEquipo(torneoId: string): Promise<void> {
-  await apiFetch(`/jugadores/torneos/${torneoId}/desinscribirse`, {
+export async function desinscribirseEquipo(torneoId: string, torneoEquipoId: string): Promise<void> {
+  await apiFetch(`/jugadores/torneos/${torneoId}/equipos/${torneoEquipoId}/desinscribirse`, {
     method: 'DELETE',
   })
 }

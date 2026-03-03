@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { getJugadores, type JugadorResponse } from '@/lib/api'
 import NotificationModal from '@/components/ui/NotificationModal'
 
+const PAGE_SIZE = 50
+
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '-'
   const date = new Date(dateStr)
@@ -15,6 +17,7 @@ export default function ClubJugadoresPage() {
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState('')
   const [filtroEstado, setFiltroEstado] = useState('')
+  const [page, setPage] = useState(1)
   const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({
     open: false,
     title: '',
@@ -54,13 +57,19 @@ export default function ClubJugadoresPage() {
       const matchEstado =
         !filtroEstado ||
         (filtroEstado === 'pagado' && j.pagado) ||
-        (filtroEstado === 'no_pagado' && !j.pagado) ||
-        (filtroEstado === 'activo' && j.activo) ||
-        (filtroEstado === 'inactivo' && !j.activo)
+        (filtroEstado === 'no_pagado' && !j.pagado)
 
       return matchBusqueda && matchEstado
     })
   }, [jugadores, busqueda, filtroEstado])
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1)
+  }, [busqueda, filtroEstado])
+
+  const totalPages = Math.max(1, Math.ceil(jugadoresFiltrados.length / PAGE_SIZE))
+  const jugadoresPaginados = jugadoresFiltrados.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   if (loading) {
     return (
@@ -105,8 +114,6 @@ export default function ClubJugadoresPage() {
           <option value="">Todos los estados</option>
           <option value="pagado">Seguro pagado</option>
           <option value="no_pagado">Seguro no pagado</option>
-          <option value="activo">Activos</option>
-          <option value="inactivo">Inactivos</option>
         </select>
       </div>
 
@@ -125,6 +132,7 @@ export default function ClubJugadoresPage() {
           <p className="mt-3 text-slate-500 dark:text-slate-400 text-sm">No hay jugadores registrados</p>
         </div>
       ) : (
+        <>
         <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -133,11 +141,10 @@ export default function ClubJugadoresPage() {
                 <th className="px-4 py-3 font-medium">DNI</th>
                 <th className="px-4 py-3 font-medium hidden md:table-cell">Nacimiento</th>
                 <th className="px-4 py-3 font-medium">Pagado</th>
-                <th className="px-4 py-3 font-medium hidden sm:table-cell">Activo</th>
               </tr>
             </thead>
             <tbody>
-              {jugadoresFiltrados.map((jugador) => {
+              {jugadoresPaginados.map((jugador) => {
                 return (
                   <tr
                     key={jugador.id}
@@ -170,24 +177,13 @@ export default function ClubJugadoresPage() {
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 hidden sm:table-cell">
-                      {jugador.activo ? (
-                        <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-blue-500/10 text-blue-500">
-                          Activo
-                        </span>
-                      ) : (
-                        <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-slate-500/10 text-slate-500">
-                          Inactivo
-                        </span>
-                      )}
-                    </td>
                   </tr>
                 )
               })}
               {jugadoresFiltrados.length === 0 && (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={4}
                     className="px-4 py-12 text-center"
                   >
                     <span className="material-symbols-outlined text-3xl text-slate-300 dark:text-slate-600 block mb-2">
@@ -202,6 +198,49 @@ export default function ClubJugadoresPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-2">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, jugadoresFiltrados.length)} de {jugadoresFiltrados.length}
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage(1)}
+                disabled={page === 1}
+                className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              >
+                <span className="material-symbols-outlined text-lg">first_page</span>
+              </button>
+              <button
+                onClick={() => setPage(p => p - 1)}
+                disabled={page === 1}
+                className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              >
+                <span className="material-symbols-outlined text-lg">chevron_left</span>
+              </button>
+              <span className="px-3 py-1 text-sm font-medium text-slate-700 dark:text-slate-300">
+                {page} / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(p => p + 1)}
+                disabled={page === totalPages}
+                className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              >
+                <span className="material-symbols-outlined text-lg">chevron_right</span>
+              </button>
+              <button
+                onClick={() => setPage(totalPages)}
+                disabled={page === totalPages}
+                className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              >
+                <span className="material-symbols-outlined text-lg">last_page</span>
+              </button>
+            </div>
+          </div>
+        )}
+        </>
       )}
 
       <NotificationModal
