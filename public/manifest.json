@@ -1,7 +1,7 @@
 {
-  "name": "Seguro Deportivo",
-  "short_name": "SeguroApp",
-  "description": "Gestión de seguros deportivos",
+  "name": "Club Plaza",
+  "short_name": "Club Plaza",
+  "description": "Club Plaza - Gestión deportiva",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",

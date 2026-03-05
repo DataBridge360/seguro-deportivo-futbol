@@ -6,13 +6,13 @@ import Image from 'next/image'
 import { useAuthStore } from '@/stores/authStore'
 import { getDefaultRouteForRole } from '@/lib/navigation'
 
-type LoginMode = 'email' | 'dni'
+type LoginMode = 'usuario' | 'dni'
 
 export default function LoginPage() {
   const router = useRouter()
   const { login, loginDNI, isLoading, error, clearError, user, isAuthenticated } = useAuthStore()
   const [mode, setMode] = useState<LoginMode>('dni')
-  const [email, setEmail] = useState('')
+  const [usuario, setUsuario] = useState('')
   const [dni, setDni] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -27,8 +27,8 @@ export default function LoginPage() {
     e.preventDefault()
     clearError()
 
-    const success = mode === 'email'
-      ? await login(email, password)
+    const success = mode === 'usuario'
+      ? await login(usuario, password)
       : await loginDNI(dni, password)
 
     if (success) {
@@ -42,7 +42,7 @@ export default function LoginPage() {
 
   const toggleMode = () => {
     clearError()
-    setMode(mode === 'email' ? 'dni' : 'email')
+    setMode(mode === 'usuario' ? 'dni' : 'usuario')
     setPassword('')
   }
 
@@ -73,25 +73,28 @@ export default function LoginPage() {
         {/* Login Form */}
         <form onSubmit={handleSubmit} className="px-6 pb-8 space-y-4">
           <div className="space-y-3">
-            {mode === 'email' ? (
-              /* Email Field */
-              <div key="email" className="space-y-1.5 animate-fade-in">
-                <label htmlFor="email" className="text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">
-                  Correo Electr&oacute;nico
+            {mode === 'usuario' ? (
+              /* Usuario Field */
+              <div key="usuario" className="space-y-1.5 animate-fade-in">
+                <label htmlFor="usuario" className="text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">
+                  Usuario
                 </label>
                 <div className="relative">
                   <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary/70 text-xl">
-                    mail
+                    person
                   </span>
                   <input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    id="usuario"
+                    type="text"
+                    value={usuario}
+                    onChange={(e) => setUsuario(e.target.value)}
                     className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-slate-400"
-                    placeholder="ejemplo@correo.com"
+                    placeholder="Ingres&aacute; tu usuario"
                     required
-                    autoComplete="email"
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                   />
                 </div>
               </div>
@@ -148,13 +151,6 @@ export default function LoginPage() {
                   {showPassword ? 'visibility_off' : 'visibility'}
                 </button>
               </div>
-              {mode === 'email' && (
-                <div className="flex justify-end">
-                  <a className="text-xs font-semibold text-primary hover:underline mt-1 cursor-pointer">
-                    &iquest;Olvidaste tu contrase&ntilde;a?
-                  </a>
-                </div>
-              )}
             </div>
           </div>
 
@@ -196,15 +192,15 @@ export default function LoginPage() {
               onClick={toggleMode}
               className="w-full bg-white dark:bg-slate-800 border-2 border-primary/30 hover:border-primary text-slate-700 dark:text-slate-200 font-bold py-3 rounded-lg transition-all flex items-center justify-center gap-2"
             >
-              {mode === 'email' ? (
+              {mode === 'usuario' ? (
                 <>
                   <span className="material-symbols-outlined text-primary">sports_soccer</span>
                   Soy jugador &mdash; Ingresar con DNI
                 </>
               ) : (
                 <>
-                  <span className="material-symbols-outlined text-primary">mail</span>
-                  Soy staff &mdash; Ingresar con email
+                  <span className="material-symbols-outlined text-primary">manage_accounts</span>
+                  Soy staff &mdash; Ingresar con usuario
                 </>
               )}
             </button>

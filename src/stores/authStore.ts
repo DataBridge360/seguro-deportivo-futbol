@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { User } from '@/types'
-import { loginWithEmail, loginWithDNI } from '@/lib/api'
+import { loginWithUsuario, loginWithDNI } from '@/lib/api'
 
 interface AuthState {
   user: User | null
@@ -10,7 +10,7 @@ interface AuthState {
   isLoading: boolean
   error: string | null
   _hasHydrated: boolean
-  login: (email: string, password: string) => Promise<boolean>
+  login: (usuario: string, password: string) => Promise<boolean>
   loginDNI: (dni: string, password: string) => Promise<boolean>
   logout: () => void
   clearError: () => void
@@ -29,11 +29,11 @@ export const useAuthStore = create<AuthState>()(
 
       setHasHydrated: (val: boolean) => set({ _hasHydrated: val }),
 
-      login: async (email: string, password: string) => {
+      login: async (usuario: string, password: string) => {
         set({ isLoading: true, error: null })
 
         try {
-          const data = await loginWithEmail(email, password)
+          const data = await loginWithUsuario(usuario, password)
 
           localStorage.setItem('token', data.token)
 

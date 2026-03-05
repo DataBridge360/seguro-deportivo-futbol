@@ -6,13 +6,13 @@ import { ThemeProvider } from '@/components/ThemeProvider'
 const lexend = Lexend({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Seguro Deportivo',
-  description: 'Gestión de seguros deportivos',
+  title: 'Club Plaza',
+  description: 'Club Plaza - Gestión deportiva',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'SeguroApp',
+    title: 'Club Plaza',
   },
 }
 
@@ -44,13 +44,13 @@ export default function RootLayout({
             __html: `
               (function() {
                 try {
-                  var theme = JSON.parse(localStorage.getItem('theme-storage'))?.state?.theme || 'dark';
+                  var theme = JSON.parse(localStorage.getItem('theme-storage'))?.state?.theme || 'light';
                   document.documentElement.classList.add(theme);
                   var colors = { light: '#f6f7f8', dark: '#0a0a0a' };
                   var meta = document.querySelector('meta[name="theme-color"]');
-                  if (meta) meta.setAttribute('content', colors[theme] || colors.dark);
+                  if (meta) meta.setAttribute('content', colors[theme] || colors.light);
                 } catch (e) {
-                  document.documentElement.classList.add('dark');
+                  document.documentElement.classList.add('light');
                 }
               })();
             `,
