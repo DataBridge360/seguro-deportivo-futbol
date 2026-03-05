@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import {
   getEquiposInscritos, getJugadoresEquipoTorneo,
   agregarJugadorEquipoTorneo, quitarJugadorEquipoTorneo,
-  getJugadores, getJugadoresProductor,
+  getJugadores, getJugadoresProductor, desinscribirEquipo,
 } from '@/lib/api'
 import type { JugadorResponse } from '@/lib/api'
 import type { Inscripcion, JugadorEquipoTorneo } from '@/types/club'
@@ -43,6 +43,13 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
 
   // Quitar jugador confirm
   const [showConfirmQuitar, setShowConfirmQuitar] = useState<JugadorEquipoTorneo | null>(null)
+
+  // Desinscribir equipo
+  const [showConfirmDesinscribir, setShowConfirmDesinscribir] = useState(false)
+  const [desinscribiendo, setDesinscribiendo] = useState(false)
+
+  // PDF
+  const [generandoPDF, setGenerandoPDF] = useState(false)
 
   const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({
     open: false, title: '', message: '', type: 'info'
@@ -125,6 +132,128 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
     }
   }
 
+  const handleDesinscribirEquipo = async () => {
+    if (!inscripcion) return
+    try {
+      setDesinscribiendo(true)
+      await desinscribirEquipo(inscripcion.id)
+      setShowConfirmDesinscribir(false)
+      router.push(`${basePath}/${torneoId}`)
+    } catch (error) {
+      setShowConfirmDesinscribir(false)
+      setNotification({ open: true, title: 'Error al desinscribir', message: error instanceof Error ? error.message : 'Error desconocido', type: 'error' })
+    } finally {
+      setDesinscribiendo(false)
+    }
+  }
+
+  const handleDescargarPDF = async () => {
+    if (!inscripcion || jugadores.length === 0) return
+    try {
+      setGenerandoPDF(true)
+      const html2canvas = (await import('html2canvas')).default
+      const { jsPDF } = await import('jspdf')
+
+      const loadLogoBase64 = async (src: string): Promise<string> => {
+        try {
+          const res = await fetch(src)
+          const blob = await res.blob()
+          return await new Promise<string>((resolve) => {
+            const reader = new FileReader()
+            reader.onloadend = () => resolve(reader.result as string)
+            reader.readAsDataURL(blob)
+          })
+        } catch { return '' }
+      }
+
+      const [logoLeft, logoCenter, logoRight] = await Promise.all([
+        loadLogoBase64('/logos/lucas-segura.png'),
+        loadLogoBase64('/logos/complejo-deportivo.png'),
+        loadLogoBase64('/logos/bbva-seguros.png'),
+      ])
+      const hoy = new Date()
+      const fecha = `${hoy.getDate().toString().padStart(2, '0')}/${(hoy.getMonth() + 1).toString().padStart(2, '0')}/${hoy.getFullYear()}`
+      const logoLeftImg = logoLeft ? `<img src="${logoLeft}" style="height:48px;width:auto;">` : ''
+      const logoCenterImg = logoCenter ? `<img src="${logoCenter}" style="height:80px;width:auto;">` : ''
+      const logoRightImg = logoRight ? `<img src="${logoRight}" style="height:38px;width:auto;">` : ''
+      const thStyle = 'color:#fff;font-weight:700;text-transform:uppercase;padding:5px 6px;text-align:center;font-size:9.5px;letter-spacing:0.3px;border:1px solid #2d2d2d;'
+      const tdBase = 'padding:4px 6px;text-align:center;vertical-align:middle;border:1px solid #bbb;font-size:10px;'
+      const marginMM = 12
+      const contentWidthMM = 210 - marginMM * 2
+      const maxContentHeightMM = 297 - marginMM * 2
+      const renderWidthPx = 794
+
+      const rows = jugadores.map((j) => `
+        <tr>
+          <td style="${tdBase}"></td>
+          <td style="${tdBase}"></td>
+          <td style="${tdBase}font-weight:700;text-transform:uppercase;">${`${(j.apellido || '').toUpperCase()} ${(j.nombre || '').toUpperCase()}`.trim()}</td>
+          <td style="${tdBase}">${j.dni || '-'}</td>
+          <td style="${tdBase}">${j.fecha_nacimiento ? (() => { const [y,m,d] = j.fecha_nacimiento!.split('-'); return `${d}/${m}/${y}` })() : '-'}</td>
+          <td style="${tdBase}font-weight:700;">${inscripcion.categoria_nombre}</td>
+          <td style="${tdBase}font-weight:700;text-transform:uppercase;">${inscripcion.equipo_nombre.toUpperCase()}</td>
+        </tr>`).join('')
+
+      const pageHtml = `
+        <div style="font-family: Calibri, 'Segoe UI', Arial, sans-serif; font-size: 11px; color: #000; width: ${renderWidthPx}px; background: #fff;">
+          <table style="width:100%;border:none;border-collapse:collapse;margin-bottom:10px;">
+            <tr>
+              <td style="text-align:left;vertical-align:middle;border:none;width:33%;">${logoLeftImg}</td>
+              <td style="text-align:center;vertical-align:middle;border:none;width:34%;">${logoCenterImg}</td>
+              <td style="text-align:right;vertical-align:middle;border:none;width:33%;">${logoRightImg}</td>
+            </tr>
+          </table>
+          <div style="font-size: 11px; margin-bottom: 4px;">FECHA: ${fecha}</div>
+          <table style="width: 100%; border-collapse: collapse; font-size: 10px;">
+            <thead>
+              <tr style="background-color: #2d2d2d;">
+                <th style="${thStyle}width:50px;">ORDEN</th>
+                <th style="${thStyle}width:25px;">N</th>
+                <th style="${thStyle}">APELLIDO Y NOMBRE</th>
+                <th style="${thStyle}width:75px;">DNI</th>
+                <th style="${thStyle}width:95px;">F/NACIMIENTO</th>
+                <th style="${thStyle}width:78px;">CATEGOR\u00cdA</th>
+                <th style="${thStyle}width:85px;">EQUIPO</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`
+
+      const container = document.createElement('div')
+      container.innerHTML = pageHtml
+      container.style.cssText = `position:fixed;left:0;top:0;width:${renderWidthPx}px;z-index:-9999;pointer-events:none;`
+      document.body.appendChild(container)
+      try {
+        const canvas = await html2canvas(container, { scale: 1.5, useCORS: true, logging: false, backgroundColor: '#ffffff' })
+        const scaleRatio = contentWidthMM / canvas.width
+        const imgHeightMM = canvas.height * scaleRatio
+        const pageHeightPx = maxContentHeightMM / scaleRatio
+        const pagesNeeded = Math.ceil(imgHeightMM / maxContentHeightMM)
+        const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' })
+        for (let page = 0; page < pagesNeeded; page++) {
+          if (page > 0) pdf.addPage()
+          const startY = Math.floor(page * pageHeightPx)
+          const sliceHeight = Math.min(Math.ceil(pageHeightPx), canvas.height - startY)
+          const sliceCanvas = document.createElement('canvas')
+          sliceCanvas.width = canvas.width
+          sliceCanvas.height = sliceHeight
+          const ctx = sliceCanvas.getContext('2d')!
+          ctx.drawImage(canvas, 0, startY, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight)
+          pdf.addImage(sliceCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', marginMM, marginMM, contentWidthMM, sliceHeight * scaleRatio)
+        }
+        pdf.save(`${inscripcion.equipo_nombre.toLowerCase().replace(/\s+/g, '-')}-planilla.pdf`)
+        setNotification({ open: true, title: 'PDF generado', message: 'Descargado exitosamente', type: 'success' })
+      } finally {
+        document.body.removeChild(container)
+      }
+    } catch (error) {
+      setNotification({ open: true, title: 'Error al generar PDF', message: error instanceof Error ? error.message : 'Error desconocido', type: 'error' })
+    } finally {
+      setGenerandoPDF(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -149,12 +278,37 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
           <div className="w-12 h-12 shrink-0 rounded-xl bg-primary/10 flex items-center justify-center">
             <span className="material-symbols-outlined text-2xl text-primary">shield</span>
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
               {inscripcion?.equipo_nombre || 'Equipo'}
             </h1>
             {inscripcion && (
               <p className="text-sm text-slate-500 dark:text-slate-400">{inscripcion.categoria_nombre}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {jugadores.length > 0 && (
+              <button
+                onClick={handleDescargarPDF}
+                disabled={generandoPDF}
+                className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50"
+                title="Descargar planilla"
+              >
+                {generandoPDF ? (
+                  <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <span className="material-symbols-outlined text-xl text-slate-600 dark:text-slate-300">picture_as_pdf</span>
+                )}
+              </button>
+            )}
+            {inscripcion && (
+              <button
+                onClick={() => setShowConfirmDesinscribir(true)}
+                className="p-2 bg-slate-100 hover:bg-red-50 dark:bg-slate-800 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                title="Desinscribir equipo"
+              >
+                <span className="material-symbols-outlined text-xl text-slate-400 hover:text-red-500">delete</span>
+              </button>
             )}
           </div>
         </div>
@@ -326,6 +480,29 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
             <div className="flex gap-2">
               <button onClick={() => setShowConfirmQuitar(null)} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={handleQuitarJugador} className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors">Quitar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal desinscribir equipo */}
+      {showConfirmDesinscribir && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => !desinscribiendo && setShowConfirmDesinscribir(false)}>
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-9 h-9 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center">
+                <span className="material-symbols-outlined text-red-500 text-lg">warning</span>
+              </div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Desinscribir equipo</h3>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+              ¿Desinscribir a <strong>&quot;{inscripcion?.equipo_nombre}&quot;</strong> del torneo?
+            </p>
+            <div className="flex gap-2">
+              <button onClick={() => setShowConfirmDesinscribir(false)} disabled={desinscribiendo} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">Cancelar</button>
+              <button onClick={handleDesinscribirEquipo} disabled={desinscribiendo} className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                {desinscribiendo ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Desinscribiendo...</>) : 'Desinscribir'}
+              </button>
             </div>
           </div>
         </div>

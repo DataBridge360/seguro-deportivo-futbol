@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 import { getMisCupones, CuponResponse } from '@/lib/api'
 
 type Estado = 'disponible' | 'usado' | 'vencido'
@@ -34,6 +35,37 @@ export default function CuponesPage() {
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<Estado>('disponible')
   const initialLoadDone = useRef(false)
+
+  // Swipe-to-dismiss
+  const dragY = useRef(0)
+  const startY = useRef(0)
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const [translateY, setTranslateY] = useState(0)
+  const [snapping, setSnapping] = useState(false)
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    startY.current = e.touches[0].clientY
+    dragY.current = 0
+    setSnapping(false)
+  }
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    const delta = e.touches[0].clientY - startY.current
+    if (delta < 0) return // solo hacia abajo
+    dragY.current = delta
+    setTranslateY(delta)
+  }
+
+  const onTouchEnd = () => {
+    setSnapping(true)
+    if (dragY.current > 120) {
+      setTranslateY(window.innerHeight)
+      setTimeout(() => { setSelected(null); setTranslateY(0); setSnapping(false) }, 250)
+    } else {
+      setTranslateY(0)
+      setTimeout(() => setSnapping(false), 250)
+    }
+  }
 
   const fetchCupones = useCallback(async () => {
     try {
@@ -117,7 +149,7 @@ export default function CuponesPage() {
       </div>
 
       {/* Lista de cupones */}
-      <div className="space-y-4 px-0">
+      <div className="space-y-3 px-0">
         {filtered.length === 0 ? (
           <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-10 text-center">
             <span className="material-symbols-outlined text-5xl text-slate-300 dark:text-slate-600">
@@ -132,92 +164,86 @@ export default function CuponesPage() {
         ) : (
           filtered.map((cupon) => {
             const estado = getEstado(cupon)
+            const isDisponible = estado === 'disponible'
+
+            const accentBg = isDisponible
+              ? 'bg-primary'
+              : estado === 'usado'
+              ? 'bg-slate-300 dark:bg-slate-600'
+              : 'bg-red-300 dark:bg-red-700'
+
+            const iconBg = isDisponible
+              ? 'bg-primary/10 dark:bg-primary/15'
+              : estado === 'usado'
+              ? 'bg-slate-100 dark:bg-slate-700'
+              : 'bg-red-50 dark:bg-red-500/10'
+
+            const iconColor = isDisponible
+              ? 'text-primary'
+              : estado === 'usado'
+              ? 'text-slate-400'
+              : 'text-red-400'
+
+            const valueColor = isDisponible
+              ? 'text-primary'
+              : 'text-slate-400 dark:text-slate-500'
+
             return (
-              <div
+              <button
                 key={cupon.id}
-                className={`bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm ${
-                  estado !== 'disponible' ? 'opacity-60' : ''
+                onClick={() => setSelected(cupon)}
+                className={`w-full text-left bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden shadow-sm transition-all active:scale-[0.98] ${
+                  isDisponible
+                    ? 'hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600'
+                    : 'opacity-60'
                 }`}
               >
-                <div className="flex p-4 gap-4">
-                  {/* Icono / Imagen del cupon */}
-                  <div className={`size-16 rounded-xl flex items-center justify-center shrink-0 ${
-                    estado === 'disponible'
-                      ? 'bg-primary/10'
-                      : estado === 'usado'
-                      ? 'bg-slate-100 dark:bg-slate-700'
-                      : 'bg-red-50 dark:bg-red-500/10'
-                  }`}>
-                    <span className={`material-symbols-outlined text-3xl ${
-                      estado === 'disponible'
-                        ? 'text-primary'
-                        : estado === 'usado'
-                        ? 'text-slate-400'
-                        : 'text-red-400'
-                    }`}>
+                <div className="flex items-stretch">
+                  {/* Left accent strip */}
+                  <div className={`w-1.5 shrink-0 ${accentBg}`} />
+
+                  {/* Icon */}
+                  <div className={`w-14 shrink-0 flex items-center justify-center ${iconBg}`}>
+                    <span
+                      className={`material-symbols-outlined text-2xl ${iconColor}`}
+                      style={{ fontVariationSettings: "'FILL' 1" }}
+                    >
                       {cupon.tipo_descuento === 'porcentaje' ? 'percent' : 'payments'}
                     </span>
                   </div>
 
-                  {/* Contenido */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-[15px] font-bold text-primary line-clamp-2 leading-snug">
+                  {/* Content */}
+                  <div className="flex-1 px-3 py-3.5 min-w-0">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white leading-tight line-clamp-1">
+                      {cupon.titulo}
+                    </p>
+                    <p className={`text-xl font-black mt-0.5 leading-none ${valueColor}`}>
                       {cupon.tipo_descuento === 'porcentaje'
-                        ? `${cupon.valor_descuento}% - ${cupon.titulo}`
-                        : `$${cupon.valor_descuento.toLocaleString()} - ${cupon.titulo}`
+                        ? `${cupon.valor_descuento}% OFF`
+                        : `$${cupon.valor_descuento.toLocaleString('es-AR')}`
                       }
-                    </h3>
-                    {cupon.descripcion && (
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
-                        {cupon.descripcion}
-                      </p>
-                    )}
-                    {cupon.fecha_vencimiento && (
-                      <span className="inline-block mt-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700 px-2.5 py-0.5 rounded-full">
-                        {estado === 'disponible'
-                          ? `Hasta el ${formatDateShort(cupon.fecha_vencimiento)}`
-                          : estado === 'vencido'
-                          ? `Vencido el ${formatDateShort(cupon.fecha_vencimiento)}`
-                          : `Usado`
+                    </p>
+                    <div className="flex items-center gap-1 mt-2">
+                      <span className="material-symbols-outlined text-[13px] text-slate-400" style={{ fontVariationSettings: "'FILL' 1" }}>
+                        {estado === 'usado' ? 'check_circle' : 'calendar_today'}
+                      </span>
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500">
+                        {estado === 'usado'
+                          ? 'Utilizado'
+                          : cupon.fecha_vencimiento
+                          ? `Vence el ${formatDate(cupon.fecha_vencimiento)}`
+                          : 'Sin vencimiento'
                         }
                       </span>
-                    )}
+                    </div>
+                  </div>
+
+                  {/* Chevron */}
+                  <div className="flex items-center pr-3">
+                    <span className="material-symbols-outlined text-slate-300 dark:text-slate-600">chevron_right</span>
                   </div>
                 </div>
-
-                {/* Footer con acciones */}
-                {estado === 'disponible' && (
-                  <div className="flex items-center border-t border-slate-100 dark:border-slate-700">
-                    <button
-                      onClick={() => setSelected(cupon)}
-                      className="flex-1 flex items-center justify-center gap-1 py-3 text-sm font-semibold text-primary hover:bg-primary/5 transition-colors"
-                    >
-                      Ver detalles
-                      <span className="material-symbols-outlined text-base">chevron_right</span>
-                    </button>
-                    <div className="w-px h-8 bg-slate-100 dark:bg-slate-700" />
-                    <button
-                      onClick={() => copyCode(cupon.codigo)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-bold text-white bg-primary hover:bg-primary/90 transition-colors"
-                    >
-                      <span className="material-symbols-outlined text-base">{copied ? 'check' : 'content_copy'}</span>
-                      {copied ? 'Copiado' : 'Copiar codigo'}
-                    </button>
-                  </div>
-                )}
-
-                {estado !== 'disponible' && (
-                  <div className="border-t border-slate-100 dark:border-slate-700">
-                    <button
-                      onClick={() => setSelected(cupon)}
-                      className="w-full flex items-center justify-center gap-1 py-3 text-sm font-semibold text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
-                    >
-                      Ver detalles
-                      <span className="material-symbols-outlined text-base">chevron_right</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+              </button>
             )
           })
         )}
@@ -225,41 +251,71 @@ export default function CuponesPage() {
 
       {/* Detail Modal */}
       {selected && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSelected(null)} />
-          <div className="relative bg-white dark:bg-slate-800 rounded-2xl w-full max-w-sm shadow-xl animate-slide-up max-h-[85vh] overflow-y-auto">
-            <div className="p-5 space-y-4">
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setSelected(null); setTranslateY(0) }} />
+          <div
+            ref={sheetRef}
+            className="relative bg-white dark:bg-slate-800 rounded-t-3xl sm:rounded-2xl w-full max-w-sm shadow-xl max-h-[90vh] overflow-y-auto"
+            style={{ transform: `translateY(${translateY}px)`, transition: snapping ? 'transform 0.25s ease' : 'none' }}
+          >
+            {/* Drag handle mobile */}
+            <div
+              className="flex justify-center pt-3 pb-1 sm:hidden touch-none"
+              onTouchStart={onTouchStart}
+              onTouchMove={onTouchMove}
+              onTouchEnd={onTouchEnd}
+            >
+              <div className="w-10 h-1 bg-slate-200 dark:bg-slate-600 rounded-full" />
+            </div>
+
+            <div className="p-5 space-y-5">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Detalle del cupon</h3>
-                <button onClick={() => setSelected(null)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">{selected.titulo}</h3>
+                  <p className="text-2xl font-bold text-primary mt-0.5">
+                    {selected.tipo_descuento === 'porcentaje' ? `${selected.valor_descuento}% OFF` : `$${selected.valor_descuento.toLocaleString()} OFF`}
+                  </p>
+                </div>
+                <button onClick={() => { setSelected(null); setTranslateY(0) }} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl">
                   <span className="material-symbols-outlined text-slate-400">close</span>
                 </button>
               </div>
 
-              <div className="text-center py-4">
-                <div className="size-16 mx-auto rounded-2xl bg-primary/10 flex items-center justify-center mb-3">
-                  <span className="material-symbols-outlined text-primary text-3xl">
-                    {selected.tipo_descuento === 'porcentaje' ? 'percent' : 'payments'}
-                  </span>
+              {/* QR Code - solo en disponibles */}
+              {getEstado(selected) === 'disponible' ? (
+                <div className="flex flex-col items-center gap-3 py-2">
+                  <div className="p-4 bg-white rounded-2xl shadow-sm border border-slate-100">
+                    <QRCodeSVG
+                      value={selected.codigo}
+                      size={180}
+                      level="M"
+                      includeMargin={false}
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 w-full">
+                    <span className="font-mono text-base font-bold tracking-widest text-slate-900 dark:text-white flex-1 text-center">{selected.codigo}</span>
+                    <button
+                      onClick={() => copyCode(selected.codigo)}
+                      className="text-primary shrink-0"
+                    >
+                      <span className="material-symbols-outlined text-xl">{copied ? 'check' : 'content_copy'}</span>
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 text-center">Mostrá este QR en la cantina para canjearlo</p>
                 </div>
-                <p className="text-3xl font-bold text-primary">
-                  {selected.tipo_descuento === 'porcentaje' ? `${selected.valor_descuento}%` : `$${selected.valor_descuento.toLocaleString()}`}
-                </p>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{selected.titulo}</p>
-              </div>
+              ) : (
+                <div className={`rounded-xl p-4 text-center ${getEstado(selected) === 'usado' ? 'bg-slate-100 dark:bg-slate-700' : 'bg-red-50 dark:bg-red-500/10'}`}>
+                  <span className={`material-symbols-outlined text-4xl ${getEstado(selected) === 'usado' ? 'text-slate-400' : 'text-red-400'}`}>
+                    {getEstado(selected) === 'usado' ? 'check_circle' : 'event_busy'}
+                  </span>
+                  <p className={`text-sm font-semibold mt-1 ${getEstado(selected) === 'usado' ? 'text-slate-500 dark:text-slate-400' : 'text-red-500'}`}>
+                    {getEstado(selected) === 'usado' ? 'Cupon ya utilizado' : 'Cupon vencido'}
+                  </p>
+                  <p className="font-mono text-xs text-slate-400 mt-2">{selected.codigo}</p>
+                </div>
+              )}
 
-              <div className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3.5 flex items-center justify-between">
-                <span className="font-mono text-sm text-slate-900 dark:text-white font-bold tracking-wider">{selected.codigo}</span>
-                <button
-                  onClick={() => copyCode(selected.codigo)}
-                  className="text-xs text-primary hover:underline flex items-center gap-1 font-semibold"
-                >
-                  <span className="material-symbols-outlined text-sm">{copied ? 'check' : 'content_copy'}</span>
-                  {copied ? 'Copiado' : 'Copiar'}
-                </button>
-              </div>
-
-              <div className="space-y-2.5 text-sm">
+              <div className="space-y-2.5 text-sm border-t border-slate-100 dark:border-slate-700 pt-4">
                 <div className="flex justify-between">
                   <span className="text-slate-500 dark:text-slate-400">Estado</span>
                   <span className={`font-semibold ${
@@ -294,8 +350,8 @@ export default function CuponesPage() {
               </div>
 
               <button
-                onClick={() => setSelected(null)}
-                className="w-full py-3 bg-primary hover:bg-primary/90 text-white rounded-xl text-sm font-bold transition-colors"
+                onClick={() => { setSelected(null); setTranslateY(0) }}
+                className="w-full py-3 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-900 dark:text-white rounded-xl text-sm font-bold transition-colors"
               >
                 Cerrar
               </button>

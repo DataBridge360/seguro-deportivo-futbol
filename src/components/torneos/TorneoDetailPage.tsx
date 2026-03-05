@@ -65,7 +65,7 @@ export default function TorneoDetailPage({ basePath }: Props) {
   const [showConfirmDesinscribir, setShowConfirmDesinscribir] = useState<{ id: string; nombre: string } | null>(null)
   const [showConfirmEliminarTorneo, setShowConfirmEliminarTorneo] = useState(false)
   const [showModalEditar, setShowModalEditar] = useState(false)
-  const [modoPDF, setModoPDF] = useState(false)
+  const [pdfMenuOpen, setPdfMenuOpen] = useState(false)
 
   // Delete
   const [deletePassword, setDeletePassword] = useState('')
@@ -79,21 +79,19 @@ export default function TorneoDetailPage({ basePath }: Props) {
   const [formInscripcion, setFormInscripcion] = useState<InscribirEquipoDTO>({ equipo_id: '', categoria_id: '' })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  // Players (for PDF only)
+  // Players cache (for PDF)
   const [jugadoresPorEquipo, setJugadoresPorEquipo] = useState<Record<string, JugadorEquipoTorneo[]>>({})
 
-  // PDF
-  const [equiposParaPDF, setEquiposParaPDF] = useState<string[]>([])
+  // PDF state
   const [generandoPDF, setGenerandoPDF] = useState(false)
   const [cargandoJugadoresPDF, setCargandoJugadoresPDF] = useState(false)
   const [pdfProgress, setPdfProgress] = useState({ current: 0, total: 0, phase: '' })
 
-  const pdfInscripcionesCount = useMemo(() => {
-    return inscripciones.filter(i => equiposParaPDF.includes(i.equipo_id)).length
-  }, [inscripciones, equiposParaPDF])
-
   // Category tabs
   const [categoriaTab, setCategoriaTab] = useState<string>('todos')
+
+  // Info card
+  const [infoOpen, setInfoOpen] = useState(false)
 
   // Menu
   const [menuOpen, setMenuOpen] = useState(false)
@@ -105,11 +103,11 @@ export default function TorneoDetailPage({ basePath }: Props) {
   useEffect(() => { loadData() }, [torneoId])
 
   useEffect(() => {
-    if (!menuOpen) return
-    const handler = () => setMenuOpen(false)
+    if (!menuOpen && !pdfMenuOpen) return
+    const handler = () => { setMenuOpen(false); setPdfMenuOpen(false) }
     document.addEventListener('click', handler)
     return () => document.removeEventListener('click', handler)
-  }, [menuOpen])
+  }, [menuOpen, pdfMenuOpen])
 
   const categoriasDelTorneo = useMemo(() => {
     const map = new Map<string, { id: string; nombre: string; count: number }>()
@@ -267,48 +265,6 @@ export default function TorneoDetailPage({ basePath }: Props) {
 
   // ─── PDF ───────────────────────────────────────────────
 
-  const handleToggleModoPDF = async () => {
-    if (modoPDF) {
-      setModoPDF(false)
-      setEquiposParaPDF([])
-      setPdfProgress({ current: 0, total: 0, phase: '' })
-      return
-    }
-    // Enter selection mode and pre-load players
-    setModoPDF(true)
-    // Use unique equipo_ids from filtered inscriptions
-    const uniqueEquipoIds = [...new Set(inscripcionesFiltradas.map(i => i.equipo_id))]
-    setEquiposParaPDF(uniqueEquipoIds)
-    const sinJugadores = uniqueEquipoIds.filter(eid => !jugadoresPorEquipo[eid])
-    if (sinJugadores.length > 0) {
-      setCargandoJugadoresPDF(true)
-      setPdfProgress({ current: 0, total: sinJugadores.length, phase: 'Cargando jugadores' })
-      const newData: Record<string, JugadorEquipoTorneo[]> = {}
-      // Load in batches of 5 to avoid overwhelming the server
-      const BATCH_SIZE = 5
-      let loaded = 0
-      for (let i = 0; i < sinJugadores.length; i += BATCH_SIZE) {
-        const batch = sinJugadores.slice(i, i + BATCH_SIZE)
-        const results = await Promise.allSettled(
-          batch.map(async (equipoId) => {
-            const jugadores = await getJugadoresEquipoTorneo(torneoId, equipoId)
-            return { equipoId, jugadores }
-          })
-        )
-        results.forEach(r => {
-          if (r.status === 'fulfilled') {
-            newData[r.value.equipoId] = r.value.jugadores
-          }
-        })
-        loaded += batch.length
-        setPdfProgress({ current: loaded, total: sinJugadores.length, phase: 'Cargando jugadores' })
-      }
-      setJugadoresPorEquipo(prev => ({ ...prev, ...newData }))
-      setCargandoJugadoresPDF(false)
-      setPdfProgress({ current: 0, total: 0, phase: '' })
-    }
-  }
-
   const formatFechaNacimiento = (fecha: string | null | undefined): string => {
     if (!fecha) return '-'
     const [y, m, d] = fecha.split('-')
@@ -327,45 +283,43 @@ export default function TorneoDetailPage({ basePath }: Props) {
     } catch { return '' }
   }
 
-  const handleGenerarPDF = async () => {
-    if (equiposParaPDF.length === 0) {
-      setNotification({ open: true, title: 'Sin equipos', message: 'Seleccioná al menos un equipo', type: 'error' })
-      return
-    }
-
-    // Collect all player data - use local copy so we have fresh data
+  const ensureJugadoresCargados = async (equipoIds: string[]): Promise<Record<string, JugadorEquipoTorneo[]>> => {
     let localJugadores = { ...jugadoresPorEquipo }
-    const sinJugadores = equiposParaPDF.filter(eid => !localJugadores[eid])
-    if (sinJugadores.length > 0) {
-      setCargandoJugadoresPDF(true)
-      setPdfProgress({ current: 0, total: sinJugadores.length, phase: 'Cargando jugadores' })
-      const newData: Record<string, JugadorEquipoTorneo[]> = {}
-      const BATCH_SIZE = 5
-      let loaded = 0
-      for (let i = 0; i < sinJugadores.length; i += BATCH_SIZE) {
-        const batch = sinJugadores.slice(i, i + BATCH_SIZE)
-        const results = await Promise.allSettled(
-          batch.map(async (equipoId) => {
-            const jugadores = await getJugadoresEquipoTorneo(torneoId, equipoId)
-            return { equipoId, jugadores }
-          })
-        )
-        results.forEach(r => {
-          if (r.status === 'fulfilled') {
-            newData[r.value.equipoId] = r.value.jugadores
-          }
-        })
-        loaded += batch.length
-        setPdfProgress({ current: loaded, total: sinJugadores.length, phase: 'Cargando jugadores' })
-      }
-      setJugadoresPorEquipo(prev => ({ ...prev, ...newData }))
-      setCargandoJugadoresPDF(false)
-      localJugadores = { ...localJugadores, ...newData }
-    }
+    const sinJugadores = equipoIds.filter(eid => !localJugadores[eid])
+    if (sinJugadores.length === 0) return localJugadores
 
+    setCargandoJugadoresPDF(true)
+    setPdfProgress({ current: 0, total: sinJugadores.length, phase: 'Cargando jugadores' })
+    const newData: Record<string, JugadorEquipoTorneo[]> = {}
+    const BATCH_SIZE = 5
+    let loaded = 0
+    for (let i = 0; i < sinJugadores.length; i += BATCH_SIZE) {
+      const batch = sinJugadores.slice(i, i + BATCH_SIZE)
+      const results = await Promise.allSettled(
+        batch.map(async (equipoId) => {
+          const jugadores = await getJugadoresEquipoTorneo(torneoId, equipoId)
+          return { equipoId, jugadores }
+        })
+      )
+      results.forEach(r => {
+        if (r.status === 'fulfilled') newData[r.value.equipoId] = r.value.jugadores
+      })
+      loaded += batch.length
+      setPdfProgress({ current: loaded, total: sinJugadores.length, phase: 'Cargando jugadores' })
+    }
+    setJugadoresPorEquipo(prev => ({ ...prev, ...newData }))
+    setCargandoJugadoresPDF(false)
+    localJugadores = { ...localJugadores, ...newData }
+    return localJugadores
+  }
+
+  const generarPDF = async (pdfInscripciones: Inscripcion[], filename: string) => {
     try {
       setGenerandoPDF(true)
-      setPdfProgress({ current: 0, total: equiposParaPDF.length, phase: 'Generando PDF' })
+      setPdfProgress({ current: 0, total: pdfInscripciones.length, phase: 'Generando PDF' })
+
+      const equipoIds = [...new Set(pdfInscripciones.map(i => i.equipo_id))]
+      const localJugadores = await ensureJugadoresCargados(equipoIds)
 
       const html2canvas = (await import('html2canvas')).default
       const { jsPDF } = await import('jspdf')
@@ -382,17 +336,12 @@ export default function TorneoDetailPage({ basePath }: Props) {
       const logoRightImg = logoRight ? `<img src="${logoRight}" style="height:38px;width:auto;">` : ''
       const thStyle = 'color:#fff;font-weight:700;text-transform:uppercase;padding:5px 6px;text-align:center;font-size:9.5px;letter-spacing:0.3px;border:1px solid #2d2d2d;'
       const tdBase = 'padding:4px 6px;text-align:center;vertical-align:middle;border:1px solid #bbb;font-size:10px;'
-
-      // A4 dimensions in mm
       const marginMM = 12
       const contentWidthMM = 210 - marginMM * 2
       const maxContentHeightMM = 297 - marginMM * 2
       const renderWidthPx = 794
 
       const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' })
-
-      // Build and render one page at a time (avoids iOS canvas size limits)
-      const pdfInscripciones = inscripciones.filter(i => equiposParaPDF.includes(i.equipo_id))
 
       for (let idx = 0; idx < pdfInscripciones.length; idx++) {
         const inscripcion = pdfInscripciones[idx]
@@ -434,40 +383,55 @@ export default function TorneoDetailPage({ basePath }: Props) {
             </table>
           </div>`
 
-        // Render this single page to canvas, then add to PDF
         const container = document.createElement('div')
         container.innerHTML = pageHtml
         container.style.cssText = `position:fixed;left:0;top:0;width:${renderWidthPx}px;z-index:-9999;pointer-events:none;`
         document.body.appendChild(container)
-
         try {
           const canvas = await html2canvas(container, { scale: 1.5, useCORS: true, logging: false, backgroundColor: '#ffffff' })
-          const imgData = canvas.toDataURL('image/jpeg', 0.95)
-          const imgHeight = (canvas.height * contentWidthMM) / canvas.width
-
-          if (idx > 0) pdf.addPage()
-          pdf.addImage(imgData, 'JPEG', marginMM, marginMM, contentWidthMM, Math.min(imgHeight, maxContentHeightMM))
+          const scaleRatio = contentWidthMM / canvas.width
+          const imgHeightMM = canvas.height * scaleRatio
+          const pageHeightPx = maxContentHeightMM / scaleRatio
+          const pagesNeeded = Math.ceil(imgHeightMM / maxContentHeightMM)
+          for (let page = 0; page < pagesNeeded; page++) {
+            if (idx > 0 || page > 0) pdf.addPage()
+            const startY = Math.floor(page * pageHeightPx)
+            const sliceHeight = Math.min(Math.ceil(pageHeightPx), canvas.height - startY)
+            const sliceCanvas = document.createElement('canvas')
+            sliceCanvas.width = canvas.width
+            sliceCanvas.height = sliceHeight
+            const ctx = sliceCanvas.getContext('2d')!
+            ctx.drawImage(canvas, 0, startY, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight)
+            const sliceImgData = sliceCanvas.toDataURL('image/jpeg', 0.95)
+            pdf.addImage(sliceImgData, 'JPEG', marginMM, marginMM, contentWidthMM, sliceHeight * scaleRatio)
+          }
         } finally {
           document.body.removeChild(container)
         }
-
         setPdfProgress({ current: idx + 1, total: pdfInscripciones.length, phase: 'Generando PDF' })
-        // Yield to keep UI responsive
         await new Promise(r => setTimeout(r, 50))
       }
 
-      pdf.save('listado-equipos.pdf')
-
-      setModoPDF(false)
-      setEquiposParaPDF([])
-      setPdfProgress({ current: 0, total: 0, phase: '' })
+      pdf.save(filename)
       setNotification({ open: true, title: 'PDF generado', message: 'Descargado exitosamente', type: 'success' })
     } catch (error) {
       setNotification({ open: true, title: 'Error al generar PDF', message: error instanceof Error ? error.message : 'Error desconocido', type: 'error' })
     } finally {
       setGenerandoPDF(false)
+      setCargandoJugadoresPDF(false)
       setPdfProgress({ current: 0, total: 0, phase: '' })
     }
+  }
+
+  const handleDescargarCategoria = () => {
+    if (categoriaTab === 'todos') return
+    const cat = categoriasDelTorneo.find(c => c.id === categoriaTab)
+    const insc = inscripciones.filter(i => i.categoria_id === categoriaTab)
+    generarPDF(insc, `${cat?.nombre || 'categoria'}-planilla.pdf`)
+  }
+
+  const handleDescargarTodo = () => {
+    generarPDF(inscripciones, `${torneo?.nombre || 'torneo'}-planilla-completa.pdf`)
   }
 
   // ─── Render ────────────────────────────────────────────
@@ -498,20 +462,41 @@ export default function TorneoDetailPage({ basePath }: Props) {
           </button>
           <div className="flex items-center gap-2">
             {inscripciones.length > 0 && (
-              <button
-                onClick={handleToggleModoPDF}
-                disabled={generandoPDF || cargandoJugadoresPDF}
-                className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${
-                  modoPDF
-                    ? 'bg-primary text-white'
-                    : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700'
-                }`}
-                title={modoPDF ? 'Cancelar selección' : 'Descargar PDF'}
-              >
-                <span className={`material-symbols-outlined text-xl ${modoPDF ? 'text-white' : 'text-slate-600 dark:text-slate-300'}`}>
-                  {modoPDF ? 'close' : 'picture_as_pdf'}
-                </span>
-              </button>
+              <div className="relative">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setPdfMenuOpen(!pdfMenuOpen) }}
+                  disabled={generandoPDF || cargandoJugadoresPDF}
+                  className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50"
+                  title="Descargar PDF"
+                >
+                  {(generandoPDF || cargandoJugadoresPDF) ? (
+                    <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <span className="material-symbols-outlined text-xl text-slate-600 dark:text-slate-300">picture_as_pdf</span>
+                  )}
+                </button>
+                {pdfMenuOpen && (
+                  <div className="absolute right-0 top-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg z-10 py-1 min-w-[200px]">
+                    <button
+                      onClick={() => { setPdfMenuOpen(false); handleDescargarTodo() }}
+                      className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-base text-primary">picture_as_pdf</span>
+                      Todos los equipos
+                    </button>
+                    {categoriasDelTorneo.map(cat => (
+                      <button
+                        key={cat.id}
+                        onClick={() => { setPdfMenuOpen(false); generarPDF(inscripciones.filter(i => i.categoria_id === cat.id), `${cat.nombre}-planilla.pdf`) }}
+                        className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-base text-primary">filter_list</span>
+                        {cat.nombre}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
             <div className="relative">
               <button
@@ -583,49 +568,58 @@ export default function TorneoDetailPage({ basePath }: Props) {
         </div>
       </div>
 
-      {/* ── Info card ── */}
+      {/* ── Info card (collapsible) ── */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+        <button
+          type="button"
+          onClick={() => setInfoOpen(v => !v)}
+          className="w-full px-4 py-3 flex items-center gap-3 text-left"
+        >
+          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined text-primary text-xl">emoji_events</span>
           </div>
-          <p className="text-sm font-semibold text-slate-900 dark:text-white">Información</p>
-        </div>
-        <div className="p-4 space-y-4">
-          {torneo.descripcion && (
-            <p className="text-sm text-slate-600 dark:text-slate-400">{torneo.descripcion}</p>
-          )}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {(torneo.inscripcion_inicio || torneo.inscripcion_fin) && (
+          <p className="text-sm font-semibold text-slate-900 dark:text-white flex-1">Información</p>
+          <span className={`material-symbols-outlined text-xl text-slate-400 transition-transform duration-200 ${infoOpen ? 'rotate-180' : ''}`}>
+            expand_more
+          </span>
+        </button>
+        {infoOpen && (
+          <div className="p-4 pt-0 space-y-4 border-t border-slate-100 dark:border-slate-700">
+            {torneo.descripcion && (
+              <p className="text-sm text-slate-600 dark:text-slate-400 pt-4">{torneo.descripcion}</p>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {(torneo.inscripcion_inicio || torneo.inscripcion_fin) && (
+                <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-4">
+                  <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold">Inscripción</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white mt-1">
+                    {torneo.inscripcion_inicio ? formatDate(torneo.inscripcion_inicio) : '—'} - {torneo.inscripcion_fin ? formatDate(torneo.inscripcion_fin) : '—'}
+                  </p>
+                  {inscripcionVencida && (
+                    <p className="text-xs text-red-500 font-medium mt-1">Vencida</p>
+                  )}
+                </div>
+              )}
               <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-4">
-                <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold">Inscripción</p>
-                <p className="text-sm font-semibold text-slate-900 dark:text-white mt-1">
-                  {torneo.inscripcion_inicio ? formatDate(torneo.inscripcion_inicio) : '—'} - {torneo.inscripcion_fin ? formatDate(torneo.inscripcion_fin) : '—'}
-                </p>
-                {inscripcionVencida && (
-                  <p className="text-xs text-red-500 font-medium mt-1">Vencida</p>
-                )}
+                <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold">Máx. jugadores</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-white mt-1">{torneo.max_jugadores_por_equipo} por equipo</p>
+              </div>
+              <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-4">
+                <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold">Equipos</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-white mt-1">{inscripciones.length} inscrito{inscripciones.length !== 1 ? 's' : ''}</p>
+              </div>
+            </div>
+            {torneo.categorias && torneo.categorias.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {torneo.categorias.map((cat) => (
+                  <span key={cat.id} className="text-xs px-2.5 py-1 rounded-full bg-primary/10 text-primary font-medium">
+                    {cat.nombre}
+                  </span>
+                ))}
               </div>
             )}
-            <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-4">
-              <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold">Máx. jugadores</p>
-              <p className="text-sm font-semibold text-slate-900 dark:text-white mt-1">{torneo.max_jugadores_por_equipo} por equipo</p>
-            </div>
-            <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-4">
-              <p className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold">Equipos</p>
-              <p className="text-sm font-semibold text-slate-900 dark:text-white mt-1">{inscripciones.length} inscrito{inscripciones.length !== 1 ? 's' : ''}</p>
-            </div>
           </div>
-          {torneo.categorias && torneo.categorias.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {torneo.categorias.map((cat) => (
-                <span key={cat.id} className="text-xs px-2.5 py-1 rounded-full bg-primary/10 text-primary font-medium">
-                  {cat.nombre}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
       {/* ── Equipos inscritos ── */}
@@ -640,31 +634,13 @@ export default function TorneoDetailPage({ basePath }: Props) {
               <p className="text-xs text-slate-500 dark:text-slate-400">{inscripcionesFiltradas.length} equipo{inscripcionesFiltradas.length !== 1 ? 's' : ''}</p>
             </div>
           </div>
-          {modoPDF ? (() => {
-            const allUniqueIds = [...new Set(inscripcionesFiltradas.map(i => i.equipo_id))]
-            const allSelected = equiposParaPDF.length === allUniqueIds.length && allUniqueIds.length > 0
-            return (
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={() => setEquiposParaPDF(allSelected ? [] : allUniqueIds)}
-                  className="w-4 h-4 rounded accent-primary"
-                />
-                <span className="text-xs font-medium text-primary">
-                  {allSelected ? 'Deseleccionar' : 'Todos'}
-                </span>
-              </label>
-            )
-          })() : (
-            <button
-              onClick={() => { setFormInscripcion({ equipo_id: '', categoria_id: '' }); setErrors({}); setShowModalInscripcion(true) }}
-              className="flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              <span className="material-symbols-outlined text-lg">group_add</span>
-              Inscribir
-            </button>
-          )}
+          <button
+            onClick={() => { setFormInscripcion({ equipo_id: '', categoria_id: '' }); setErrors({}); setShowModalInscripcion(true) }}
+            className="flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            <span className="material-symbols-outlined text-lg">group_add</span>
+            Inscribir
+          </button>
         </div>
 
         {categoriasDelTorneo.length > 1 && (
@@ -705,62 +681,22 @@ export default function TorneoDetailPage({ basePath }: Props) {
             </div>
           ) : (
             <div className="space-y-3">
-              {inscripcionesFiltradas.map((inscripcion) => {
-                const isSelected = equiposParaPDF.includes(inscripcion.equipo_id)
-                return (
-                  <div key={inscripcion.id} className={`bg-slate-50 dark:bg-slate-900 rounded-xl border overflow-hidden transition-colors ${
-                    modoPDF && isSelected
-                      ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                      : 'border-slate-200 dark:border-slate-700'
-                  }`}>
-                    <div className="flex items-center justify-between px-4 py-3">
-                      {modoPDF ? (
-                        <label className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => setEquiposParaPDF(prev =>
-                              prev.includes(inscripcion.equipo_id)
-                                ? prev.filter(id => id !== inscripcion.equipo_id)
-                                : [...prev, inscripcion.equipo_id]
-                            )}
-                            className="w-5 h-5 rounded accent-primary shrink-0"
-                          />
-                          <div className="w-10 h-10 shrink-0 rounded-lg bg-white dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700">
-                            <span className="material-symbols-outlined text-xl text-primary">shield</span>
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{inscripcion.equipo_nombre}</h4>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">{inscripcion.categoria_nombre}</p>
-                          </div>
-                        </label>
-                      ) : (
-                        <>
-                          <Link
-                            href={`${basePath}/${torneoId}/equipo/${inscripcion.equipo_id}`}
-                            className="flex items-center gap-3 flex-1 min-w-0"
-                          >
-                            <div className="w-10 h-10 shrink-0 rounded-lg bg-white dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700">
-                              <span className="material-symbols-outlined text-xl text-primary">shield</span>
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{inscripcion.equipo_nombre}</h4>
-                              <p className="text-xs text-slate-500 dark:text-slate-400">{inscripcion.categoria_nombre}</p>
-                            </div>
-                            <span className="material-symbols-outlined text-xl text-slate-400 shrink-0">chevron_right</span>
-                          </Link>
-                          <button
-                            onClick={() => setShowConfirmDesinscribir({ id: inscripcion.id, nombre: inscripcion.equipo_nombre })}
-                            className="ml-2 p-2 text-slate-400 hover:text-red-500 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors shrink-0"
-                          >
-                            <span className="material-symbols-outlined text-xl">delete</span>
-                          </button>
-                        </>
-                      )}
-                    </div>
+              {inscripcionesFiltradas.map((inscripcion) => (
+                <Link
+                  key={inscripcion.id}
+                  href={`${basePath}/${torneoId}/equipo/${inscripcion.equipo_id}`}
+                  className="flex items-center gap-3 px-4 py-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700"
+                >
+                  <div className="w-10 h-10 shrink-0 rounded-lg bg-white dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700">
+                    <span className="material-symbols-outlined text-xl text-primary">shield</span>
                   </div>
-                )
-              })}
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{inscripcion.equipo_nombre}</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{inscripcion.categoria_nombre}</p>
+                  </div>
+                  <span className="material-symbols-outlined text-xl text-slate-400 shrink-0">chevron_right</span>
+                </Link>
+              ))}
             </div>
           )}
         </div>
@@ -934,57 +870,6 @@ export default function TorneoDetailPage({ basePath }: Props) {
               <button onClick={handleGuardarEdicion} disabled={submitting} className="flex-1 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                 {submitting ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Guardando...</>) : 'Guardar'}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Floating PDF bar ── */}
-      {modoPDF && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 p-4 pointer-events-none">
-          <div className="max-w-lg mx-auto pointer-events-auto">
-            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg p-3 space-y-2">
-              {/* Progress bar (shown during loading or generation) */}
-              {(cargandoJugadoresPDF || generandoPDF) && pdfProgress.total > 0 && (
-                <div className="space-y-1">
-                  <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${generandoPDF ? 'bg-primary' : 'bg-green-500'}`}
-                      style={{ width: `${(pdfProgress.current / pdfProgress.total) * 100}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
-                    {pdfProgress.phase}: {pdfProgress.current}/{pdfProgress.total} {cargandoJugadoresPDF ? 'equipos' : 'páginas'}
-                  </p>
-                </div>
-              )}
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm text-slate-600 dark:text-slate-300">
-                  <span className="font-semibold text-slate-900 dark:text-white">{pdfInscripcionesCount}</span> planilla{pdfInscripcionesCount !== 1 ? 's' : ''} a generar
-                </p>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => { setModoPDF(false); setEquiposParaPDF([]) }}
-                    disabled={generandoPDF || cargandoJugadoresPDF}
-                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handleGenerarPDF}
-                    disabled={generandoPDF || cargandoJugadoresPDF || equiposParaPDF.length === 0}
-                    className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
-                  >
-                    {cargandoJugadoresPDF ? (
-                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Cargando...</>
-                    ) : generandoPDF ? (
-                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Generando...</>
-                    ) : (
-                      <><span className="material-symbols-outlined text-lg">picture_as_pdf</span>Descargar PDF</>
-                    )}
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
         </div>

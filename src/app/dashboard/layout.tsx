@@ -200,7 +200,7 @@ export default function DashboardLayout({
         </div>
 
         {/* Main Content */}
-        <main className="md:max-w-7xl md:mx-auto md:px-4 md:py-8 px-3 py-4 pb-24 md:pb-8 max-w-[480px] mx-auto md:max-w-none">
+        <main className="md:max-w-7xl md:mx-auto md:px-4 md:py-8 px-3 py-4 pb-28 md:pb-16 max-w-[480px] mx-auto md:max-w-none">
           {children}
         </main>
 
@@ -361,7 +361,7 @@ export default function DashboardLayout({
         </header>
 
         {/* Page content */}
-        <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto text-slate-900 dark:text-white">
+        <div className="flex-1 p-4 sm:p-6 lg:p-8 pb-12 sm:pb-14 lg:pb-16 overflow-auto text-slate-900 dark:text-white">
           {children}
         </div>
       </main>

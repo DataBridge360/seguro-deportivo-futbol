@@ -1,10 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import jsQR from 'jsqr'
 import { buscarCupon, canjearCupon, CuponResponse, getResumenCupones, ResumenCuponesResponse } from '@/lib/api'
 import NotificationModal from '@/components/ui/NotificationModal'
+import DatePicker from '@/components/ui/DatePicker'
 
 type Step = 'buscar' | 'preview' | 'monto'
+type InputMode = 'manual' | 'scanner'
 
 function getEstado(cupon: CuponResponse): 'disponible' | 'usado' | 'vencido' {
   if (cupon.usado) return 'usado'
@@ -12,14 +15,9 @@ function getEstado(cupon: CuponResponse): 'disponible' | 'usado' | 'vencido' {
   return 'disponible'
 }
 
-function todayStart() {
+function todayDate() {
   const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T00:00`
-}
-
-function todayEnd() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T23:59`
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 function formatHora(dateStr: string): string {
@@ -30,6 +28,7 @@ function formatHora(dateStr: string): string {
 export default function CantinaCajaPage() {
   // === Coupon validation state ===
   const [step, setStep] = useState<Step>('buscar')
+  const [inputMode, setInputMode] = useState<InputMode>('manual')
   const [codigo, setCodigo] = useState('')
   const [cupon, setCupon] = useState<CuponResponse | null>(null)
   const [montoCompra, setMontoCompra] = useState('')
@@ -39,11 +38,99 @@ export default function CantinaCajaPage() {
     open: false, title: '', message: '', type: 'success'
   })
 
+  // === QR Scanner state ===
+  const [scannerActive, setScannerActive] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const animFrameRef = useRef<number | null>(null)
+
+  const stopScanner = useCallback(() => {
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop())
+      streamRef.current = null
+    }
+    setScannerActive(false)
+  }, [])
+
+  const startScanner = useCallback(async () => {
+    try {
+      setError('')
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      })
+      streamRef.current = stream
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        videoRef.current.play()
+      }
+      setScannerActive(true)
+    } catch {
+      setError('No se pudo acceder a la camara. Usa el modo manual.')
+    }
+  }, [])
+
+  // Scan loop using BarcodeDetector or jsQR fallback
+  useEffect(() => {
+    if (!scannerActive || !videoRef.current) return
+    const video = videoRef.current
+
+    const scan = async () => {
+      if (!video || video.readyState < 2) {
+        animFrameRef.current = requestAnimationFrame(scan)
+        return
+      }
+      try {
+        let scannedValue: string | null = null
+        if ('BarcodeDetector' in window) {
+          const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] })
+          const codes = await detector.detect(video)
+          if (codes.length > 0) scannedValue = codes[0].rawValue as string
+        } else {
+          const canvas = document.createElement('canvas')
+          canvas.width = video.videoWidth
+          canvas.height = video.videoHeight
+          canvas.getContext('2d')!.drawImage(video, 0, 0)
+          const imageData = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height)
+          const result = jsQR(imageData.data, imageData.width, imageData.height)
+          if (result) scannedValue = result.data
+        }
+        if (scannedValue !== null) {
+          const value = scannedValue
+          stopScanner()
+          setCodigo(value)
+          setInputMode('manual')
+          try {
+            setLoading(true)
+            const data = await buscarCupon(value)
+            setCupon(data)
+            const estado = data.usado ? 'usado' : (data.fecha_vencimiento && new Date(data.fecha_vencimiento) < new Date(new Date().toDateString())) ? 'vencido' : 'disponible'
+            if (estado === 'usado') { setError('Este cupon ya fue utilizado'); return }
+            if (estado === 'vencido') { setError('Este cupon esta vencido'); return }
+            setStep('preview')
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'Cupon no encontrado')
+          } finally {
+            setLoading(false)
+          }
+          return
+        }
+      } catch { /* ignore detection errors */ }
+      animFrameRef.current = requestAnimationFrame(scan)
+    }
+
+    animFrameRef.current = requestAnimationFrame(scan)
+    return () => { if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current) }
+  }, [scannerActive, stopScanner])
+
+  // Cleanup on unmount
+  useEffect(() => () => stopScanner(), [stopScanner])
+
   // === Summary state ===
   const [resumen, setResumen] = useState<ResumenCuponesResponse | null>(null)
   const [resumenLoading, setResumenLoading] = useState(true)
-  const [desde, setDesde] = useState(todayStart)
-  const [hasta, setHasta] = useState(todayEnd)
+  const [desde, setDesde] = useState(todayDate)
+  const [hasta, setHasta] = useState(todayDate)
   const [showDateFilter, setShowDateFilter] = useState(false)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -51,7 +138,7 @@ export default function CantinaCajaPage() {
   const fetchResumen = useCallback(async (showLoader = false) => {
     try {
       if (showLoader) setResumenLoading(true)
-      const data = await getResumenCupones(new Date(desde).toISOString(), new Date(hasta).toISOString())
+      const data = await getResumenCupones(new Date(desde + 'T00:00:00').toISOString(), new Date(hasta + 'T23:59:59').toISOString())
       setResumen(data)
     } catch {
       // silent fail on polling
@@ -129,7 +216,9 @@ export default function CantinaCajaPage() {
   }
 
   const resetForm = () => {
+    stopScanner()
     setStep('buscar')
+    setInputMode('manual')
     setCodigo('')
     setCupon(null)
     setMontoCompra('')
@@ -165,29 +254,84 @@ export default function CantinaCajaPage() {
           {/* Step: Buscar */}
           {step === 'buscar' && (
             <>
-              <div>
-                <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">Codigo del cupon</label>
-                <input
-                  type="text"
-                  value={codigo}
-                  onChange={(e) => { setCodigo(e.target.value.toUpperCase()); setError('') }}
-                  placeholder="Ej: CUP-ABC123"
-                  className={`w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm font-mono placeholder:text-slate-400 focus:outline-none focus:border-primary ${error ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'}`}
-                  onKeyDown={(e) => e.key === 'Enter' && handleBuscar()}
-                />
-                {error && <p className="text-red-400 text-xs mt-1">{error}</p>}
+              {/* Toggle manual / scanner */}
+              <div className="flex gap-1 bg-slate-100 dark:bg-slate-900 rounded-lg p-1">
+                <button
+                  onClick={() => { setInputMode('manual'); stopScanner(); setError('') }}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-colors ${inputMode === 'manual' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                >
+                  <span className="material-symbols-outlined text-base">keyboard</span>
+                  Manual
+                </button>
+                <button
+                  onClick={() => { setInputMode('scanner'); startScanner(); setError('') }}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-colors ${inputMode === 'scanner' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                >
+                  <span className="material-symbols-outlined text-base">qr_code_scanner</span>
+                  Escanear QR
+                </button>
               </div>
-              <button
-                onClick={handleBuscar}
-                disabled={loading}
-                className="w-full py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Buscando...</>
-                ) : (
-                  <><span className="material-symbols-outlined text-lg">search</span> Buscar cupon</>
-                )}
-              </button>
+
+              {/* Scanner view */}
+              {inputMode === 'scanner' && (
+                <div className="space-y-3">
+                  <div className="relative bg-black rounded-xl overflow-hidden aspect-square">
+                    <video
+                      ref={videoRef}
+                      className="w-full h-full object-cover"
+                      playsInline
+                      muted
+                    />
+                    {/* Targeting overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-48 h-48 relative">
+                        <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-lg" />
+                        <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-lg" />
+                        <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-lg" />
+                        <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-lg" />
+                        {/* Scan line */}
+                        <div className="absolute inset-x-0 top-1/2 h-0.5 bg-primary/70 animate-pulse" />
+                      </div>
+                    </div>
+                    {loading && (
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 text-center">Apunta la camara al QR del cupon del jugador</p>
+                  {error && <p className="text-red-400 text-xs text-center">{error}</p>}
+                </div>
+              )}
+
+              {/* Manual input */}
+              {inputMode === 'manual' && (
+                <>
+                  <div>
+                    <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">Codigo del cupon</label>
+                    <input
+                      type="text"
+                      value={codigo}
+                      onChange={(e) => { setCodigo(e.target.value.toUpperCase()); setError('') }}
+                      placeholder="Ej: CUP-ABC123"
+                      className={`w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm font-mono placeholder:text-slate-400 focus:outline-none focus:border-primary ${error ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'}`}
+                      onKeyDown={(e) => e.key === 'Enter' && handleBuscar()}
+                    />
+                    {error && <p className="text-red-400 text-xs mt-1">{error}</p>}
+                  </div>
+                  <button
+                    onClick={handleBuscar}
+                    disabled={loading}
+                    className="w-full py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {loading ? (
+                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Buscando...</>
+                    ) : (
+                      <><span className="material-symbols-outlined text-lg">search</span> Buscar cupon</>
+                    )}
+                  </button>
+                </>
+              )}
             </>
           )}
 
@@ -300,21 +444,11 @@ export default function CantinaCajaPage() {
             <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
               <div className="flex-1">
                 <label className="block text-slate-600 dark:text-slate-300 text-xs font-medium mb-1.5">Desde</label>
-                <input
-                  type="datetime-local"
-                  value={desde}
-                  onChange={(e) => setDesde(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:border-primary"
-                />
+                <DatePicker value={desde} onChange={setDesde} placeholder="Desde" />
               </div>
               <div className="flex-1">
                 <label className="block text-slate-600 dark:text-slate-300 text-xs font-medium mb-1.5">Hasta</label>
-                <input
-                  type="datetime-local"
-                  value={hasta}
-                  onChange={(e) => setHasta(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:border-primary"
-                />
+                <DatePicker value={hasta} onChange={setHasta} placeholder="Hasta" />
               </div>
               <button
                 onClick={() => fetchResumen(true)}

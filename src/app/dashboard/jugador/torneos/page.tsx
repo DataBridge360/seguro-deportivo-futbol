@@ -58,9 +58,9 @@ export default function JugadorTorneosPage() {
   const router = useRouter()
   const [torneos, setTorneos] = useState<JugadorTorneo[]>([])
   const [inscripciones, setInscripciones] = useState<JugadorInscripcion[]>([])
+  const [tab, setTab] = useState<'disponibles' | 'inscritos'>('inscritos')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [tab, setTab] = useState<'disponibles' | 'inscritos'>('disponibles')
 
   // Detalle de torneo
   const [selectedTorneo, setSelectedTorneo] = useState<JugadorTorneo | null>(null)
@@ -397,7 +397,7 @@ export default function JugadorTorneosPage() {
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
           }`}
         >
-          Mis Inscripciones ({inscripciones.length})
+          Mis inscripciones {inscripciones.length > 0 && `(${inscripciones.length})`}
         </button>
       </div>
 
@@ -413,20 +413,20 @@ export default function JugadorTorneosPage() {
                 className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 text-left hover:border-primary/50 dark:hover:border-primary/30 transition-colors active:scale-[0.99]"
               >
                 <div className="flex items-start justify-between gap-3 mb-3">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">{torneo.nombre}</h3>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">{torneo.nombre}</h3>
                   <span className={`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getBadgeClasses(calcularEstado(torneo))}`}>
                     {getEstadoLabel(calcularEstado(torneo))}
                   </span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-2">
-                  <span className="material-symbols-outlined text-lg">calendar_today</span>
+                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-2">
+                  <span className="material-symbols-outlined text-base">calendar_today</span>
                   <span>{formatDate(torneo.fecha_inicio)} - {formatDate(torneo.fecha_fin)}</span>
                 </div>
                 {torneo.descripcion && (
                   <p className="text-sm text-slate-500 dark:text-slate-400 mb-2 line-clamp-2">{torneo.descripcion}</p>
                 )}
                 <div className="flex items-center justify-between mt-3">
-                  <div className={`flex items-center gap-2 text-xs ${abierto ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                  <div className={`flex items-center gap-1.5 text-xs ${abierto ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'}`}>
                     <span className="material-symbols-outlined text-sm">{abierto ? 'check_circle' : 'block'}</span>
                     <span>{abierto ? 'Inscripciones abiertas' : 'Inscripciones cerradas'}</span>
                   </div>
@@ -445,10 +445,11 @@ export default function JugadorTorneosPage() {
         </div>
       )}
 
-      {/* Mis inscripciones */}
+      {/* Mis inscripciones: en_curso → proximo → finalizado */}
       {tab === 'inscritos' && (
         <div className="flex flex-col gap-3">
           {torneosInscritos.map((torneo) => {
+            const estado = calcularEstado(torneo)
             const torneoInscripciones = inscripciones.filter(i => i.torneo_id === torneo.id)
             return (
               <button
@@ -457,27 +458,33 @@ export default function JugadorTorneosPage() {
                 className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 text-left hover:border-primary/50 dark:hover:border-primary/30 transition-colors active:scale-[0.99]"
               >
                 <div className="flex items-start justify-between gap-3 mb-3">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">{torneo.nombre}</h3>
-                  <span className={`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getBadgeClasses(calcularEstado(torneo))}`}>
-                    {getEstadoLabel(calcularEstado(torneo))}
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">{torneo.nombre}</h3>
+                  <span className={`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getBadgeClasses(estado)}`}>
+                    {getEstadoLabel(estado)}
                   </span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-2">
-                  <span className="material-symbols-outlined text-lg">calendar_today</span>
+                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-3">
+                  <span className="material-symbols-outlined text-base">calendar_today</span>
                   <span>{formatDate(torneo.fecha_inicio)} - {formatDate(torneo.fecha_fin)}</span>
                 </div>
-
-                {torneoInscripciones.map((inscripcion) => (
-                  <div key={inscripcion.id} className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
-                    <span className="material-symbols-outlined text-sm text-primary">groups</span>
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{inscripcion.equipo_nombre}</span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">{inscripcion.categoria_nombre}</span>
-                    {inscripcion.capitan && (
-                      <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">C</span>
-                    )}
-                    <span className="material-symbols-outlined text-slate-400 text-lg ml-auto">chevron_right</span>
-                  </div>
-                ))}
+                <div className="flex flex-col gap-1.5">
+                  {torneoInscripciones.map((inscripcion) => (
+                    <div key={inscripcion.id} className="flex items-center gap-2 bg-primary/5 dark:bg-primary/10 rounded-lg px-3 py-2">
+                      <span className="material-symbols-outlined text-base text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>groups</span>
+                      <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 flex-1 truncate">{inscripcion.equipo_nombre}</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400 shrink-0">{inscripcion.categoria_nombre}</span>
+                      {inscripcion.capitan && (
+                        <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400 shrink-0">Cap</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex justify-end mt-3">
+                  <span className="text-xs text-primary font-medium flex items-center gap-0.5">
+                    Ver torneo
+                    <span className="material-symbols-outlined text-base">chevron_right</span>
+                  </span>
+                </div>
               </button>
             )
           })}
@@ -485,7 +492,7 @@ export default function JugadorTorneosPage() {
           {torneosInscritos.length === 0 && (
             <div className="text-center py-12">
               <span className="material-symbols-outlined text-5xl text-slate-300 dark:text-slate-600 mb-3 block">emoji_events</span>
-              <p className="text-slate-500 dark:text-slate-400">No estas inscrito en ningun torneo</p>
+              <p className="text-slate-500 dark:text-slate-400">No estás inscrito en ningún torneo</p>
             </div>
           )}
         </div>

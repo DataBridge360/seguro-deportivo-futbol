@@ -244,6 +244,14 @@ export async function loginWithEmail(email: string, password: string) {
   return res.data as { token: string; user: { id: string; email: string; name: string; role: string } }
 }
 
+export async function loginWithUsuario(usuario: string, password: string) {
+  const res = await apiFetch('/auth/login/usuario', {
+    method: 'POST',
+    body: JSON.stringify({ usuario, password }),
+  })
+  return res.data as { token: string; user: { id: string; email: string; name: string; role: string } }
+}
+
 export async function loginWithDNI(dni: string, password: string) {
   const res = await apiFetch('/auth/login/dni', {
     method: 'POST',
@@ -614,6 +622,19 @@ export async function toggleJugadorPagado(jugadorId: string, pagado: boolean): P
     method: 'PATCH',
     body: JSON.stringify({ pagado }),
   })
+  return res.data
+}
+
+export interface VerificacionJugador {
+  encontrado: boolean
+  nombre?: string
+  apellido?: string
+  pagado?: boolean
+  activo?: boolean
+}
+
+export async function verificarJugadorDNI(dni: string): Promise<VerificacionJugador> {
+  const res = await apiFetch(`/jugadores/verificar/${encodeURIComponent(dni)}`)
   return res.data
 }
 

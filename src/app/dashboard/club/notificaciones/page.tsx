@@ -12,6 +12,7 @@ import {
 } from '@/lib/api'
 import type { Equipo, Torneo, Categoria } from '@/types/club'
 import NotificationModal from '@/components/ui/NotificationModal'
+import DatePicker from '@/components/ui/DatePicker'
 
 const tipoDestinatarioOptions = [
   { value: 'todos', label: 'Todos los jugadores' },
@@ -39,6 +40,11 @@ function timeAgo(dateStr: string): string {
 
 function tipoFiltroLabel(tipo: string): string {
   return tipoDestinatarioOptions.find(o => o.value === tipo)?.label || tipo
+}
+
+function formatDescuento(tipo: 'porcentaje' | 'monto_fijo', valor: number): string {
+  if (tipo === 'porcentaje') return `${Math.min(Math.round(valor), 100)}%`
+  return `$${Math.round(valor).toLocaleString('es-AR')}`
 }
 
 export default function NotificacionesPage() {
@@ -113,7 +119,7 @@ export default function NotificacionesPage() {
       const result = await createNotificacion(data)
       setNotifMessage(
         incluirCupon
-          ? `Notificacion enviada a ${result.destinatarios_count} jugadores con cupon de ${tipoCupon === 'porcentaje' ? `${valorCupon}%` : `$${valorCupon}`}.`
+          ? `Notificacion enviada a ${result.destinatarios_count} jugadores con cupon de ${formatDescuento(tipoCupon, parseFloat(valorCupon))}.`
           : `Notificacion enviada a ${result.destinatarios_count} jugadores.`
       )
       setShowNotification(true)
@@ -244,7 +250,10 @@ export default function NotificacionesPage() {
               <div>
                 <label className="block text-slate-600 dark:text-slate-300 text-xs font-medium mb-1.5">Tipo de descuento</label>
                 <div className="flex gap-2">
-                  <button type="button" onClick={() => setTipoCupon('porcentaje')}
+                  <button type="button" onClick={() => {
+                    setTipoCupon('porcentaje')
+                    if (valorCupon && parseInt(valorCupon, 10) > 100) setValorCupon('100')
+                  }}
                     className={`flex-1 py-2 px-3 rounded-lg text-xs font-medium border transition-colors ${tipoCupon === 'porcentaje' ? 'border-primary bg-primary/10 text-primary' : 'border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:border-slate-400'}`}
                   >Porcentaje (%)</button>
                   <button type="button" onClick={() => setTipoCupon('monto_fijo')}
@@ -254,26 +263,46 @@ export default function NotificacionesPage() {
               </div>
               <div>
                 <label className="block text-slate-600 dark:text-slate-300 text-xs font-medium mb-1.5">
-                  Valor del descuento {tipoCupon === 'porcentaje' ? '(%)' : '($)'}
+                  Valor del descuento
                 </label>
-                <input
-                  type="number"
-                  value={valorCupon}
-                  onChange={(e) => { setValorCupon(e.target.value); clearError('valorCupon') }}
-                  placeholder={tipoCupon === 'porcentaje' ? 'Ej: 15' : 'Ej: 500'}
-                  className={`w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:border-primary ${errors.valorCupon ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'}`}
-                  min="1"
-                />
+                <div className="relative flex items-center">
+                  {tipoCupon === 'monto_fijo' && (
+                    <span className="absolute left-3 text-sm font-medium text-slate-500 dark:text-slate-400 pointer-events-none">$</span>
+                  )}
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={(() => {
+                      if (!valorCupon) return ''
+                      const num = parseInt(valorCupon, 10)
+                      if (isNaN(num)) return valorCupon
+                      return tipoCupon === 'monto_fijo'
+                        ? num.toLocaleString('es-AR')
+                        : valorCupon
+                    })()}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '')
+                      if (!digits) { setValorCupon(''); clearError('valorCupon'); return }
+                      const num = parseInt(digits, 10)
+                      setValorCupon(String(tipoCupon === 'porcentaje' ? Math.min(num, 100) : num))
+                      clearError('valorCupon')
+                    }}
+                    placeholder={tipoCupon === 'porcentaje' ? 'Ej: 15' : 'Ej: 1.500'}
+                    className={`w-full py-2.5 bg-slate-100 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:border-primary ${tipoCupon === 'monto_fijo' ? 'pl-7 pr-3' : 'px-3 pr-8'} ${errors.valorCupon ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'}`}
+                  />
+                  {tipoCupon === 'porcentaje' && (
+                    <span className="absolute right-3 text-sm font-medium text-slate-500 dark:text-slate-400 pointer-events-none">%</span>
+                  )}
+                </div>
                 {errors.valorCupon && <p className="text-red-400 text-xs mt-1">{errors.valorCupon}</p>}
               </div>
               <div>
                 <label className="block text-slate-600 dark:text-slate-300 text-xs font-medium mb-1.5">Fecha de vencimiento</label>
-                <input
-                  type="date"
+                <DatePicker
                   value={fechaVencimiento}
-                  onChange={(e) => { setFechaVencimiento(e.target.value); clearError('fechaVencimiento') }}
-                  min={new Date().toISOString().split('T')[0]}
-                  className={`w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:border-primary ${errors.fechaVencimiento ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'}`}
+                  onChange={(val) => { setFechaVencimiento(val); clearError('fechaVencimiento') }}
+                  placeholder="Fecha de vencimiento"
+                  hasError={!!errors.fechaVencimiento}
                 />
                 {errors.fechaVencimiento && <p className="text-red-400 text-xs mt-1">{errors.fechaVencimiento}</p>}
               </div>
