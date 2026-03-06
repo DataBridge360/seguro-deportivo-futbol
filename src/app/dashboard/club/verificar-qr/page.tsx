@@ -12,7 +12,8 @@ export default function VerificarQRPage() {
   const [resultado, setResultado] = useState<Resultado | null>(null)
   const [error, setError] = useState('')
 
-  // Scanner — misma estructura que cantina
+  // Scanner: scannerVisible renderiza el video, scannerActive inicia el loop
+  const [scannerVisible, setScannerVisible] = useState(false)
   const [scannerActive, setScannerActive] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -25,23 +26,31 @@ export default function VerificarQRPage() {
       streamRef.current = null
     }
     setScannerActive(false)
+    setScannerVisible(false)
   }, [])
 
-  const startScanner = useCallback(async () => {
-    try {
-      setError('')
-      setResultado(null)
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-      streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        videoRef.current.play()
-      }
-      setScannerActive(true)
-    } catch {
-      setError('No se pudo acceder a la cámara. Ingresá el DNI manualmente.')
-    }
-  }, [])
+  // Cuando el video está en el DOM (scannerVisible=true), obtener la cámara
+  useEffect(() => {
+    if (!scannerVisible) return
+    let active = true
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      .then(stream => {
+        if (!active) { stream.getTracks().forEach(t => t.stop()); return }
+        streamRef.current = stream
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+          videoRef.current.play().catch(() => {})
+          setScannerActive(true)
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setScannerVisible(false)
+          setError('No se pudo acceder a la cámara. Ingresá el DNI manualmente.')
+        }
+      })
+    return () => { active = false }
+  }, [scannerVisible])
 
   // Scan loop idéntico al de cantina
   useEffect(() => {
@@ -125,7 +134,7 @@ export default function VerificarQRPage() {
       </div>
 
       {/* Scanner area */}
-      {scannerActive ? (
+      {scannerVisible ? (
         <div className="bg-black rounded-2xl overflow-hidden relative">
           <video ref={videoRef} className="w-full aspect-square object-cover" muted playsInline />
           {/* Targeting overlay */}
@@ -150,7 +159,7 @@ export default function VerificarQRPage() {
       ) : (
         /* Botón escanear QR */
         <button
-          onClick={startScanner}
+          onClick={() => { setError(''); setResultado(null); setScannerVisible(true) }}
           className="w-full flex items-center gap-4 p-4 bg-primary text-white rounded-2xl shadow-md hover:bg-primary/90 active:scale-[0.98] transition-all"
         >
           <div className="size-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
