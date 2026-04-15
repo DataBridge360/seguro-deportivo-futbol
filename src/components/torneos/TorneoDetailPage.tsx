@@ -6,8 +6,9 @@ import Link from 'next/link'
 import {
   getTorneos, getEquiposInscritos, inscribirEquipo, desinscribirEquipo,
   getEquipos, getCategorias, toggleInscripciones, deleteTorneo, updateTorneo,
-  getJugadoresEquipoTorneo,
+  getJugadoresEquipoTorneo, getJugadores, asignarDelegadoAdmin,
 } from '@/lib/api'
+import type { JugadorResponse } from '@/lib/api'
 import type { Torneo, Inscripcion, Equipo, Categoria, InscribirEquipoDTO, JugadorEquipoTorneo, CreateTorneoDTO } from '@/types/club'
 import NotificationModal from '@/components/ui/NotificationModal'
 import DatePicker from '@/components/ui/DatePicker'
@@ -78,6 +79,10 @@ export default function TorneoDetailPage({ basePath }: Props) {
   // Inscription
   const [formInscripcion, setFormInscripcion] = useState<InscribirEquipoDTO>({ equipo_id: '', categoria_id: '' })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [delegadosSeleccionados, setDelegadosSeleccionados] = useState<string[]>([])
+  const [jugadoresClub, setJugadoresClub] = useState<JugadorResponse[]>([])
+  const [loadingJugadores, setLoadingJugadores] = useState(false)
+  const [busquedaDelegado, setBusquedaDelegado] = useState('')
 
   // Players cache (for PDF)
   const [jugadoresPorEquipo, setJugadoresPorEquipo] = useState<Record<string, JugadorEquipoTorneo[]>>({})
@@ -240,12 +245,40 @@ export default function TorneoDetailPage({ basePath }: Props) {
       setSubmitting(true)
       const nueva = await inscribirEquipo(torneoId, formInscripcion)
       setInscripciones(prev => [...prev, nueva])
+
+      // Asignar delegados si se seleccionaron
+      if (delegadosSeleccionados.length > 0) {
+        await Promise.allSettled(
+          delegadosSeleccionados.map(jugadorId => asignarDelegadoAdmin(nueva.id, jugadorId))
+        )
+      }
+
       setShowModalInscripcion(false)
-      setNotification({ open: true, title: 'Equipo inscrito', message: `Inscrito en categoría ${nueva.categoria_nombre}`, type: 'success' })
+      const msg = delegadosSeleccionados.length > 0
+        ? `Inscrito con ${delegadosSeleccionados.length} delegado${delegadosSeleccionados.length > 1 ? 's' : ''}`
+        : `Inscrito en categoría ${nueva.categoria_nombre}`
+      setNotification({ open: true, title: 'Equipo inscrito', message: msg, type: 'success' })
     } catch (error) {
       setNotification({ open: true, title: 'Error al inscribir', message: error instanceof Error ? error.message : 'Error desconocido', type: 'error' })
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleOpenModalInscripcion = async () => {
+    setFormInscripcion({ equipo_id: '', categoria_id: '' })
+    setErrors({})
+    setDelegadosSeleccionados([])
+    setBusquedaDelegado('')
+    setShowModalInscripcion(true)
+    if (jugadoresClub.length === 0) {
+      try {
+        setLoadingJugadores(true)
+        const data = await getJugadores()
+        setJugadoresClub(data)
+      } catch { /* silent */ } finally {
+        setLoadingJugadores(false)
+      }
     }
   }
 
@@ -635,7 +668,7 @@ export default function TorneoDetailPage({ basePath }: Props) {
             </div>
           </div>
           <button
-            onClick={() => { setFormInscripcion({ equipo_id: '', categoria_id: '' }); setErrors({}); setShowModalInscripcion(true) }}
+            onClick={handleOpenModalInscripcion}
             className="flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors"
           >
             <span className="material-symbols-outlined text-lg">group_add</span>
@@ -741,6 +774,67 @@ export default function TorneoDetailPage({ basePath }: Props) {
                 {errors.equipo_id && <p className="text-red-400 text-xs mt-1">{errors.equipo_id}</p>}
                 {formInscripcion.categoria_id && equiposDisponibles.filter(e => e.activo && e.categorias?.some(c => c.id === formInscripcion.categoria_id)).length === 0 && (
                   <p className="text-amber-500 text-xs mt-1">No hay equipos en esta categoría</p>
+                )}
+              </div>
+
+              {/* Delegados */}
+              <div>
+                <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1">
+                  Delegados <span className="text-slate-400 font-normal">(opcional)</span>
+                </label>
+                {loadingJugadores ? (
+                  <div className="flex items-center gap-2 py-2 text-xs text-slate-400">
+                    <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    Cargando jugadores...
+                  </div>
+                ) : (
+                  <>
+                    <div className="relative mb-2">
+                      <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-base">search</span>
+                      <input
+                        type="text"
+                        value={busquedaDelegado}
+                        onChange={(e) => setBusquedaDelegado(e.target.value)}
+                        placeholder="Buscar jugador..."
+                        className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white text-xs placeholder:text-slate-400 focus:outline-none focus:border-primary"
+                      />
+                    </div>
+                    <div className="max-h-36 overflow-y-auto space-y-0.5 border border-slate-200 dark:border-slate-700 rounded-lg p-1">
+                      {jugadoresClub.length === 0 ? (
+                        <p className="text-center text-xs text-slate-400 py-3">No hay jugadores en el club</p>
+                      ) : (() => {
+                        const filtrados = jugadoresClub.filter(j => {
+                          if (!busquedaDelegado.trim()) return true
+                          const t = busquedaDelegado.toLowerCase()
+                          return j.nombre.toLowerCase().includes(t) ||
+                            j.apellido.toLowerCase().includes(t) ||
+                            (j.dni && j.dni.includes(t))
+                        })
+                        return filtrados.length === 0 ? (
+                          <p className="text-center text-xs text-slate-400 py-3">Sin resultados</p>
+                        ) : filtrados.map(j => (
+                          <label key={j.id} className={`flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors ${delegadosSeleccionados.includes(j.id) ? 'bg-amber-50 dark:bg-amber-500/10' : 'hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}>
+                            <input
+                              type="checkbox"
+                              checked={delegadosSeleccionados.includes(j.id)}
+                              onChange={() => setDelegadosSeleccionados(prev =>
+                                prev.includes(j.id) ? prev.filter(id => id !== j.id) : [...prev, j.id]
+                              )}
+                              className="w-3.5 h-3.5 rounded accent-amber-500"
+                            />
+                            <span className="text-xs text-slate-800 dark:text-slate-200 flex-1 truncate">{j.apellido}, {j.nombre}</span>
+                            {j.dni && <span className="text-[10px] text-slate-400 shrink-0">{j.dni}</span>}
+                          </label>
+                        ))
+                      })()}
+                    </div>
+                    {delegadosSeleccionados.length > 0 && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
+                        <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+                        {delegadosSeleccionados.length} delegado{delegadosSeleccionados.length > 1 ? 's' : ''} seleccionado{delegadosSeleccionados.length > 1 ? 's' : ''}
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
             </div>

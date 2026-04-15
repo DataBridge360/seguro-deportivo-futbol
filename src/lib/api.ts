@@ -543,6 +543,12 @@ export interface EquipoTorneoJugador {
   capitan: boolean
 }
 
+export interface EquipoTorneoDelegado {
+  jugador_id: string
+  nombre: string
+  apellido: string
+}
+
 export interface EquipoTorneo {
   id: string
   torneo_id: string
@@ -552,6 +558,7 @@ export interface EquipoTorneo {
   categoria_id: string
   categoria_nombre: string
   jugadores: EquipoTorneoJugador[]
+  delegados: EquipoTorneoDelegado[]
 }
 
 export async function getEquiposTorneo(torneoId: string): Promise<EquipoTorneo[]> {
@@ -568,6 +575,63 @@ export async function inscribirseEquipo(torneoId: string, torneoEquipoId: string
 
 export async function desinscribirseEquipo(torneoId: string, torneoEquipoId: string): Promise<void> {
   await apiFetch(`/jugadores/torneos/${torneoId}/equipos/${torneoEquipoId}/desinscribirse`, {
+    method: 'DELETE',
+  })
+}
+
+// Delegado: gestión de jugadores (desde el lado jugador/delegado)
+export interface JugadorBusqueda {
+  id: string
+  nombre: string
+  apellido: string
+  dni: string
+}
+
+export async function buscarJugadorPorDni(dni: string): Promise<JugadorBusqueda[]> {
+  if (dni.length < 3) return []
+  const res = await apiFetch(`/jugadores/buscar-por-dni/${encodeURIComponent(dni)}`)
+  return res.data
+}
+
+export async function agregarJugadorPorDelegado(torneoId: string, torneoEquipoId: string, dni: string): Promise<any> {
+  const res = await apiFetch(`/jugadores/torneos/${torneoId}/equipos/${torneoEquipoId}/jugadores`, {
+    method: 'POST',
+    body: JSON.stringify({ dni }),
+  })
+  return res.data
+}
+
+export async function quitarJugadorPorDelegado(torneoId: string, torneoEquipoId: string, jugadorId: string): Promise<void> {
+  await apiFetch(`/jugadores/torneos/${torneoId}/equipos/${torneoEquipoId}/jugadores/${jugadorId}`, {
+    method: 'DELETE',
+  })
+}
+
+// Admin: gestión de delegados
+export interface DelegadoEquipo {
+  id: string
+  jugador_id: string
+  nombre: string
+  apellido: string
+  dni?: string | null
+  created_at: string
+}
+
+export async function getDelegadosEquipoAdmin(torneoEquipoId: string): Promise<DelegadoEquipo[]> {
+  const res = await apiFetch(`/clubes/torneo-equipos/${torneoEquipoId}/delegados`)
+  return res.data
+}
+
+export async function asignarDelegadoAdmin(torneoEquipoId: string, jugadorId: string): Promise<DelegadoEquipo> {
+  const res = await apiFetch(`/clubes/torneo-equipos/${torneoEquipoId}/delegados`, {
+    method: 'POST',
+    body: JSON.stringify({ jugador_id: jugadorId }),
+  })
+  return res.data
+}
+
+export async function quitarDelegadoAdmin(torneoEquipoId: string, jugadorId: string): Promise<void> {
+  await apiFetch(`/clubes/torneo-equipos/${torneoEquipoId}/delegados/${jugadorId}`, {
     method: 'DELETE',
   })
 }

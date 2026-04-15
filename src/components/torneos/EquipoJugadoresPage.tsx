@@ -6,8 +6,9 @@ import {
   getEquiposInscritos, getJugadoresEquipoTorneo,
   agregarJugadorEquipoTorneo, quitarJugadorEquipoTorneo,
   getJugadores, getJugadoresProductor, desinscribirEquipo,
+  getDelegadosEquipoAdmin, asignarDelegadoAdmin, quitarDelegadoAdmin,
 } from '@/lib/api'
-import type { JugadorResponse } from '@/lib/api'
+import type { JugadorResponse, DelegadoEquipo } from '@/lib/api'
 import type { Inscripcion, JugadorEquipoTorneo } from '@/types/club'
 import NotificationModal from '@/components/ui/NotificationModal'
 import { useAuthStore } from '@/stores/authStore'
@@ -48,6 +49,13 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
   const [showConfirmDesinscribir, setShowConfirmDesinscribir] = useState(false)
   const [desinscribiendo, setDesinscribiendo] = useState(false)
 
+  // Delegados
+  const [delegados, setDelegados] = useState<DelegadoEquipo[]>([])
+  const [showModalDelegados, setShowModalDelegados] = useState(false)
+  const [busquedaDelegado, setBusquedaDelegado] = useState('')
+  const [asignandoDelegado, setAsignandoDelegado] = useState(false)
+  const [quitandoDelegadoId, setQuitandoDelegadoId] = useState<string | null>(null)
+
   // PDF
   const [generandoPDF, setGenerandoPDF] = useState(false)
 
@@ -67,6 +75,10 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
       const insc = inscripcionesData.find(i => i.equipo_id === equipoId)
       setInscripcion(insc || null)
       setJugadores(jugadoresData)
+      if (insc) {
+        const delegadosData = await getDelegadosEquipoAdmin(insc.id)
+        setDelegados(delegadosData)
+      }
     } catch (error) {
       setNotification({ open: true, title: 'Error al cargar', message: error instanceof Error ? error.message : 'Error desconocido', type: 'error' })
     } finally {
@@ -129,6 +141,58 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
     } catch (error) {
       setShowConfirmQuitar(null)
       setNotification({ open: true, title: 'Error al quitar jugador', message: error instanceof Error ? error.message : 'Error desconocido', type: 'error' })
+    }
+  }
+
+  const getDelegadosFiltrados = () => {
+    const yaIds = new Set(delegados.map(d => d.jugador_id))
+    const disponibles = jugadoresClub.filter(j => !yaIds.has(j.id))
+    if (!busquedaDelegado.trim()) return disponibles
+    const t = busquedaDelegado.toLowerCase().trim()
+    return disponibles.filter(j =>
+      j.nombre.toLowerCase().includes(t) ||
+      j.apellido.toLowerCase().includes(t) ||
+      `${j.nombre} ${j.apellido}`.toLowerCase().includes(t) ||
+      (j.dni && j.dni.includes(t))
+    )
+  }
+
+  const handleOpenModalDelegados = async () => {
+    setBusquedaDelegado('')
+    setShowModalDelegados(true)
+    if (jugadoresClub.length === 0) {
+      try {
+        const data = user?.role === 'productor' ? await getJugadoresProductor() : await getJugadores()
+        setJugadoresClub(data)
+      } catch { /* empty */ }
+    }
+  }
+
+  const handleAsignarDelegado = async (jugadorId: string) => {
+    if (!inscripcion) return
+    try {
+      setAsignandoDelegado(true)
+      const nuevo = await asignarDelegadoAdmin(inscripcion.id, jugadorId)
+      setDelegados(prev => [...prev, nuevo])
+      setBusquedaDelegado('')
+      setNotification({ open: true, title: 'Delegado asignado', message: 'El jugador fue asignado como delegado', type: 'success' })
+    } catch (error) {
+      setNotification({ open: true, title: 'Error', message: error instanceof Error ? error.message : 'Error al asignar delegado', type: 'error' })
+    } finally {
+      setAsignandoDelegado(false)
+    }
+  }
+
+  const handleQuitarDelegado = async (jugadorId: string) => {
+    if (!inscripcion) return
+    try {
+      setQuitandoDelegadoId(jugadorId)
+      await quitarDelegadoAdmin(inscripcion.id, jugadorId)
+      setDelegados(prev => prev.filter(d => d.jugador_id !== jugadorId))
+    } catch (error) {
+      setNotification({ open: true, title: 'Error', message: error instanceof Error ? error.message : 'Error al quitar delegado', type: 'error' })
+    } finally {
+      setQuitandoDelegadoId(null)
     }
   }
 
@@ -314,6 +378,64 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
         </div>
       </div>
 
+      {/* ── Delegados ── */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center">
+              <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-xl">star</span>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-900 dark:text-white">Delegados</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{delegados.length} asignado{delegados.length !== 1 ? 's' : ''} · pueden gestionar el plantel</p>
+            </div>
+          </div>
+          <button
+            onClick={handleOpenModalDelegados}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 text-amber-700 dark:text-amber-400 rounded-lg text-sm font-medium transition-colors"
+          >
+            <span className="material-symbols-outlined text-lg">person_add</span>
+            Asignar
+          </button>
+        </div>
+
+        <div className="p-4">
+          {delegados.length === 0 ? (
+            <div className="text-center py-6">
+              <span className="material-symbols-outlined text-3xl text-slate-300 dark:text-slate-600">star_border</span>
+              <p className="mt-1.5 text-slate-500 dark:text-slate-400 text-sm">Sin delegados asignados</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {delegados.map((d) => (
+                <div key={d.jugador_id} className="flex items-center justify-between p-2.5 bg-amber-50 dark:bg-amber-500/10 rounded-xl border border-amber-100 dark:border-amber-500/20">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-amber-200 dark:bg-amber-500/30 flex items-center justify-center">
+                      <span className="material-symbols-outlined text-sm text-amber-700 dark:text-amber-400">person</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{d.apellido}, {d.nombre}</p>
+                      {d.dni && <p className="text-xs text-slate-500 dark:text-slate-400">DNI: {d.dni}</p>}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleQuitarDelegado(d.jugador_id)}
+                    disabled={quitandoDelegadoId === d.jugador_id}
+                    className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {quitandoDelegadoId === d.jugador_id ? (
+                      <div className="w-4 h-4 border-2 border-slate-300 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <span className="material-symbols-outlined text-lg">close</span>
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* ── Jugadores ── */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
@@ -399,6 +521,52 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
       </div>
 
       {/* ═══════ MODALS ═══════ */}
+
+      {/* Modal asignar delegado */}
+      {showModalDelegados && (() => {
+        const disponibles = getDelegadosFiltrados()
+        return (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => !asignandoDelegado && setShowModalDelegados(false)}>
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">Asignar delegado</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Los delegados pueden agregar jugadores al equipo</p>
+
+              <div className="relative mb-3">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+                <input
+                  type="text"
+                  value={busquedaDelegado}
+                  onChange={(e) => setBusquedaDelegado(e.target.value)}
+                  placeholder="Buscar por nombre o DNI..."
+                  className="w-full pl-10 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              <div className="space-y-1 max-h-64 overflow-y-auto mb-3">
+                {disponibles.length === 0 ? (
+                  <p className="text-center text-xs text-slate-400 py-6">{busquedaDelegado ? 'Sin resultados' : 'No hay jugadores disponibles'}</p>
+                ) : disponibles.map((j) => (
+                  <div key={j.id} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900/50">
+                    <div>
+                      <p className="text-xs font-medium text-slate-900 dark:text-white">{j.apellido}, {j.nombre}</p>
+                      {j.dni && <p className="text-[10px] text-slate-500">DNI: {j.dni}</p>}
+                    </div>
+                    <button
+                      onClick={() => handleAsignarDelegado(j.id)}
+                      disabled={asignandoDelegado}
+                      className="px-3 py-1 bg-amber-100 hover:bg-amber-200 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 text-amber-700 dark:text-amber-400 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                    >
+                      Asignar
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <button onClick={() => setShowModalDelegados(false)} className="w-full px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors">Cerrar</button>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Modal agregar jugadores */}
       {showModalAgregar && (() => {
