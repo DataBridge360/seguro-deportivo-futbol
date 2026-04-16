@@ -33,6 +33,11 @@ function getBackRoute(pathname: string): string {
     return '/dashboard'
   }
 
+  // Rutas de equipo dentro de torneo: /torneos/[id]/equipo/[equipoId] → /torneos
+  if (/\/dashboard\/jugador\/torneos\/[^/]+\/equipo\/[^/]+/.test(pathname)) {
+    return '/dashboard/jugador/torneos'
+  }
+
   // Si es una sub-ruta, ir a la ruta padre
   const segments = pathname.split('/')
   if (segments.length > 3) {
