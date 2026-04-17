@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { useAuthStore } from '@/stores/authStore'
 import { getDefaultRouteForRole } from '@/lib/navigation'
+import InstallAppButton from '@/components/ui/InstallAppButton'
 
 type LoginMode = 'usuario' | 'dni'
 
@@ -211,8 +212,13 @@ export default function LoginPage() {
         <div className="h-2 w-full bg-primary grass-gradient"></div>
       </div>
 
+      {/* Install App Banner */}
+      <div className="w-full max-w-md mt-4">
+        <InstallAppButton />
+      </div>
+
       {/* Footer */}
-      <footer className="mt-8 text-center px-4">
+      <footer className="mt-6 text-center px-4">
         <p className="text-slate-500 dark:text-slate-400 text-sm">
           &iquest;Necesitas ayuda?{' '}
           <a className="text-primary font-bold hover:underline cursor-pointer inline-flex items-center gap-1">

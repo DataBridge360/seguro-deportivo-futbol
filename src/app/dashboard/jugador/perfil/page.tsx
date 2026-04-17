@@ -1,8 +1,11 @@
 'use client'
 
+'use client'
+
 import Link from 'next/link'
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
+import InstallAppButton from '@/components/ui/InstallAppButton'
 
 const WHATSAPP_NUMBER = '542996130664'
 const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`
@@ -110,7 +113,8 @@ export default function JugadorPerfilPage() {
       </div>
 
       {/* Logout button */}
-      <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
+      <div className="pt-4 border-t border-slate-200 dark:border-slate-700 flex flex-col gap-3">
+        <InstallAppButton />
         <button
           onClick={handleLogout}
           className="flex mb-7 items-center justify-center gap-2 w-full p-4 bg-red-50 dark:bg-red-500/10 text-red-500 rounded-2xl font-bold hover:bg-red-100 dark:hover:bg-red-500/20 transition-colors active:scale-[0.98]"

@@ -56,7 +56,7 @@ export default function JugadorEquipoDetailPage() {
   const [dniInput, setDniInput] = useState('')
   const [resultadosBusqueda, setResultadosBusqueda] = useState<JugadorBusqueda[]>([])
   const [buscando, setBuscando] = useState(false)
-  const [jugadorSeleccionado, setJugadorSeleccionado] = useState<JugadorBusqueda | null>(null)
+  const [jugadoresSeleccionados, setJugadoresSeleccionados] = useState<JugadorBusqueda[]>([])
   const [agregando, setAgregando] = useState(false)
   const [quitandoId, setQuitandoId] = useState<string | null>(null)
   const [showConfirmQuitar, setShowConfirmQuitar] = useState<{ id: string; nombre: string } | null>(null)
@@ -89,20 +89,20 @@ export default function JugadorEquipoDetailPage() {
 
   // Búsqueda dinámica por DNI
   useEffect(() => {
-    if (jugadorSeleccionado) return // ya seleccionó, no re-buscar
     if (dniInput.length < 3) { setResultadosBusqueda([]); return }
     const timeout = setTimeout(async () => {
       try {
         setBuscando(true)
         const res = await buscarJugadorPorDni(dniInput)
-        // Filtrar jugadores que ya están en el equipo
+        // Filtrar jugadores que ya están en el equipo o ya seleccionados
         const yaEnEquipo = new Set((equipo?.jugadores ?? []).map(j => j.id))
-        setResultadosBusqueda(res.filter(j => !yaEnEquipo.has(j.id)))
+        const yaSeleccionados = new Set(jugadoresSeleccionados.map(j => j.id))
+        setResultadosBusqueda(res.filter(j => !yaEnEquipo.has(j.id) && !yaSeleccionados.has(j.id)))
       } catch { setResultadosBusqueda([]) }
       finally { setBuscando(false) }
     }, 300)
     return () => clearTimeout(timeout)
-  }, [dniInput, jugadorSeleccionado, equipo])
+  }, [dniInput, equipo, jugadoresSeleccionados])
 
   const misInscripcionesTorneo = inscripciones.filter(i => i.torneo_id === torneoId)
   const esMiEquipo = misInscripcionesTorneo.some(i => i.torneo_equipo_id === equipoId)
@@ -110,12 +110,6 @@ export default function JugadorEquipoDetailPage() {
 
   // Check if current user is delegado of this team
   const esDelegado = equipo?.delegados?.some(d => d.jugador_id === jugadorId) ?? false
-
-  // Jugadores del equipo filtrados por búsqueda (para el modal)
-  const todosJugadoresEquipo = equipo?.jugadores ?? []
-  const jugadoresNoEnEquipo = equipo
-    ? [] // We don't have the full club list here; delegado agrega por DNI o buscando
-    : []
 
   const handleInscribirse = async () => {
     try {
@@ -144,14 +138,6 @@ export default function JugadorEquipoDetailPage() {
       setDesinscribiendo(false)
     }
   }
-
-  // Delegado: buscar jugador por ID en equipo (simple: usamos el mismo equipo data)
-  // Para agregar necesitamos el jugador_id. Hacemos un fetch al endpoint de verificar por DNI
-  // Simplificamos: el delegado ve la lista de jugadores YA en el torneo (de todos los equipos)
-  // y puede agregar a cualquiera por su jugador_id. Pero lo más simple es que el delegado
-  // pueda ver la lista de jugadores del club y agregarlos.
-  // Como no tenemos ese endpoint en el lado jugador, usaremos el endpoint de equipos del torneo
-  // para obtener jugadores ya existentes, y también permitir que el delegado se agregue a sí mismo.
 
   const handleAgregarseAMiMismo = async () => {
     try {
@@ -495,101 +481,158 @@ export default function JugadorEquipoDetailPage() {
 
       {/* ═══ Modals ═══ */}
 
-      {/* Modal agregar jugador por DNI (delegado) */}
+      {/* Modal agregar jugadores (checklist - delegado) */}
       {showModalAgregar && (
         <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
           onClick={() => !agregando && setShowModalAgregar(false)}
         >
           <div
-            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-sm shadow-2xl flex flex-col max-h-[85dvh]"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Agregar jugador</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-              Buscá por DNI y seleccioná el jugador para agregarlo a{' '}
-              <span className="font-semibold text-slate-700 dark:text-slate-300">{equipo.equipo_nombre}</span>
-            </p>
-
-            {jugadorSeleccionado ? (
-              /* Selected player card */
-              <div className="mb-4 flex items-center gap-3 p-3 bg-primary/5 border border-primary/20 rounded-xl">
-                <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-primary text-base">person</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
-                    {jugadorSeleccionado.apellido}, {jugadorSeleccionado.nombre}
-                  </p>
-                  <p className="text-xs font-mono text-slate-500 dark:text-slate-400">{jugadorSeleccionado.dni}</p>
-                </div>
-                <button
-                  onClick={() => { setJugadorSeleccionado(null); setDniInput(''); setResultadosBusqueda([]) }}
-                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg transition-colors"
-                >
-                  <span className="material-symbols-outlined text-lg">close</span>
-                </button>
+            {/* Header */}
+            <div className="px-5 pt-5 pb-3 shrink-0">
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Agregar jugadores</h3>
+                {jugadoresSeleccionados.length > 0 && (
+                  <span className="px-2.5 py-0.5 bg-primary text-white text-xs font-bold rounded-full">
+                    {jugadoresSeleccionados.length}
+                  </span>
+                )}
               </div>
-            ) : (
-              /* Search input + results */
-              <div className="mb-4">
-                <label className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5 block">DNI</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={dniInput}
-                    onChange={(e) => setDniInput(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Ej: 44481701"
-                    autoFocus
-                    className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
-                  />
-                  {buscando && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  )}
-                </div>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Buscá por DNI y seleccioná los jugadores para{' '}
+                <span className="font-semibold text-slate-700 dark:text-slate-300">{equipo.equipo_nombre}</span>
+              </p>
+            </div>
 
-                {/* Results list */}
-                {resultadosBusqueda.length > 0 && (
-                  <div className="mt-2 flex flex-col gap-1 max-h-40 overflow-y-auto">
-                    {resultadosBusqueda.map(j => (
-                      <button
+            {/* Search bar */}
+            <div className="px-5 pb-3 shrink-0">
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+                <input
+                  type="text"
+                  value={dniInput}
+                  onChange={(e) => setDniInput(e.target.value)}
+                  placeholder="Buscar por nombre o DNI..."
+                  autoFocus
+                  className="w-full pl-9 pr-9 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                />
+                {buscando ? (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : dniInput ? (
+                  <button
+                    onClick={() => { setDniInput(''); setResultadosBusqueda([]) }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-base">close</span>
+                  </button>
+                ) : null}
+              </div>
+              {dniInput.length > 0 && dniInput.length < 3 && (
+                <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">Ingresá al menos 3 caracteres para buscar</p>
+              )}
+            </div>
+
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto px-5 pb-2 min-h-0">
+              {/* Selected chips */}
+              {jugadoresSeleccionados.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                    Seleccionados ({jugadoresSeleccionados.length})
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {jugadoresSeleccionados.map(j => (
+                      <span
                         key={j.id}
-                        onClick={() => { setJugadorSeleccionado(j); setResultadosBusqueda([]) }}
-                        className="flex items-center gap-3 p-2.5 bg-slate-50 dark:bg-slate-900 hover:bg-primary/5 dark:hover:bg-primary/10 border border-slate-200 dark:border-slate-700 hover:border-primary/30 rounded-xl text-left transition-colors"
+                        className="flex items-center gap-1 px-2.5 py-1 bg-primary/10 text-primary rounded-lg text-xs font-medium"
                       >
-                        <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center shrink-0">
-                          <span className="material-symbols-outlined text-slate-400 text-sm">person</span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
-                            {j.apellido}, {j.nombre}
-                          </p>
-                          <p className="text-xs font-mono text-slate-500 dark:text-slate-400">{j.dni}</p>
-                        </div>
-                        <span className="material-symbols-outlined text-slate-300 dark:text-slate-600 text-lg">chevron_right</span>
-                      </button>
+                        {j.apellido}, {j.nombre}
+                        <button
+                          onClick={() => setJugadoresSeleccionados(prev => prev.filter(s => s.id !== j.id))}
+                          className="ml-0.5 hover:text-primary/60 transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-sm">close</span>
+                        </button>
+                      </span>
                     ))}
                   </div>
-                )}
+                </div>
+              )}
 
-                {dniInput.length >= 3 && !buscando && resultadosBusqueda.length === 0 && (
-                  <p className="mt-2 text-xs text-slate-400 dark:text-slate-500 text-center">No se encontraron jugadores con ese DNI</p>
-                )}
-                {dniInput.length > 0 && dniInput.length < 3 && (
-                  <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">Ingresá al menos 3 dígitos para buscar</p>
-                )}
-              </div>
-            )}
+              {/* Search results */}
+              {resultadosBusqueda.length > 0 && (
+                <div>
+                  {dniInput && (
+                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                      Resultados ({resultadosBusqueda.length})
+                    </p>
+                  )}
+                  <div className="flex flex-col gap-1">
+                    {resultadosBusqueda.map(j => {
+                      const seleccionado = jugadoresSeleccionados.some(s => s.id === j.id)
+                      return (
+                        <button
+                          key={j.id}
+                          onClick={() => {
+                            setJugadoresSeleccionados(prev =>
+                              seleccionado ? prev.filter(s => s.id !== j.id) : [...prev, j]
+                            )
+                          }}
+                          className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-colors ${
+                            seleccionado
+                              ? 'bg-primary/5 border-primary/30 dark:bg-primary/10'
+                              : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700/50'
+                          }`}
+                        >
+                          <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 transition-colors border-2 ${
+                            seleccionado
+                              ? 'bg-primary border-primary'
+                              : 'border-slate-300 dark:border-slate-600'
+                          }`}>
+                            {seleccionado && (
+                              <span className="material-symbols-outlined text-white text-sm" style={{ fontVariationSettings: "'wght' 700" }}>check</span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                              {j.apellido}, {j.nombre}
+                            </p>
+                            <p className="text-xs font-mono text-slate-500 dark:text-slate-400">{j.dni}</p>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
 
-            <div className="flex gap-3">
+              {dniInput.length >= 3 && !buscando && resultadosBusqueda.length === 0 && (
+                <div className="text-center py-6">
+                  <span className="material-symbols-outlined text-3xl text-slate-300 dark:text-slate-600 block mb-1">search_off</span>
+                  <p className="text-sm text-slate-400 dark:text-slate-500">No se encontraron jugadores con ese DNI</p>
+                </div>
+              )}
+
+              {!dniInput && jugadoresSeleccionados.length === 0 && (
+                <div className="text-center py-6 text-slate-400 dark:text-slate-500">
+                  <span className="material-symbols-outlined text-3xl block mb-1">manage_search</span>
+                  <p className="text-sm">Buscá por nombre o DNI</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-4 border-t border-slate-100 dark:border-slate-700 shrink-0 flex gap-3">
               <button
                 onClick={() => {
                   setShowModalAgregar(false)
                   setDniInput('')
-                  setJugadorSeleccionado(null)
+                  setJugadoresSeleccionados([])
                   setResultadosBusqueda([])
                 }}
                 disabled={agregando}
@@ -599,27 +642,37 @@ export default function JugadorEquipoDetailPage() {
               </button>
               <button
                 onClick={async () => {
-                  if (!jugadorSeleccionado) return
+                  if (jugadoresSeleccionados.length === 0) return
                   try {
                     setAgregando(true)
-                    await agregarJugadorPorDelegado(torneoId, equipoId, jugadorSeleccionado.dni)
+                    const resultados = await Promise.allSettled(
+                      jugadoresSeleccionados.map(j => agregarJugadorPorDelegado(torneoId, equipoId, j.dni))
+                    )
+                    const exitosos = resultados.filter(r => r.status === 'fulfilled').length
+                    const fallidos = resultados.filter(r => r.status === 'rejected').length
                     setShowModalAgregar(false)
                     setDniInput('')
-                    setJugadorSeleccionado(null)
+                    setJugadoresSeleccionados([])
                     setResultadosBusqueda([])
-                    setNotification({ open: true, title: 'Jugador agregado', message: `${jugadorSeleccionado.apellido}, ${jugadorSeleccionado.nombre} fue agregado al equipo`, type: 'success' })
+                    if (fallidos === 0) {
+                      setNotification({ open: true, title: 'Jugadores agregados', message: `${exitosos} jugador${exitosos !== 1 ? 'es' : ''} agregado${exitosos !== 1 ? 's' : ''} al equipo`, type: 'success' })
+                    } else {
+                      setNotification({ open: true, title: 'Parcialmente completado', message: `${exitosos} agregado${exitosos !== 1 ? 's' : ''}, ${fallidos} con error`, type: 'error' })
+                    }
                     await fetchData()
                   } catch (err: any) {
-                    setNotification({ open: true, title: 'Error', message: err.message || 'No se pudo agregar el jugador', type: 'error' })
+                    setNotification({ open: true, title: 'Error', message: err.message || 'No se pudo agregar los jugadores', type: 'error' })
                   } finally {
                     setAgregando(false)
                   }
                 }}
-                disabled={agregando || !jugadorSeleccionado}
+                disabled={agregando || jugadoresSeleccionados.length === 0}
                 className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {agregando ? (
                   <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Agregando...</>
+                ) : jugadoresSeleccionados.length > 0 ? (
+                  `Agregar ${jugadoresSeleccionados.length}`
                 ) : 'Agregar'}
               </button>
             </div>

@@ -49,6 +49,13 @@ export const navigationItems: NavItem[] = [
     roles: ['productor']
   },
   {
+    label: 'Categorías',
+    href: '/dashboard/productor/categorias',
+    icon: 'Tag',
+    materialIcon: 'category',
+    roles: ['productor']
+  },
+  {
     label: 'Torneos',
     href: '/dashboard/productor/torneos',
     icon: 'Trophy',
