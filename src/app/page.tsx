@@ -54,17 +54,6 @@ export default function HomePage() {
     }
   }
 
-  const handleDesktopInstall = async () => {
-    if (canInstall) {
-      await promptInstall()
-    } else {
-      setShowInstallModal({
-        show: true,
-        message: 'Para instalar en PC, abrí esta página en Chrome, Edge o Brave y buscá el ícono de instalación en la barra de direcciones'
-      })
-    }
-  }
-
   const handleWebVersion = () => {
     router.push('/login')
   }
@@ -103,22 +92,6 @@ export default function HomePage() {
             <span className="material-symbols-outlined">smartphone</span>
             <span>Descargar para Celular</span>
           </button>
-
-          {/* Desktop download */}
-          <button
-            onClick={handleDesktopInstall}
-            className="w-full bg-white dark:bg-[#1c2a35] hover:bg-gray-50 dark:hover:bg-[#243442] text-[#111518] dark:text-white font-bold h-14 rounded-xl border border-[#dbe1e6] dark:border-[#344857] transition-all flex items-center justify-center gap-3"
-          >
-            <span className="material-symbols-outlined">computer</span>
-            <span>Descargar para PC</span>
-          </button>
-
-          {/* Separator */}
-          <div className="flex items-center w-full gap-4 py-2">
-            <div className="h-[1px] bg-[#dbe1e6] dark:bg-[#344857] flex-1"></div>
-            <span className="text-[#617989] text-xs font-bold uppercase tracking-widest">o</span>
-            <div className="h-[1px] bg-[#dbe1e6] dark:bg-[#344857] flex-1"></div>
-          </div>
 
           {/* Web version */}
           <button

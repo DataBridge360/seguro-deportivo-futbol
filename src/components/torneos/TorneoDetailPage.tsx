@@ -6,9 +6,8 @@ import Link from 'next/link'
 import {
   getTorneos, getEquiposInscritos, inscribirEquipo, desinscribirEquipo,
   getEquipos, getCategorias, toggleInscripciones, deleteTorneo, updateTorneo,
-  getJugadoresEquipoTorneo, getJugadores, asignarDelegadoAdmin,
+  getJugadoresEquipoTorneo,
 } from '@/lib/api'
-import type { JugadorResponse } from '@/lib/api'
 import type { Torneo, Inscripcion, Equipo, Categoria, InscribirEquipoDTO, JugadorEquipoTorneo, CreateTorneoDTO } from '@/types/club'
 import NotificationModal from '@/components/ui/NotificationModal'
 import DatePicker from '@/components/ui/DatePicker'
@@ -77,12 +76,10 @@ export default function TorneoDetailPage({ basePath }: Props) {
   const [editErrors, setEditErrors] = useState<Record<string, string>>({})
 
   // Inscription
-  const [formInscripcion, setFormInscripcion] = useState<InscribirEquipoDTO>({ equipo_id: '', categoria_id: '' })
+  const [inscripcionCategoriaId, setInscripcionCategoriaId] = useState('')
+  const [inscripcionEquipoIds, setInscripcionEquipoIds] = useState<string[]>([])
+  const [inscripcionBusqueda, setInscripcionBusqueda] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [delegadosSeleccionados, setDelegadosSeleccionados] = useState<string[]>([])
-  const [jugadoresClub, setJugadoresClub] = useState<JugadorResponse[]>([])
-  const [loadingJugadores, setLoadingJugadores] = useState(false)
-  const [busquedaDelegado, setBusquedaDelegado] = useState('')
 
   // Players cache (for PDF)
   const [jugadoresPorEquipo, setJugadoresPorEquipo] = useState<Record<string, JugadorEquipoTorneo[]>>({})
@@ -236,28 +233,25 @@ export default function TorneoDetailPage({ basePath }: Props) {
 
   const handleInscribir = async () => {
     const newErrors: Record<string, string> = {}
-    if (!formInscripcion.equipo_id) newErrors.equipo_id = 'Seleccioná un equipo'
-    else if (inscripciones.some(i => i.equipo_id === formInscripcion.equipo_id)) newErrors.equipo_id = 'Este equipo ya está inscrito'
-    if (!formInscripcion.categoria_id) newErrors.categoria_id = 'Seleccioná una categoría'
+    if (!inscripcionCategoriaId) newErrors.categoria_id = 'Seleccioná una categoría'
+    if (inscripcionEquipoIds.length === 0) newErrors.equipo_id = 'Seleccioná al menos un equipo'
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return }
 
     try {
       setSubmitting(true)
-      const nueva = await inscribirEquipo(torneoId, formInscripcion)
-      setInscripciones(prev => [...prev, nueva])
-
-      // Asignar delegados si se seleccionaron
-      if (delegadosSeleccionados.length > 0) {
-        await Promise.allSettled(
-          delegadosSeleccionados.map(jugadorId => asignarDelegadoAdmin(nueva.id, jugadorId))
+      const resultados = await Promise.allSettled(
+        inscripcionEquipoIds.map(equipoId =>
+          inscribirEquipo(torneoId, { equipo_id: equipoId, categoria_id: inscripcionCategoriaId })
         )
-      }
-
+      )
+      const nuevas = resultados.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<Inscripcion>).value)
+      const fallidos = resultados.filter(r => r.status === 'rejected').length
+      setInscripciones(prev => [...prev, ...nuevas])
       setShowModalInscripcion(false)
-      const msg = delegadosSeleccionados.length > 0
-        ? `Inscrito con ${delegadosSeleccionados.length} delegado${delegadosSeleccionados.length > 1 ? 's' : ''}`
-        : `Inscrito en categoría ${nueva.categoria_nombre}`
-      setNotification({ open: true, title: 'Equipo inscrito', message: msg, type: 'success' })
+      const msg = fallidos > 0
+        ? `${nuevas.length} equipo${nuevas.length !== 1 ? 's' : ''} inscrito${nuevas.length !== 1 ? 's' : ''}, ${fallidos} con error`
+        : `${nuevas.length} equipo${nuevas.length !== 1 ? 's' : ''} inscrito${nuevas.length !== 1 ? 's' : ''} correctamente`
+      setNotification({ open: true, title: 'Equipos inscritos', message: msg, type: fallidos > 0 ? 'info' : 'success' })
     } catch (error) {
       setNotification({ open: true, title: 'Error al inscribir', message: error instanceof Error ? error.message : 'Error desconocido', type: 'error' })
     } finally {
@@ -265,21 +259,12 @@ export default function TorneoDetailPage({ basePath }: Props) {
     }
   }
 
-  const handleOpenModalInscripcion = async () => {
-    setFormInscripcion({ equipo_id: '', categoria_id: '' })
+  const handleOpenModalInscripcion = () => {
+    setInscripcionCategoriaId('')
+    setInscripcionEquipoIds([])
+    setInscripcionBusqueda('')
     setErrors({})
-    setDelegadosSeleccionados([])
-    setBusquedaDelegado('')
     setShowModalInscripcion(true)
-    if (jugadoresClub.length === 0) {
-      try {
-        setLoadingJugadores(true)
-        const data = await getJugadores()
-        setJugadoresClub(data)
-      } catch { /* silent */ } finally {
-        setLoadingJugadores(false)
-      }
-    }
   }
 
   const handleDesinscribir = async () => {
@@ -737,116 +722,135 @@ export default function TorneoDetailPage({ basePath }: Props) {
 
       {/* ═══════ MODALS ═══════ */}
 
-      {/* Modal inscribir equipo */}
-      {showModalInscripcion && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => !submitting && setShowModalInscripcion(false)}>
-          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-base font-bold text-slate-900 dark:text-white mb-4">Inscribir equipo</h3>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1">Categoría <span className="text-red-500">*</span></label>
-                <select
-                  value={formInscripcion.categoria_id}
-                  onChange={(e) => setFormInscripcion(prev => ({ ...prev, categoria_id: e.target.value, equipo_id: '' }))}
-                  className={`w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:border-primary ${errors.categoria_id ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'}`}
-                >
-                  <option value="">Seleccionar categoría</option>
-                  {(torneo.categorias && torneo.categorias.length > 0
-                    ? categorias.filter(cat => torneo.categorias!.some(tc => tc.id === cat.id))
-                    : categorias
-                  ).map(cat => (<option key={cat.id} value={cat.id}>{cat.nombre}</option>))}
-                </select>
-                {errors.categoria_id && <p className="text-red-400 text-xs mt-1">{errors.categoria_id}</p>}
-              </div>
-              <div>
-                <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1">Equipo <span className="text-red-500">*</span></label>
-                <select
-                  value={formInscripcion.equipo_id}
-                  onChange={(e) => setFormInscripcion(prev => ({ ...prev, equipo_id: e.target.value }))}
-                  disabled={!formInscripcion.categoria_id}
-                  className={`w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:border-primary disabled:opacity-50 ${errors.equipo_id ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'}`}
-                >
-                  <option value="">{formInscripcion.categoria_id ? 'Seleccionar equipo' : 'Primero seleccioná una categoría'}</option>
-                  {formInscripcion.categoria_id && equiposDisponibles
-                    .filter(e => e.activo && e.categorias?.some(c => c.id === formInscripcion.categoria_id))
-                    .map(equipo => (<option key={equipo.id} value={equipo.id}>{equipo.nombre}</option>))}
-                </select>
-                {errors.equipo_id && <p className="text-red-400 text-xs mt-1">{errors.equipo_id}</p>}
-                {formInscripcion.categoria_id && equiposDisponibles.filter(e => e.activo && e.categorias?.some(c => c.id === formInscripcion.categoria_id)).length === 0 && (
-                  <p className="text-amber-500 text-xs mt-1">No hay equipos en esta categoría</p>
+      {/* Modal inscribir equipos */}
+      {showModalInscripcion && (() => {
+        const categoriasDelModal = torneo.categorias && torneo.categorias.length > 0
+          ? categorias.filter(cat => torneo.categorias!.some(tc => tc.id === cat.id))
+          : categorias
+        const equiposEnCategoria = inscripcionCategoriaId
+          ? equiposDisponibles.filter(e =>
+              e.activo &&
+              e.categorias?.some(c => c.id === inscripcionCategoriaId) &&
+              !inscripciones.some(i => i.equipo_id === e.id && i.categoria_id === inscripcionCategoriaId)
+            )
+          : []
+        const equiposFiltrados = inscripcionBusqueda.trim()
+          ? equiposEnCategoria.filter(e => e.nombre.toLowerCase().includes(inscripcionBusqueda.toLowerCase()))
+          : equiposEnCategoria
+        const todosSeleccionados = equiposFiltrados.length > 0 && equiposFiltrados.every(e => inscripcionEquipoIds.includes(e.id))
+
+        return (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => !submitting && setShowModalInscripcion(false)}>
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white mb-4">Inscribir equipos</h3>
+              <div className="space-y-3">
+
+                {/* Categoría */}
+                <div>
+                  <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1">Categoría <span className="text-red-500">*</span></label>
+                  <select
+                    value={inscripcionCategoriaId}
+                    onChange={(e) => { setInscripcionCategoriaId(e.target.value); setInscripcionEquipoIds([]); setInscripcionBusqueda(''); setErrors({}) }}
+                    className={`w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:border-primary ${errors.categoria_id ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'}`}
+                  >
+                    <option value="">Seleccionar categoría</option>
+                    {categoriasDelModal.map(cat => <option key={cat.id} value={cat.id}>{cat.nombre}</option>)}
+                  </select>
+                  {errors.categoria_id && <p className="text-red-400 text-xs mt-1">{errors.categoria_id}</p>}
+                </div>
+
+                {/* Checklist de equipos */}
+                {inscripcionCategoriaId && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-slate-600 dark:text-slate-300 text-sm font-medium">
+                        Equipos <span className="text-red-500">*</span>
+                      </label>
+                      {equiposEnCategoria.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setInscripcionEquipoIds(todosSeleccionados ? [] : equiposFiltrados.map(e => e.id))}
+                          className="text-xs text-primary hover:underline"
+                        >
+                          {todosSeleccionados ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Buscador */}
+                    {equiposEnCategoria.length > 5 && (
+                      <div className="relative mb-2">
+                        <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-base">search</span>
+                        <input
+                          type="text"
+                          value={inscripcionBusqueda}
+                          onChange={(e) => setInscripcionBusqueda(e.target.value)}
+                          placeholder="Buscar equipo..."
+                          className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white text-xs placeholder:text-slate-400 focus:outline-none focus:border-primary"
+                        />
+                      </div>
+                    )}
+
+                    {/* Lista */}
+                    {equiposEnCategoria.length === 0 ? (
+                      <p className="text-amber-500 text-xs py-3 text-center">No hay equipos disponibles en esta categoría</p>
+                    ) : equiposFiltrados.length === 0 ? (
+                      <p className="text-slate-400 text-xs py-3 text-center">Sin resultados</p>
+                    ) : (
+                      <div className="max-h-52 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-lg divide-y divide-slate-100 dark:divide-slate-700">
+                        {equiposFiltrados.map(equipo => {
+                          const checked = inscripcionEquipoIds.includes(equipo.id)
+                          return (
+                            <label
+                              key={equipo.id}
+                              className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors ${checked ? 'bg-primary/5 dark:bg-primary/10' : 'hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => {
+                                  setInscripcionEquipoIds(prev =>
+                                    prev.includes(equipo.id) ? prev.filter(id => id !== equipo.id) : [...prev, equipo.id]
+                                  )
+                                  if (errors.equipo_id) setErrors(prev => { const n = { ...prev }; delete n.equipo_id; return n })
+                                }}
+                                className="w-4 h-4 rounded accent-primary shrink-0"
+                              />
+                              <span className="text-sm text-slate-800 dark:text-slate-200 flex-1 truncate font-medium">{equipo.nombre}</span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    )}
+                    {errors.equipo_id && <p className="text-red-400 text-xs mt-1">{errors.equipo_id}</p>}
+
+                    {/* Counter */}
+                    {inscripcionEquipoIds.length > 0 && (
+                      <p className="text-xs text-primary font-semibold mt-1.5">
+                        {inscripcionEquipoIds.length} equipo{inscripcionEquipoIds.length !== 1 ? 's' : ''} seleccionado{inscripcionEquipoIds.length !== 1 ? 's' : ''}
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
 
-              {/* Delegados */}
-              <div>
-                <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1">
-                  Delegados <span className="text-slate-400 font-normal">(opcional)</span>
-                </label>
-                {loadingJugadores ? (
-                  <div className="flex items-center gap-2 py-2 text-xs text-slate-400">
-                    <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                    Cargando jugadores...
-                  </div>
-                ) : (
-                  <>
-                    <div className="relative mb-2">
-                      <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-base">search</span>
-                      <input
-                        type="text"
-                        value={busquedaDelegado}
-                        onChange={(e) => setBusquedaDelegado(e.target.value)}
-                        placeholder="Buscar jugador..."
-                        className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white text-xs placeholder:text-slate-400 focus:outline-none focus:border-primary"
-                      />
-                    </div>
-                    <div className="max-h-36 overflow-y-auto space-y-0.5 border border-slate-200 dark:border-slate-700 rounded-lg p-1">
-                      {jugadoresClub.length === 0 ? (
-                        <p className="text-center text-xs text-slate-400 py-3">No hay jugadores en el club</p>
-                      ) : (() => {
-                        const filtrados = jugadoresClub.filter(j => {
-                          if (!busquedaDelegado.trim()) return true
-                          const t = busquedaDelegado.toLowerCase()
-                          return j.nombre.toLowerCase().includes(t) ||
-                            j.apellido.toLowerCase().includes(t) ||
-                            (j.dni && j.dni.includes(t))
-                        })
-                        return filtrados.length === 0 ? (
-                          <p className="text-center text-xs text-slate-400 py-3">Sin resultados</p>
-                        ) : filtrados.map(j => (
-                          <label key={j.id} className={`flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors ${delegadosSeleccionados.includes(j.id) ? 'bg-amber-50 dark:bg-amber-500/10' : 'hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}>
-                            <input
-                              type="checkbox"
-                              checked={delegadosSeleccionados.includes(j.id)}
-                              onChange={() => setDelegadosSeleccionados(prev =>
-                                prev.includes(j.id) ? prev.filter(id => id !== j.id) : [...prev, j.id]
-                              )}
-                              className="w-3.5 h-3.5 rounded accent-amber-500"
-                            />
-                            <span className="text-xs text-slate-800 dark:text-slate-200 flex-1 truncate">{j.apellido}, {j.nombre}</span>
-                            {j.dni && <span className="text-[10px] text-slate-400 shrink-0">{j.dni}</span>}
-                          </label>
-                        ))
-                      })()}
-                    </div>
-                    {delegadosSeleccionados.length > 0 && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 flex items-center gap-1">
-                        <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-                        {delegadosSeleccionados.length} delegado{delegadosSeleccionados.length > 1 ? 's' : ''} seleccionado{delegadosSeleccionados.length > 1 ? 's' : ''}
-                      </p>
-                    )}
-                  </>
-                )}
+              <div className="flex gap-2 mt-4">
+                <button onClick={() => setShowModalInscripcion(false)} disabled={submitting} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">
+                  Cancelar
+                </button>
+                <button onClick={handleInscribir} disabled={submitting || inscripcionEquipoIds.length === 0} className="flex-1 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                  {submitting
+                    ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Inscribiendo...</>
+                    : inscripcionEquipoIds.length > 0
+                      ? `Inscribir ${inscripcionEquipoIds.length} equipo${inscripcionEquipoIds.length !== 1 ? 's' : ''}`
+                      : 'Inscribir'
+                  }
+                </button>
               </div>
             </div>
-            <div className="flex gap-2 mt-4">
-              <button onClick={() => setShowModalInscripcion(false)} disabled={submitting} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">Cancelar</button>
-              <button onClick={handleInscribir} disabled={submitting} className="flex-1 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-                {submitting ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Inscribiendo...</>) : 'Inscribir'}
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Modal desinscribir */}
       {showConfirmDesinscribir && (
