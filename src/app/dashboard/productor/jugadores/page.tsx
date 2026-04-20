@@ -29,7 +29,8 @@ export default function ProductorJugadoresPage() {
 
   // Three-dot menu
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
-  const menuRef = useRef<HTMLTableCellElement>(null)
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   // Modal de eliminación
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; jugador: JugadorResponse | null }>({ open: false, jugador: null })
@@ -91,6 +92,7 @@ export default function ProductorJugadoresPage() {
     function handleClickOutside(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setOpenMenuId(null)
+        setMenuPos(null)
       }
     }
     if (openMenuId) {
@@ -204,6 +206,7 @@ export default function ProductorJugadoresPage() {
   // Eliminación
   const handleDeleteClick = (jugador: JugadorResponse) => {
     setOpenMenuId(null)
+    setMenuPos(null)
     setDeleteModal({ open: true, jugador })
     setDeletePassword('')
     setDeleteError('')
@@ -229,6 +232,7 @@ export default function ProductorJugadoresPage() {
 
   const handleEditClick = (jugador: JugadorResponse) => {
     setOpenMenuId(null)
+    setMenuPos(null)
     router.push(`/dashboard/productor/jugadores/${jugador.id}`)
   }
 
@@ -523,32 +527,22 @@ export default function ProductorJugadoresPage() {
                             )}
                           </button>
                         </td>
-                        <td className="px-6 py-4 text-right relative" ref={openMenuId === jugador.id ? menuRef : undefined}>
+                        <td className="px-6 py-4 text-right">
                           <button
-                            onClick={() => setOpenMenuId(openMenuId === jugador.id ? null : jugador.id)}
+                            onClick={(e) => {
+                              if (openMenuId === jugador.id) {
+                                setOpenMenuId(null)
+                                setMenuPos(null)
+                              } else {
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+                                setOpenMenuId(jugador.id)
+                              }
+                            }}
                             className="material-symbols-outlined text-slate-400 hover:text-primary transition-colors"
                           >
                             more_vert
                           </button>
-                          {openMenuId === jugador.id && (
-                            <div className="absolute right-6 top-full mt-1 w-44 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl shadow-black/10 dark:shadow-black/30 z-20 py-1.5 overflow-hidden">
-                              <button
-                                onClick={() => handleEditClick(jugador)}
-                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                              >
-                                <span className="material-symbols-outlined text-lg">edit</span>
-                                Editar
-                              </button>
-                              <div className="border-t border-slate-200 dark:border-slate-700 my-1" />
-                              <button
-                                onClick={() => handleDeleteClick(jugador)}
-                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-rose-500 hover:bg-rose-500/10 transition-colors"
-                              >
-                                <span className="material-symbols-outlined text-lg">delete</span>
-                                Borrar
-                              </button>
-                            </div>
-                          )}
                         </td>
                       </tr>
                     )
@@ -837,6 +831,35 @@ export default function ProductorJugadoresPage() {
           </div>
         </div>
       )}
+
+      {/* Three-dot dropdown fixed portal */}
+      {openMenuId && menuPos && (() => {
+        const jugador = jugadores.find(j => j.id === openMenuId)
+        if (!jugador) return null
+        return (
+          <div
+            ref={menuRef}
+            style={{ position: 'fixed', top: menuPos.top, right: menuPos.right }}
+            className="w-44 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl shadow-black/10 dark:shadow-black/30 z-[9999] py-1.5 overflow-hidden"
+          >
+            <button
+              onClick={() => handleEditClick(jugador)}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            >
+              <span className="material-symbols-outlined text-lg">edit</span>
+              Editar
+            </button>
+            <div className="border-t border-slate-200 dark:border-slate-700 my-1" />
+            <button
+              onClick={() => handleDeleteClick(jugador)}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-rose-500 hover:bg-rose-500/10 transition-colors"
+            >
+              <span className="material-symbols-outlined text-lg">delete</span>
+              Borrar
+            </button>
+          </div>
+        )
+      })()}
 
       {/* Bulk Import Wizard */}
       <BulkImportWizard

@@ -91,6 +91,7 @@ export default function TorneoDetailPage({ basePath }: Props) {
 
   // Category tabs
   const [categoriaTab, setCategoriaTab] = useState<string>('todos')
+  const [busquedaEquipos, setBusquedaEquipos] = useState('')
 
   // Info card
   const [infoOpen, setInfoOpen] = useState(false)
@@ -122,9 +123,13 @@ export default function TorneoDetailPage({ basePath }: Props) {
   }, [inscripciones])
 
   const inscripcionesFiltradas = useMemo(() => {
-    if (categoriaTab === 'todos') return inscripciones
-    return inscripciones.filter(i => i.categoria_id === categoriaTab)
-  }, [inscripciones, categoriaTab])
+    let result = categoriaTab === 'todos' ? inscripciones : inscripciones.filter(i => i.categoria_id === categoriaTab)
+    if (busquedaEquipos.trim()) {
+      const q = busquedaEquipos.toLowerCase()
+      result = result.filter(i => i.equipo_nombre.toLowerCase().includes(q))
+    }
+    return result
+  }, [inscripciones, categoriaTab, busquedaEquipos])
 
   const loadData = async () => {
     try {
@@ -687,6 +692,21 @@ export default function TorneoDetailPage({ basePath }: Props) {
                   {cat.nombre} ({cat.count})
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+
+        {inscripciones.length > 0 && (
+          <div className="px-4 pt-3">
+            <div className="relative">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base pointer-events-none">search</span>
+              <input
+                type="text"
+                value={busquedaEquipos}
+                onChange={(e) => setBusquedaEquipos(e.target.value)}
+                placeholder="Buscar equipo..."
+                className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-primary"
+              />
             </div>
           </div>
         )}

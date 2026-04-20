@@ -231,6 +231,24 @@ export async function updateJugadorPerfil(data: { telefono?: string; email?: str
   return res.data
 }
 
+export async function getJugadorById(id: string): Promise<JugadorResponse> {
+  const res = await apiFetch(`/jugadores/${id}`)
+  return res.data
+}
+
+export async function updateJugadorProductor(id: string, data: {
+  nombre?: string
+  apellido?: string
+  dni?: string
+  fecha_nacimiento?: string
+}): Promise<JugadorResponse> {
+  const res = await apiFetch(`/jugadores/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+  return res.data
+}
+
 export async function getClubs(): Promise<Club[]> {
   const res = await apiFetch('/clubes')
   return res.data // La respuesta tiene formato { success: true, data: Club[] }
