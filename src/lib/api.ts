@@ -44,6 +44,9 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
       localStorage.removeItem('token')
       localStorage.removeItem('auth-storage')
 
+      // CRÍTICO: También limpiar la cookie para evitar redirect loop con middleware
+      document.cookie = 'auth-storage=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+
       // Redirigir al login
       window.location.href = '/login'
 
