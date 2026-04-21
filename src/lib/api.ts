@@ -38,6 +38,19 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
   const json = await res.json()
 
   if (!res.ok) {
+    // Si el token es inválido o expiró, hacer logout automático
+    if (res.status === 401 && typeof window !== 'undefined') {
+      // Limpiar autenticación
+      localStorage.removeItem('token')
+      localStorage.removeItem('auth-storage')
+
+      // Redirigir al login
+      window.location.href = '/login'
+
+      // Lanzar error para que el componente sepa que falló
+      throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.')
+    }
+
     // El backend puede devolver errores en dos formatos:
     // 1. { success: false, error: { message, code, details, hint } }
     // 2. { message: '...' } (formato simple)
