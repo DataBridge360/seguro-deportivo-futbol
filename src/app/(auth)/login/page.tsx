@@ -19,6 +19,9 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
+    // CRÍTICO: Limpiar cookie al llegar a login para romper redirect loops
+    document.cookie = 'auth-storage=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+
     if (isAuthenticated && user) {
       router.replace(getDefaultRouteForRole(user.role))
     }
