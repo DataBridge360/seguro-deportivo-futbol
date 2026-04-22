@@ -5,10 +5,11 @@ import { useRouter, useParams } from 'next/navigation'
 import {
   getEquiposInscritos, getJugadoresEquipoTorneo,
   agregarJugadorEquipoTorneo, quitarJugadorEquipoTorneo,
-  getJugadores, getJugadoresProductor, desinscribirEquipo,
+  desinscribirEquipo,
   getDelegadosEquipoAdmin, asignarDelegadoAdmin, quitarDelegadoAdmin,
+  buscarJugadorPorDni,
 } from '@/lib/api'
-import type { JugadorResponse, DelegadoEquipo } from '@/lib/api'
+import type { DelegadoEquipo, JugadorBusqueda } from '@/lib/api'
 import type { Inscripcion, JugadorEquipoTorneo } from '@/types/club'
 import NotificationModal from '@/components/ui/NotificationModal'
 import { useAuthStore } from '@/stores/authStore'
@@ -28,7 +29,7 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
   const params = useParams()
   const torneoId = params.id as string
   const equipoId = params.equipoId as string
-  const { user } = useAuthStore()
+  useAuthStore()
 
   const [inscripcion, setInscripcion] = useState<Inscripcion | null>(null)
   const [jugadores, setJugadores] = useState<JugadorEquipoTorneo[]>([])
@@ -37,9 +38,10 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
 
   // Agregar jugador modal
   const [showModalAgregar, setShowModalAgregar] = useState(false)
-  const [jugadoresClub, setJugadoresClub] = useState<JugadorResponse[]>([])
-  const [jugadoresSeleccionados, setJugadoresSeleccionados] = useState<string[]>([])
+  const [jugadoresSeleccionados, setJugadoresSeleccionados] = useState<JugadorBusqueda[]>([])
   const [busqueda, setBusqueda] = useState('')
+  const [resultadosBusqueda, setResultadosBusqueda] = useState<JugadorBusqueda[]>([])
+  const [buscando, setBuscando] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   // Quitar jugador confirm
@@ -53,6 +55,8 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
   const [delegados, setDelegados] = useState<DelegadoEquipo[]>([])
   const [showModalDelegados, setShowModalDelegados] = useState(false)
   const [busquedaDelegado, setBusquedaDelegado] = useState('')
+  const [resultadosDelegado, setResultadosDelegado] = useState<JugadorBusqueda[]>([])
+  const [buscandoDelegado, setBuscandoDelegado] = useState(false)
   const [asignandoDelegado, setAsignandoDelegado] = useState(false)
   const [quitandoDelegadoId, setQuitandoDelegadoId] = useState<string | null>(null)
 
@@ -86,29 +90,29 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
     }
   }
 
-  const handleOpenAgregar = async () => {
+  // Búsqueda dinámica de jugadores
+  useEffect(() => {
+    if (!showModalAgregar) return
+    if (busqueda.length < 3) { setResultadosBusqueda([]); return }
+    const timeout = setTimeout(async () => {
+      try {
+        setBuscando(true)
+        const yaEnEquipo = new Set(jugadores.map(j => j.jugador_id))
+        const yaSeleccionados = new Set(jugadoresSeleccionados.map(j => j.id))
+        const res = await buscarJugadorPorDni(busqueda)
+        setResultadosBusqueda(res.filter(j => !yaEnEquipo.has(j.id) && !yaSeleccionados.has(j.id)))
+      } catch { setResultadosBusqueda([]) }
+      finally { setBuscando(false) }
+    }, 300)
+    return () => clearTimeout(timeout)
+  }, [busqueda, showModalAgregar, jugadores, jugadoresSeleccionados])
+
+  const handleOpenAgregar = () => {
     setJugadoresSeleccionados([])
     setBusqueda('')
+    setResultadosBusqueda([])
     setErrors({})
     setShowModalAgregar(true)
-    if (jugadoresClub.length === 0) {
-      try {
-        const data = user?.role === 'productor' ? await getJugadoresProductor() : await getJugadores()
-        setJugadoresClub(data)
-      } catch { /* empty */ }
-    }
-  }
-
-  const getJugadoresFiltrados = () => {
-    const disponibles = jugadoresClub.filter(j => !jugadores.some(ya => ya.jugador_id === j.id))
-    if (!busqueda.trim()) return disponibles
-    const termino = busqueda.toLowerCase().trim()
-    return disponibles.filter(j =>
-      j.nombre.toLowerCase().includes(termino) ||
-      j.apellido.toLowerCase().includes(termino) ||
-      `${j.nombre} ${j.apellido}`.toLowerCase().includes(termino) ||
-      (j.dni && j.dni.includes(termino))
-    )
   }
 
   const handleAgregarJugadores = async () => {
@@ -116,8 +120,8 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
     try {
       setSubmitting(true)
       const nuevos: JugadorEquipoTorneo[] = []
-      for (const jugadorId of jugadoresSeleccionados) {
-        const nuevo = await agregarJugadorEquipoTorneo(torneoId, equipoId, { jugador_id: jugadorId })
+      for (const j of jugadoresSeleccionados) {
+        const nuevo = await agregarJugadorEquipoTorneo(torneoId, equipoId, { jugador_id: j.id })
         nuevos.push(nuevo)
       }
       setJugadores(prev => [...prev, ...nuevos])
@@ -144,28 +148,26 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
     }
   }
 
-  const getDelegadosFiltrados = () => {
+  // Búsqueda dinámica para delegados
+  useEffect(() => {
+    if (!showModalDelegados) return
+    if (busquedaDelegado.length < 3) { setResultadosDelegado([]); return }
     const yaIds = new Set(delegados.map(d => d.jugador_id))
-    const disponibles = jugadoresClub.filter(j => !yaIds.has(j.id))
-    if (!busquedaDelegado.trim()) return disponibles
-    const t = busquedaDelegado.toLowerCase().trim()
-    return disponibles.filter(j =>
-      j.nombre.toLowerCase().includes(t) ||
-      j.apellido.toLowerCase().includes(t) ||
-      `${j.nombre} ${j.apellido}`.toLowerCase().includes(t) ||
-      (j.dni && j.dni.includes(t))
-    )
-  }
-
-  const handleOpenModalDelegados = async () => {
-    setBusquedaDelegado('')
-    setShowModalDelegados(true)
-    if (jugadoresClub.length === 0) {
+    const timeout = setTimeout(async () => {
       try {
-        const data = user?.role === 'productor' ? await getJugadoresProductor() : await getJugadores()
-        setJugadoresClub(data)
-      } catch { /* empty */ }
-    }
+        setBuscandoDelegado(true)
+        const res = await buscarJugadorPorDni(busquedaDelegado)
+        setResultadosDelegado(res.filter(j => !yaIds.has(j.id)))
+      } catch { setResultadosDelegado([]) }
+      finally { setBuscandoDelegado(false) }
+    }, 300)
+    return () => clearTimeout(timeout)
+  }, [busquedaDelegado, showModalDelegados, delegados])
+
+  const handleOpenModalDelegados = () => {
+    setBusquedaDelegado('')
+    setResultadosDelegado([])
+    setShowModalDelegados(true)
   }
 
   const handleAsignarDelegado = async (jugadorId: string) => {
@@ -523,114 +525,173 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
       {/* ═══════ MODALS ═══════ */}
 
       {/* Modal asignar delegado */}
-      {showModalDelegados && (() => {
-        const disponibles = getDelegadosFiltrados()
-        return (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => !asignandoDelegado && setShowModalDelegados(false)}>
-            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">Asignar delegado</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Los delegados pueden agregar jugadores al equipo</p>
+      {showModalDelegados && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => !asignandoDelegado && setShowModalDelegados(false)}>
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">Asignar delegado</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Los delegados pueden agregar jugadores al equipo</p>
 
-              <div className="relative mb-3">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
-                <input
-                  type="text"
-                  value={busquedaDelegado}
-                  onChange={(e) => setBusquedaDelegado(e.target.value)}
-                  placeholder="Buscar por nombre o DNI..."
-                  className="w-full pl-10 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:border-primary"
-                />
-              </div>
-
-              <div className="space-y-1 max-h-64 overflow-y-auto mb-3">
-                {disponibles.length === 0 ? (
-                  <p className="text-center text-xs text-slate-400 py-6">{busquedaDelegado ? 'Sin resultados' : 'No hay jugadores disponibles'}</p>
-                ) : disponibles.map((j) => (
-                  <div key={j.id} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900/50">
-                    <div>
-                      <p className="text-xs font-medium text-slate-900 dark:text-white">{j.apellido}, {j.nombre}</p>
-                      {j.dni && <p className="text-[10px] text-slate-500">DNI: {j.dni}</p>}
-                    </div>
-                    <button
-                      onClick={() => handleAsignarDelegado(j.id)}
-                      disabled={asignandoDelegado}
-                      className="px-3 py-1 bg-amber-100 hover:bg-amber-200 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 text-amber-700 dark:text-amber-400 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-                    >
-                      Asignar
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              <button onClick={() => setShowModalDelegados(false)} className="w-full px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors">Cerrar</button>
+            <div className="relative mb-3">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+              <input
+                type="text"
+                value={busquedaDelegado}
+                onChange={(e) => setBusquedaDelegado(e.target.value)}
+                placeholder="Buscar por nombre, apellido o DNI..."
+                autoFocus
+                className="w-full pl-10 pr-9 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:border-primary"
+              />
+              {buscandoDelegado && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
             </div>
+            {busquedaDelegado.length > 0 && busquedaDelegado.length < 3 && (
+              <p className="mb-2 text-xs text-slate-400">Ingresá al menos 3 caracteres para buscar</p>
+            )}
+
+            <div className="space-y-1 max-h-64 overflow-y-auto mb-3">
+              {resultadosDelegado.length === 0 ? (
+                <p className="text-center text-xs text-slate-400 py-6">
+                  {busquedaDelegado.length >= 3 && !buscandoDelegado ? 'Sin resultados' : 'Escribí un nombre, apellido o DNI para buscar'}
+                </p>
+              ) : resultadosDelegado.map((j) => (
+                <div key={j.id} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900/50">
+                  <div>
+                    <p className="text-xs font-medium text-slate-900 dark:text-white">{j.apellido}, {j.nombre}</p>
+                    {j.dni && <p className="text-[10px] text-slate-500">DNI: {j.dni}</p>}
+                  </div>
+                  <button
+                    onClick={() => handleAsignarDelegado(j.id)}
+                    disabled={asignandoDelegado}
+                    className="px-3 py-1 bg-amber-100 hover:bg-amber-200 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 text-amber-700 dark:text-amber-400 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                  >
+                    Asignar
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <button onClick={() => setShowModalDelegados(false)} className="w-full px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors">Cerrar</button>
           </div>
-        )
-      })()}
+        </div>
+      )}
 
       {/* Modal agregar jugadores */}
-      {showModalAgregar && (() => {
-        const jugadoresFiltrados = getJugadoresFiltrados()
-        const todosSeleccionados = jugadoresFiltrados.length > 0 && jugadoresFiltrados.every(j => jugadoresSeleccionados.includes(j.id))
-        return (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => !submitting && setShowModalAgregar(false)}>
-            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">Agregar jugadores</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">a {inscripcion?.equipo_nombre}</p>
+      {showModalAgregar && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => !submitting && setShowModalAgregar(false)}>
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl w-full max-w-md flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
 
-              <div className="relative mb-3">
+            {/* Header */}
+            <div className="px-5 pt-5 pb-3 shrink-0">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Agregar jugadores</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">a {inscripcion?.equipo_nombre}</p>
+            </div>
+
+            {/* Search */}
+            <div className="px-5 pb-3 shrink-0">
+              <div className="relative">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
                 <input
                   type="text"
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
-                  placeholder="Buscar por nombre o DNI..."
-                  className="w-full pl-10 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:border-primary"
+                  placeholder="Buscar por nombre, apellido o DNI..."
+                  autoFocus
+                  className="w-full pl-9 pr-9 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
                 />
+                {buscando ? (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  </div>
+                ) : busqueda ? (
+                  <button onClick={() => { setBusqueda(''); setResultadosBusqueda([]) }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-lg">
+                    <span className="material-symbols-outlined text-base">close</span>
+                  </button>
+                ) : null}
               </div>
+              {busqueda.length > 0 && busqueda.length < 3 && (
+                <p className="mt-1.5 text-xs text-slate-400">Ingresá al menos 3 caracteres para buscar</p>
+              )}
+            </div>
 
-              {jugadoresFiltrados.length > 0 && (
-                <label className="flex items-center gap-2.5 px-3 py-2 mb-2 rounded-lg bg-primary/5 dark:bg-primary/10 cursor-pointer border border-primary/20">
-                  <input
-                    type="checkbox"
-                    checked={todosSeleccionados}
-                    onChange={() => {
-                      if (todosSeleccionados) setJugadoresSeleccionados(prev => prev.filter(id => !jugadoresFiltrados.some(j => j.id === id)))
-                      else setJugadoresSeleccionados(prev => [...new Set([...prev, ...jugadoresFiltrados.map(j => j.id)])])
-                    }}
-                    className="w-4 h-4 rounded accent-primary"
-                  />
-                  <span className="text-xs font-medium text-primary">
-                    {todosSeleccionados ? 'Deseleccionar todos' : `Seleccionar todos (${jugadoresFiltrados.length})`}
-                  </span>
-                </label>
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto px-5 pb-2 min-h-0 space-y-3">
+
+              {/* Chips de seleccionados */}
+              {jugadoresSeleccionados.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                    Seleccionados ({jugadoresSeleccionados.length})
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {jugadoresSeleccionados.map(j => (
+                      <span key={j.id} className="flex items-center gap-1 px-2.5 py-1 bg-primary/10 text-primary rounded-lg text-xs font-medium">
+                        {j.apellido}, {j.nombre}
+                        <button onClick={() => setJugadoresSeleccionados(prev => prev.filter(s => s.id !== j.id))} className="ml-0.5 hover:text-primary/60">
+                          <span className="material-symbols-outlined text-sm">close</span>
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
               )}
 
-              <div className="space-y-1 max-h-56 overflow-y-auto mb-3">
-                {jugadoresFiltrados.length === 0 ? (
-                  <p className="text-center text-xs text-slate-400 py-6">{busqueda ? 'Sin resultados' : 'No hay jugadores disponibles'}</p>
-                ) : jugadoresFiltrados.map((j) => (
-                  <label key={j.id} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer transition-colors ${jugadoresSeleccionados.includes(j.id) ? 'bg-slate-100 dark:bg-slate-700' : 'hover:bg-slate-50 dark:hover:bg-slate-900/50'}`}>
-                    <input type="checkbox" checked={jugadoresSeleccionados.includes(j.id)} onChange={() => setJugadoresSeleccionados(prev => prev.includes(j.id) ? prev.filter(id => id !== j.id) : [...prev, j.id])} className="w-4 h-4 rounded accent-primary" />
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-slate-900 dark:text-white truncate">{j.apellido}, {j.nombre}</p>
-                      {j.dni && <p className="text-[10px] text-slate-500">DNI: {j.dni}</p>}
-                    </div>
-                  </label>
-                ))}
-              </div>
+              {/* Resultados */}
+              {resultadosBusqueda.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                    Resultados ({resultadosBusqueda.length})
+                  </p>
+                  <div className="flex flex-col gap-1">
+                    {resultadosBusqueda.map(j => (
+                      <button
+                        key={j.id}
+                        onClick={() => {
+                          setJugadoresSeleccionados(prev => [...prev, j])
+                          setResultadosBusqueda(prev => prev.filter(r => r.id !== j.id))
+                        }}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 hover:bg-primary/5 dark:hover:bg-primary/10 border border-slate-200 dark:border-slate-700 hover:border-primary/30 transition-colors text-left"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
+                          <span className="material-symbols-outlined text-sm text-slate-500">person</span>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-slate-900 dark:text-white">{j.apellido}, {j.nombre}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">DNI: {j.dni}</p>
+                        </div>
+                        <span className="material-symbols-outlined text-primary text-lg shrink-0">add_circle</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-              {errors.jugador_id && <p className="text-red-400 text-xs mb-3">{errors.jugador_id}</p>}
+              {/* Estado vacío */}
+              {busqueda.length >= 3 && !buscando && resultadosBusqueda.length === 0 && jugadoresSeleccionados.length === 0 && (
+                <p className="text-center text-xs text-slate-400 py-6">Sin resultados para &quot;{busqueda}&quot;</p>
+              )}
+              {busqueda.length === 0 && jugadoresSeleccionados.length === 0 && (
+                <p className="text-center text-xs text-slate-400 py-6">Escribí un nombre, apellido o DNI para buscar</p>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-4 border-t border-slate-200 dark:border-slate-700 shrink-0">
+              {errors.jugador_id && <p className="text-red-400 text-xs mb-2">{errors.jugador_id}</p>}
               <div className="flex gap-2">
-                <button onClick={() => setShowModalAgregar(false)} disabled={submitting} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">Cancelar</button>
-                <button onClick={handleAgregarJugadores} disabled={submitting || jugadoresSeleccionados.length === 0} className="flex-1 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-                  {submitting ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Agregando...</>) : `Agregar (${jugadoresSeleccionados.length})`}
+                <button onClick={() => setShowModalAgregar(false)} disabled={submitting} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">
+                  Cancelar
+                </button>
+                <button onClick={handleAgregarJugadores} disabled={submitting || jugadoresSeleccionados.length === 0} className="flex-[1.5] px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                  {submitting ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Agregando...</>) : `Agregar${jugadoresSeleccionados.length > 0 ? ` (${jugadoresSeleccionados.length})` : ''}`}
                 </button>
               </div>
             </div>
           </div>
-        )
-      })()}
+        </div>
+      )}
 
       {/* Modal quitar jugador */}
       {showConfirmQuitar && (
