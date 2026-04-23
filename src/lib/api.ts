@@ -38,6 +38,22 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
   const json = await res.json()
 
   if (!res.ok) {
+    // Si el token es inválido o expiró, hacer logout automático
+    if (res.status === 401 && typeof window !== 'undefined') {
+      // Limpiar autenticación
+      localStorage.removeItem('token')
+      localStorage.removeItem('auth-storage')
+
+      // CRÍTICO: También limpiar la cookie para evitar redirect loop con middleware
+      document.cookie = 'auth-storage=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+
+      // Redirigir al login
+      window.location.href = '/login'
+
+      // Lanzar error para que el componente sepa que falló
+      throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.')
+    }
+
     // El backend puede devolver errores en dos formatos:
     // 1. { success: false, error: { message, code, details, hint } }
     // 2. { message: '...' } (formato simple)
@@ -225,6 +241,24 @@ export async function getJugadorPerfil(): Promise<JugadorResponse> {
 
 export async function updateJugadorPerfil(data: { telefono?: string; email?: string; direccion?: string }): Promise<JugadorResponse> {
   const res = await apiFetch('/jugadores/mi-perfil', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+  return res.data
+}
+
+export async function getJugadorById(id: string): Promise<JugadorResponse> {
+  const res = await apiFetch(`/jugadores/${id}`)
+  return res.data
+}
+
+export async function updateJugadorProductor(id: string, data: {
+  nombre?: string
+  apellido?: string
+  dni?: string
+  fecha_nacimiento?: string
+}): Promise<JugadorResponse> {
+  const res = await apiFetch(`/jugadores/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
   })
@@ -585,6 +619,7 @@ export interface JugadorBusqueda {
   nombre: string
   apellido: string
   dni: string
+  pagado: boolean
 }
 
 export async function buscarJugadorPorDni(dni: string): Promise<JugadorBusqueda[]> {

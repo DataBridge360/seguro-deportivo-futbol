@@ -31,6 +31,14 @@ export function middleware(request: NextRequest) {
 
   if (publicRoutes.includes(pathname)) {
     if (user && pathname.startsWith('/login')) {
+      // Si viene de /dashboard, probablemente es un loop por token inválido
+      // Limpiar cookie y permitir quedarse en login
+      const referer = request.headers.get('referer') || ''
+      if (referer.includes('/dashboard')) {
+        const response = NextResponse.next()
+        response.cookies.delete('auth-storage')
+        return response
+      }
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
     return NextResponse.next()

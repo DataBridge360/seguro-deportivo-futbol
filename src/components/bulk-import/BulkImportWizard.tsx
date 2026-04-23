@@ -28,12 +28,18 @@ function formatFileSize(bytes: number): string {
   return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
 }
 
+interface ConflictRow {
+  label: string
+  oldValue: string
+  newValue: string
+  changed: boolean
+}
+
 interface ConflictItem {
   id: string
   nombre: string
   description: string
-  oldValue: string
-  newValue: string
+  rows: ConflictRow[]
 }
 
 export default function BulkImportWizard({ isOpen, onClose, onImportComplete }: BulkImportWizardProps) {
@@ -45,6 +51,7 @@ export default function BulkImportWizard({ isOpen, onClose, onImportComplete }: 
   const [result, setResult] = useState<ImportResult | null>(null)
   const [acceptedConflicts, setAcceptedConflicts] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
+  const [showNewPlayers, setShowNewPlayers] = useState(false)
 
   const [notification, setNotification] = useState<{
     open: boolean
@@ -63,6 +70,7 @@ export default function BulkImportWizard({ isOpen, onClose, onImportComplete }: 
       setPreview(null)
       setResult(null)
       setAcceptedConflicts(new Set())
+      setShowNewPlayers(false)
     }
   }, [isOpen])
 
@@ -72,7 +80,8 @@ export default function BulkImportWizard({ isOpen, onClose, onImportComplete }: 
       const ids = new Set<string>()
       preview.dni_conflicts?.forEach(c => ids.add(c.existing_id))
       preview.birth_date_conflicts?.forEach(c => ids.add(c.existing_id))
-      preview.name_conflicts?.forEach(c => ids.add(c.existing_id))
+      preview.dni_changed_players?.forEach(c => ids.add(c.existing_id))
+      preview.name_changed_players?.forEach(c => ids.add(c.existing_id))
       setAcceptedConflicts(ids)
     }
   }, [preview])
@@ -81,26 +90,42 @@ export default function BulkImportWizard({ isOpen, onClose, onImportComplete }: 
   const allConflicts: ConflictItem[] = useMemo(() => {
     if (!preview) return []
     return [
-      ...(preview.dni_conflicts || []).map(c => ({
+      ...(preview.name_changed_players || []).map(c => ({
         id: c.existing_id,
         nombre: c.nombre_nuevo,
-        description: 'El nombre en el archivo no coincide con el registrado.',
-        oldValue: c.nombre_existente,
-        newValue: c.nombre_nuevo,
+        description: 'Mismo DNI y fecha de nacimiento — nombre corregido.',
+        rows: [
+          { label: 'DNI', oldValue: c.dni, newValue: c.dni, changed: false },
+          { label: 'Nombre', oldValue: c.nombre_existente, newValue: c.nombre_nuevo, changed: true },
+          { label: 'Fecha nac.', oldValue: c.fecha_nacimiento, newValue: c.fecha_nacimiento, changed: false },
+        ],
+      })),
+      ...(preview.dni_changed_players || []).map(c => ({
+        id: c.existing_id,
+        nombre: c.nombre_completo,
+        description: 'Mismo nombre, apellido y fecha de nacimiento — DNI corregido.',
+        rows: [
+          { label: 'DNI', oldValue: c.dni_existente, newValue: c.dni_nuevo, changed: true },
+          { label: 'Fecha nac.', oldValue: c.fecha_nacimiento, newValue: c.fecha_nacimiento, changed: false },
+        ],
       })),
       ...(preview.birth_date_conflicts || []).map(c => ({
         id: c.existing_id,
         nombre: c.nombre_completo,
-        description: 'Diferencia en la fecha de nacimiento.',
-        oldValue: c.fecha_nacimiento_existente,
-        newValue: c.fecha_nacimiento_nueva,
+        description: 'Mismo DNI y nombre — fecha de nacimiento a corregir.',
+        rows: [
+          { label: 'DNI', oldValue: c.dni, newValue: c.dni, changed: false },
+          { label: 'Fecha nac.', oldValue: c.fecha_nacimiento_existente, newValue: c.fecha_nacimiento_nueva, changed: true },
+        ],
       })),
-      ...(preview.name_conflicts || []).map(c => ({
+      ...(preview.dni_conflicts || []).map(c => ({
         id: c.existing_id,
-        nombre: c.nombre_completo,
-        description: 'El DNI en el archivo no coincide con el registrado.',
-        oldValue: c.dni_existente,
-        newValue: c.dni_nuevo,
+        nombre: c.nombre_nuevo,
+        description: 'Mismo DNI con nombre diferente al registrado.',
+        rows: [
+          { label: 'DNI', oldValue: c.dni, newValue: c.dni, changed: false },
+          { label: 'Nombre', oldValue: c.nombre_existente, newValue: c.nombre_nuevo, changed: true },
+        ],
       })),
     ]
   }, [preview])
@@ -182,7 +207,11 @@ export default function BulkImportWizard({ isOpen, onClose, onImportComplete }: 
 
   if (!isOpen) return null
 
-  const canImport = preview && (preview.new_players.length > 0 || acceptedConflicts.size > 0)
+  const canImport = preview && (
+    preview.new_players.length > 0 ||
+    acceptedConflicts.size > 0 ||
+    (preview.pagado_to_update?.length ?? 0) > 0
+  )
 
   return (
     <>
@@ -299,6 +328,37 @@ export default function BulkImportWizard({ isOpen, onClose, onImportComplete }: 
                   </div>
                 </div>
 
+                {/* Nuevos jugadores (expandible) */}
+                {preview.new_players.length > 0 && (
+                  <div className="border border-green-500/20 rounded-xl overflow-hidden">
+                    <button
+                      onClick={() => setShowNewPlayers(v => !v)}
+                      className="w-full flex items-center justify-between px-4 py-3 bg-green-500/5 hover:bg-green-500/10 transition-colors"
+                    >
+                      <span className="flex items-center gap-2 text-green-500 font-semibold text-xs uppercase tracking-wider">
+                        <span className="material-symbols-outlined text-base">person_add</span>
+                        {preview.new_players.length} jugador{preview.new_players.length !== 1 ? 'es' : ''} nuevo{preview.new_players.length !== 1 ? 's' : ''}
+                      </span>
+                      <span className="material-symbols-outlined text-green-500/70 text-base">
+                        {showNewPlayers ? 'expand_less' : 'expand_more'}
+                      </span>
+                    </button>
+                    {showNewPlayers && (
+                      <div className="max-h-56 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
+                        {preview.new_players.map((p, idx) => (
+                          <div key={idx} className="px-4 py-2.5 flex items-center gap-3 bg-white dark:bg-black/10">
+                            <span className="material-symbols-outlined text-green-500/60 text-base">person</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{p.nombre_completo}</p>
+                              <p className="text-[11px] text-slate-400 font-mono">DNI {p.dni} · {p.fecha_nacimiento}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Errors */}
                 {preview.errors.length > 0 && (
                   <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3">
@@ -334,16 +394,24 @@ export default function BulkImportWizard({ isOpen, onClose, onImportComplete }: 
                             <p className="text-slate-900 dark:text-white font-bold text-sm tracking-tight">{conflict.nombre}</p>
                             <p className="text-slate-500 text-[11px] mt-0.5">{conflict.description}</p>
                           </div>
-                          {/* Comparison: old vs new */}
-                          <div className="px-4 py-3 grid grid-cols-2 gap-0 border-y border-slate-200 dark:border-slate-700/50 bg-white dark:bg-black/10">
-                            <div className="pr-4 border-r border-slate-200 dark:border-slate-700/50">
-                              <p className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider mb-1">En Sistema</p>
-                              <p className="text-orange-500 dark:text-orange-400 font-mono text-sm">{conflict.oldValue}</p>
+                          {/* Comparison rows */}
+                          <div className="border-y border-slate-200 dark:border-slate-700/50 bg-white dark:bg-black/10 divide-y divide-slate-100 dark:divide-slate-800/60">
+                            <div className="px-4 pt-2 pb-1 grid grid-cols-[80px_1fr_1fr] gap-2">
+                              <span />
+                              <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">En sistema</span>
+                              <span className="text-[9px] uppercase font-bold text-slate-400 tracking-wider text-right">Nuevo valor</span>
                             </div>
-                            <div className="pl-4">
-                              <p className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider mb-1 text-right">Nuevo Valor</p>
-                              <p className="text-green-600 dark:text-green-400 font-mono text-sm text-right">{conflict.newValue}</p>
-                            </div>
+                            {conflict.rows.map((row, ri) => (
+                              <div key={ri} className="px-4 py-2 grid grid-cols-[80px_1fr_1fr] gap-2 items-center">
+                                <span className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">{row.label}</span>
+                                <span className={`font-mono text-sm ${row.changed ? 'text-orange-500 dark:text-orange-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                                  {row.oldValue}
+                                </span>
+                                <span className={`font-mono text-sm text-right ${row.changed ? 'text-green-600 dark:text-green-400 font-semibold' : 'text-slate-400 dark:text-slate-500'}`}>
+                                  {row.newValue}
+                                </span>
+                              </div>
+                            ))}
                           </div>
                           {/* Checkbox */}
                           <div className="px-4 py-3 bg-slate-50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors">
@@ -365,11 +433,38 @@ export default function BulkImportWizard({ isOpen, onClose, onImportComplete }: 
                   </section>
                 )}
 
+                {/* Jugadores que pasarán a pagado automáticamente */}
+                {(preview.pagado_to_update?.length ?? 0) > 0 && (
+                  <section className="space-y-2">
+                    <h3 className="flex items-center gap-2 text-blue-500 dark:text-blue-400/90 font-semibold text-xs uppercase tracking-wider">
+                      <span className="material-symbols-outlined text-base">payments</span>
+                      Se actualizará estado a pagado
+                    </h3>
+                    <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-3 space-y-1">
+                      <p className="text-[11px] text-blue-400/80 mb-2">
+                        Estos jugadores ya existen y pasarán automáticamente a estado pagado:
+                      </p>
+                      <div className="max-h-32 overflow-y-auto space-y-1">
+                        {preview.pagado_to_update.map((p, idx) => (
+                          <div key={idx} className="flex items-center gap-2 text-xs text-blue-300">
+                            <span className="material-symbols-outlined text-sm text-blue-400">check_circle</span>
+                            <span className="font-medium">{p.nombre_completo}</span>
+                            <span className="font-mono text-blue-400/60">DNI {p.dni}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </section>
+                )}
+
                 {/* Sin cambios note */}
-                {preview.existing_players.length > 0 && (
+                {(preview.existing_players.length - (preview.pagado_to_update?.length ?? 0)) > 0 && (
                   <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500">
                     <span className="material-symbols-outlined text-lg">info</span>
-                    <span className="text-xs">{preview.existing_players.length} jugador{preview.existing_players.length !== 1 ? 'es' : ''} sin cambios (datos idénticos)</span>
+                    <span className="text-xs">
+                      {preview.existing_players.length - (preview.pagado_to_update?.length ?? 0)} jugador
+                      {(preview.existing_players.length - (preview.pagado_to_update?.length ?? 0)) !== 1 ? 'es' : ''} sin cambios (datos idénticos)
+                    </span>
                   </div>
                 )}
               </div>
