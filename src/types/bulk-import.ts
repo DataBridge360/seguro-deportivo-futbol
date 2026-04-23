@@ -15,6 +15,7 @@ export interface PreviewResponse {
   birth_date_conflicts: BirthDateConflict[]
   name_conflicts: NameConflict[]
   dni_changed_players: DniChangedConflict[]
+  name_changed_players: NameChangedConflict[]
   pagado_to_update: PagadoToUpdate[]
   errors: ErrorItem[]
   preview_token: string
@@ -71,6 +72,16 @@ export interface DniChangedConflict {
   nombre_completo: string
   dni_nuevo: string
   dni_existente: string
+  fecha_nacimiento: string
+  existing_id: string
+  message: string
+}
+
+export interface NameChangedConflict {
+  row: number
+  dni: string
+  nombre_nuevo: string
+  nombre_existente: string
   fecha_nacimiento: string
   existing_id: string
   message: string

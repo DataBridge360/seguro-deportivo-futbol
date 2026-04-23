@@ -216,4 +216,5 @@ export interface JugadorEquipoTorneo {
   foto_url?: string | null
   dni?: string | null
   fecha_nacimiento?: string | null
+  pagado?: boolean
 }

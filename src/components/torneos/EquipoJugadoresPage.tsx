@@ -29,7 +29,7 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
   const params = useParams()
   const torneoId = params.id as string
   const equipoId = params.equipoId as string
-  useAuthStore()
+  const { user } = useAuthStore()
 
   const [inscripcion, setInscripcion] = useState<Inscripcion | null>(null)
   const [jugadores, setJugadores] = useState<JugadorEquipoTorneo[]>([])
@@ -46,6 +46,12 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
 
   // Quitar jugador confirm
   const [showConfirmQuitar, setShowConfirmQuitar] = useState<JugadorEquipoTorneo | null>(null)
+
+  // Limpiar sin seguro
+  const [showModalLimpiar, setShowModalLimpiar] = useState(false)
+  const [limpiando, setLimpiando] = useState(false)
+
+  const jugadoresSinPago = jugadores.filter(j => j.pagado === false)
 
   // Desinscribir equipo
   const [showConfirmDesinscribir, setShowConfirmDesinscribir] = useState(false)
@@ -195,6 +201,22 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
       setNotification({ open: true, title: 'Error', message: error instanceof Error ? error.message : 'Error al quitar delegado', type: 'error' })
     } finally {
       setQuitandoDelegadoId(null)
+    }
+  }
+
+  const handleLimpiarSinSeguro = async () => {
+    try {
+      setLimpiando(true)
+      for (const j of jugadoresSinPago) {
+        await quitarJugadorEquipoTorneo(torneoId, equipoId, j.id)
+      }
+      setJugadores(prev => prev.filter(j => j.pagado !== false))
+      setShowModalLimpiar(false)
+      setNotification({ open: true, title: 'Jugadores quitados', message: `Se quitaron ${jugadoresSinPago.length} jugador${jugadoresSinPago.length !== 1 ? 'es' : ''} sin seguro pagado`, type: 'success' })
+    } catch (error) {
+      setNotification({ open: true, title: 'Error', message: error instanceof Error ? error.message : 'Error al quitar jugadores', type: 'error' })
+    } finally {
+      setLimpiando(false)
     }
   }
 
@@ -450,13 +472,25 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
               <p className="text-xs text-slate-500 dark:text-slate-400">{jugadores.length} jugador{jugadores.length !== 1 ? 'es' : ''}</p>
             </div>
           </div>
-          <button
-            onClick={handleOpenAgregar}
-            className="flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors"
-          >
-            <span className="material-symbols-outlined text-lg">person_add</span>
-            Agregar
-          </button>
+          <div className="flex items-center gap-2">
+            {jugadoresSinPago.length > 0 && user?.rol === 'productor' && (
+              <button
+                onClick={() => setShowModalLimpiar(true)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-red-100 hover:bg-red-200 dark:bg-red-500/20 dark:hover:bg-red-500/30 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium transition-colors"
+                title="Quitar jugadores sin seguro pagado"
+              >
+                <span className="material-symbols-outlined text-lg">shield_with_heart</span>
+                Sin seguro ({jugadoresSinPago.length})
+              </button>
+            )}
+            <button
+              onClick={handleOpenAgregar}
+              className="flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              <span className="material-symbols-outlined text-lg">person_add</span>
+              Agregar
+            </button>
+          </div>
         </div>
 
         <div className="p-4">
@@ -485,9 +519,15 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
                         {jugador.nombre_completo}
-                        {jugador.capitan && <span className="ml-1.5 text-amber-500 font-bold">(C)</span>}
+                        {jugador.capitan && <span className="text-amber-500 font-bold">(C)</span>}
+                        {jugador.pagado === false && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 rounded text-[10px] font-bold uppercase tracking-wide">
+                            <span className="material-symbols-outlined text-xs">warning</span>
+                            Sin seguro
+                          </span>
+                        )}
                       </p>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
                         {jugador.dni && (
@@ -646,23 +686,42 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
                   </p>
                   <div className="flex flex-col gap-1">
                     {resultadosBusqueda.map(j => (
-                      <button
-                        key={j.id}
-                        onClick={() => {
-                          setJugadoresSeleccionados(prev => [...prev, j])
-                          setResultadosBusqueda(prev => prev.filter(r => r.id !== j.id))
-                        }}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 hover:bg-primary/5 dark:hover:bg-primary/10 border border-slate-200 dark:border-slate-700 hover:border-primary/30 transition-colors text-left"
-                      >
-                        <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
-                          <span className="material-symbols-outlined text-sm text-slate-500">person</span>
+                      j.pagado === false ? (
+                        <div
+                          key={j.id}
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-red-50 dark:bg-red-500/5 border border-red-200 dark:border-red-500/20 text-left cursor-not-allowed"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center shrink-0">
+                            <span className="material-symbols-outlined text-sm text-red-400">person</span>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{j.apellido}, {j.nombre}</p>
+                            <p className="text-xs text-red-500 dark:text-red-400 flex items-center gap-1">
+                              <span className="material-symbols-outlined text-xs">warning</span>
+                              Seguro no pagado
+                            </p>
+                          </div>
+                          <span className="material-symbols-outlined text-red-400 text-lg shrink-0">block</span>
                         </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-slate-900 dark:text-white">{j.apellido}, {j.nombre}</p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">DNI: {j.dni}</p>
-                        </div>
-                        <span className="material-symbols-outlined text-primary text-lg shrink-0">add_circle</span>
-                      </button>
+                      ) : (
+                        <button
+                          key={j.id}
+                          onClick={() => {
+                            setJugadoresSeleccionados(prev => [...prev, j])
+                            setResultadosBusqueda(prev => prev.filter(r => r.id !== j.id))
+                          }}
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 hover:bg-primary/5 dark:hover:bg-primary/10 border border-slate-200 dark:border-slate-700 hover:border-primary/30 transition-colors text-left"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
+                            <span className="material-symbols-outlined text-sm text-slate-500">person</span>
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-slate-900 dark:text-white">{j.apellido}, {j.nombre}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">DNI: {j.dni}</p>
+                          </div>
+                          <span className="material-symbols-outlined text-primary text-lg shrink-0">add_circle</span>
+                        </button>
+                      )
                     ))}
                   </div>
                 </div>
@@ -731,6 +790,38 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
               <button onClick={() => setShowConfirmDesinscribir(false)} disabled={desinscribiendo} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">Cancelar</button>
               <button onClick={handleDesinscribirEquipo} disabled={desinscribiendo} className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                 {desinscribiendo ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Desinscribiendo...</>) : 'Desinscribir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal limpiar sin seguro */}
+      {showModalLimpiar && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => !limpiando && setShowModalLimpiar(false)}>
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-9 h-9 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center shrink-0">
+                <span className="material-symbols-outlined text-red-500 text-lg">shield_with_heart</span>
+              </div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Quitar jugadores sin seguro</h3>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-300 mb-3">
+              Se quitarán del equipo los siguientes jugadores cuyo seguro no está pagado:
+            </p>
+            <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg p-3 mb-4 max-h-40 overflow-y-auto space-y-1.5">
+              {jugadoresSinPago.map(j => (
+                <div key={j.id} className="flex items-center gap-2 text-sm">
+                  <span className="material-symbols-outlined text-red-400 text-base">person_remove</span>
+                  <span className="font-medium text-slate-900 dark:text-white">{j.nombre_completo}</span>
+                  {j.dni && <span className="text-slate-400 font-mono text-xs">DNI {j.dni}</span>}
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setShowModalLimpiar(false)} disabled={limpiando} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">Cancelar</button>
+              <button onClick={handleLimpiarSinSeguro} disabled={limpiando} className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                {limpiando ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Quitando...</>) : 'Confirmar'}
               </button>
             </div>
           </div>

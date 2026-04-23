@@ -619,6 +619,7 @@ export interface JugadorBusqueda {
   nombre: string
   apellido: string
   dni: string
+  pagado: boolean
 }
 
 export async function buscarJugadorPorDni(dni: string): Promise<JugadorBusqueda[]> {

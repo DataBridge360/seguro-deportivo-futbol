@@ -51,6 +51,7 @@ export default function BulkImportWizard({ isOpen, onClose, onImportComplete }: 
   const [result, setResult] = useState<ImportResult | null>(null)
   const [acceptedConflicts, setAcceptedConflicts] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
+  const [showNewPlayers, setShowNewPlayers] = useState(false)
 
   const [notification, setNotification] = useState<{
     open: boolean
@@ -69,6 +70,7 @@ export default function BulkImportWizard({ isOpen, onClose, onImportComplete }: 
       setPreview(null)
       setResult(null)
       setAcceptedConflicts(new Set())
+      setShowNewPlayers(false)
     }
   }, [isOpen])
 
@@ -79,6 +81,7 @@ export default function BulkImportWizard({ isOpen, onClose, onImportComplete }: 
       preview.dni_conflicts?.forEach(c => ids.add(c.existing_id))
       preview.birth_date_conflicts?.forEach(c => ids.add(c.existing_id))
       preview.dni_changed_players?.forEach(c => ids.add(c.existing_id))
+      preview.name_changed_players?.forEach(c => ids.add(c.existing_id))
       setAcceptedConflicts(ids)
     }
   }, [preview])
@@ -87,6 +90,16 @@ export default function BulkImportWizard({ isOpen, onClose, onImportComplete }: 
   const allConflicts: ConflictItem[] = useMemo(() => {
     if (!preview) return []
     return [
+      ...(preview.name_changed_players || []).map(c => ({
+        id: c.existing_id,
+        nombre: c.nombre_nuevo,
+        description: 'Mismo DNI y fecha de nacimiento — nombre corregido.',
+        rows: [
+          { label: 'DNI', oldValue: c.dni, newValue: c.dni, changed: false },
+          { label: 'Nombre', oldValue: c.nombre_existente, newValue: c.nombre_nuevo, changed: true },
+          { label: 'Fecha nac.', oldValue: c.fecha_nacimiento, newValue: c.fecha_nacimiento, changed: false },
+        ],
+      })),
       ...(preview.dni_changed_players || []).map(c => ({
         id: c.existing_id,
         nombre: c.nombre_completo,
@@ -314,6 +327,37 @@ export default function BulkImportWizard({ isOpen, onClose, onImportComplete }: 
                     <span className="text-[9px] uppercase font-bold text-red-500/70 tracking-widest">Errores</span>
                   </div>
                 </div>
+
+                {/* Nuevos jugadores (expandible) */}
+                {preview.new_players.length > 0 && (
+                  <div className="border border-green-500/20 rounded-xl overflow-hidden">
+                    <button
+                      onClick={() => setShowNewPlayers(v => !v)}
+                      className="w-full flex items-center justify-between px-4 py-3 bg-green-500/5 hover:bg-green-500/10 transition-colors"
+                    >
+                      <span className="flex items-center gap-2 text-green-500 font-semibold text-xs uppercase tracking-wider">
+                        <span className="material-symbols-outlined text-base">person_add</span>
+                        {preview.new_players.length} jugador{preview.new_players.length !== 1 ? 'es' : ''} nuevo{preview.new_players.length !== 1 ? 's' : ''}
+                      </span>
+                      <span className="material-symbols-outlined text-green-500/70 text-base">
+                        {showNewPlayers ? 'expand_less' : 'expand_more'}
+                      </span>
+                    </button>
+                    {showNewPlayers && (
+                      <div className="max-h-56 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
+                        {preview.new_players.map((p, idx) => (
+                          <div key={idx} className="px-4 py-2.5 flex items-center gap-3 bg-white dark:bg-black/10">
+                            <span className="material-symbols-outlined text-green-500/60 text-base">person</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{p.nombre_completo}</p>
+                              <p className="text-[11px] text-slate-400 font-mono">DNI {p.dni} · {p.fecha_nacimiento}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Errors */}
                 {preview.errors.length > 0 && (
