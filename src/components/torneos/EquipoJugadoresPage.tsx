@@ -473,7 +473,7 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {jugadoresSinPago.length > 0 && user?.rol === 'productor' && (
+            {jugadoresSinPago.length > 0 && user?.role === 'productor' && (
               <button
                 onClick={() => setShowModalLimpiar(true)}
                 className="flex items-center gap-1.5 px-3 py-2 bg-red-100 hover:bg-red-200 dark:bg-red-500/20 dark:hover:bg-red-500/30 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium transition-colors"
