@@ -265,7 +265,6 @@ export default function JugadorTorneosPage() {
               <div className="flex flex-col gap-3">
                 {misEquiposEnTorneo.map((equipo) => {
                   const inscripcion = misInscripcionesTorneo.find(i => i.torneo_equipo_id === equipo.id)
-                  const esDelegado = equipo.delegados?.some(d => d.jugador_id === inscripcion?.equipo_id) ?? false
                   return (
                     <div
                       key={equipo.id}

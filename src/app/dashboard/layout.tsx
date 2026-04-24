@@ -57,7 +57,7 @@ export default function DashboardLayout({
   const router = useRouter()
   const pathname = usePathname()
   const { user, isAuthenticated, logout, _hasHydrated } = useAuthStore()
-  const { toggleTheme } = useThemeStore()
+  useThemeStore()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const backRoute = getBackRoute(pathname)

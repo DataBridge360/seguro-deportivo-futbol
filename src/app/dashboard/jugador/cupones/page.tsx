@@ -17,10 +17,6 @@ function formatDate(dateStr: string): string {
   return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-function formatDateShort(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('es-AR', { day: 'numeric', month: 'numeric' })
-}
 
 const tabs: { key: Estado; label: string }[] = [
   { key: 'disponible', label: 'Disponibles' },

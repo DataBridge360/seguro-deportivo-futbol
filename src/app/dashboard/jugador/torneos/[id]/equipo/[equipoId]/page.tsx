@@ -46,7 +46,6 @@ export default function JugadorEquipoDetailPage() {
   const [equipo, setEquipo] = useState<EquipoTorneo | null>(null)
   const [inscripciones, setInscripciones] = useState<JugadorInscripcion[]>([])
   const [loading, setLoading] = useState(true)
-  const [inscribiendo, setInscribiendo] = useState(false)
   const [desinscribiendo, setDesinscribiendo] = useState(false)
   const [showConfirmSalir, setShowConfirmSalir] = useState(false)
   const [generandoPDF, setGenerandoPDF] = useState(false)
@@ -60,6 +59,7 @@ export default function JugadorEquipoDetailPage() {
   const [agregando, setAgregando] = useState(false)
   const [quitandoId, setQuitandoId] = useState<string | null>(null)
   const [showConfirmQuitar, setShowConfirmQuitar] = useState<{ id: string; nombre: string } | null>(null)
+  const [showEliminacionBloqueada, setShowEliminacionBloqueada] = useState(false)
 
   const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' }>({
     open: false, title: '', message: '', type: 'success',
@@ -110,19 +110,6 @@ export default function JugadorEquipoDetailPage() {
 
   // Check if current user is delegado of this team
   const esDelegado = equipo?.delegados?.some(d => d.jugador_id === jugadorId) ?? false
-
-  const handleInscribirse = async () => {
-    try {
-      setInscribiendo(true)
-      await inscribirseEquipo(torneoId, equipoId)
-      setNotification({ open: true, title: 'Inscripcion exitosa', message: 'Te inscribiste correctamente al equipo', type: 'success' })
-      await fetchData()
-    } catch (err: any) {
-      setNotification({ open: true, title: 'Error al inscribirse', message: err.message || 'No se pudo completar la inscripcion', type: 'error' })
-    } finally {
-      setInscribiendo(false)
-    }
-  }
 
   const handleDesinscribirse = async () => {
     try {
@@ -461,7 +448,13 @@ export default function JugadorEquipoDetailPage() {
                   </div>
                   {esDelegado && abierto && (
                     <button
-                      onClick={() => setShowConfirmQuitar({ id: jugador.id, nombre: `${jugador.apellido}, ${jugador.nombre}` })}
+                      onClick={() => {
+                        if (!torneo?.delegados_pueden_eliminar) {
+                          setShowEliminacionBloqueada(true)
+                        } else {
+                          setShowConfirmQuitar({ id: jugador.id, nombre: `${jugador.apellido}, ${jugador.nombre}` })
+                        }
+                      }}
                       disabled={quitandoId === jugador.id}
                       className="p-1.5 text-slate-300 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400 rounded-lg transition-colors disabled:opacity-50 shrink-0"
                     >
@@ -758,6 +751,37 @@ export default function JugadorEquipoDetailPage() {
                 ) : 'Salir'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal eliminación bloqueada */}
+      {showEliminacionBloqueada && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          onClick={() => setShowEliminacionBloqueada(false)}
+        >
+          <div
+            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex justify-center mb-4">
+              <div className="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
+                <span className="material-symbols-outlined text-slate-400 text-2xl">lock</span>
+              </div>
+            </div>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white text-center mb-2">
+              Eliminación deshabilitada
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 text-center mb-6">
+              El club deshabilitó la eliminación de jugadores por parte de los delegados. Contactate con el club para que lo elimine.
+            </p>
+            <button
+              onClick={() => setShowEliminacionBloqueada(false)}
+              className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-bold transition-colors"
+            >
+              Entendido
+            </button>
           </div>
         </div>
       )}

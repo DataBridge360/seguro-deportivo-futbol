@@ -10,7 +10,10 @@
       "Bash(file:*)",
       "Bash(npm run lint:*)",
       "Bash(npx tsc:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(git checkout:*)",
+      "Bash(git merge:*)",
+      "Bash(git push:*)"
     ]
   },
   "disabledMcpjsonServers": [

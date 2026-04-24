@@ -363,8 +363,12 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
         </button>
 
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 shrink-0 rounded-xl bg-primary/10 flex items-center justify-center">
-            <span className="material-symbols-outlined text-2xl text-primary">shield</span>
+          <div className="w-14 h-14 shrink-0 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden border border-primary/20">
+            {inscripcion?.equipo_logo_url ? (
+              <img src={inscripcion.equipo_logo_url} alt={inscripcion.equipo_nombre} className="w-full h-full object-cover" />
+            ) : (
+              <span className="material-symbols-outlined text-3xl text-primary">shield</span>
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
@@ -473,7 +477,7 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {jugadoresSinPago.length > 0 && user?.rol === 'productor' && (
+            {jugadoresSinPago.length > 0 && user?.role === 'productor' && (
               <button
                 onClick={() => setShowModalLimpiar(true)}
                 className="flex items-center gap-1.5 px-3 py-2 bg-red-100 hover:bg-red-200 dark:bg-red-500/20 dark:hover:bg-red-500/30 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium transition-colors"
