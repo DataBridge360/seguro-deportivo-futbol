@@ -17,7 +17,7 @@ function formatDate(dateStr: string | null | undefined): string {
 
 export default function ProductorJugadoresPage() {
   const router = useRouter()
-  const { user } = useAuthStore()
+  useAuthStore()
 
   const [jugadores, setJugadores] = useState<JugadorResponse[]>([])
   const [polizaActiva, setPolizaActiva] = useState<PolizaGeneral | null>(null)

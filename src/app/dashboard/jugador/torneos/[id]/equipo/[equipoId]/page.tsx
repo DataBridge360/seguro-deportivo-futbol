@@ -46,7 +46,6 @@ export default function JugadorEquipoDetailPage() {
   const [equipo, setEquipo] = useState<EquipoTorneo | null>(null)
   const [inscripciones, setInscripciones] = useState<JugadorInscripcion[]>([])
   const [loading, setLoading] = useState(true)
-  const [inscribiendo, setInscribiendo] = useState(false)
   const [desinscribiendo, setDesinscribiendo] = useState(false)
   const [showConfirmSalir, setShowConfirmSalir] = useState(false)
   const [generandoPDF, setGenerandoPDF] = useState(false)
@@ -111,19 +110,6 @@ export default function JugadorEquipoDetailPage() {
 
   // Check if current user is delegado of this team
   const esDelegado = equipo?.delegados?.some(d => d.jugador_id === jugadorId) ?? false
-
-  const handleInscribirse = async () => {
-    try {
-      setInscribiendo(true)
-      await inscribirseEquipo(torneoId, equipoId)
-      setNotification({ open: true, title: 'Inscripcion exitosa', message: 'Te inscribiste correctamente al equipo', type: 'success' })
-      await fetchData()
-    } catch (err: any) {
-      setNotification({ open: true, title: 'Error al inscribirse', message: err.message || 'No se pudo completar la inscripcion', type: 'error' })
-    } finally {
-      setInscribiendo(false)
-    }
-  }
 
   const handleDesinscribirse = async () => {
     try {

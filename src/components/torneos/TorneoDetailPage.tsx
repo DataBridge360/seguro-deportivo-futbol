@@ -90,7 +90,7 @@ export default function TorneoDetailPage({ basePath }: Props) {
   // PDF state
   const [generandoPDF, setGenerandoPDF] = useState(false)
   const [cargandoJugadoresPDF, setCargandoJugadoresPDF] = useState(false)
-  const [pdfProgress, setPdfProgress] = useState({ current: 0, total: 0, phase: '' })
+  const [, setPdfProgress] = useState({ current: 0, total: 0, phase: '' })
 
   // Category tabs
   const [categoriaTab, setCategoriaTab] = useState<string>('todos')
