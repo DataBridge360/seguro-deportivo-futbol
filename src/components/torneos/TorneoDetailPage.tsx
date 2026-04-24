@@ -5,10 +5,10 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   getTorneos, getEquiposInscritos, inscribirEquipo, desinscribirEquipo,
-  getEquipos, getCategorias, toggleInscripciones, deleteTorneo, updateTorneo,
+  getEquipos, getCategorias, toggleInscripciones, toggleEliminacionDelegados, deleteTorneo, updateTorneo,
   getJugadoresEquipoTorneo,
 } from '@/lib/api'
-import type { Torneo, Inscripcion, Equipo, Categoria, InscribirEquipoDTO, JugadorEquipoTorneo, CreateTorneoDTO } from '@/types/club'
+import type { Torneo, Inscripcion, Equipo, Categoria, JugadorEquipoTorneo, CreateTorneoDTO } from '@/types/club'
 import NotificationModal from '@/components/ui/NotificationModal'
 import DatePicker from '@/components/ui/DatePicker'
 
@@ -58,6 +58,7 @@ export default function TorneoDetailPage({ basePath }: Props) {
   const [categorias, setCategorias] = useState<Categoria[]>([])
   const [loading, setLoading] = useState(true)
   const [togglingInscripciones, setTogglingInscripciones] = useState(false)
+  const [togglingEliminacion, setTogglingEliminacion] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   // Modals
@@ -66,6 +67,8 @@ export default function TorneoDetailPage({ basePath }: Props) {
   const [showConfirmEliminarTorneo, setShowConfirmEliminarTorneo] = useState(false)
   const [showModalEditar, setShowModalEditar] = useState(false)
   const [pdfMenuOpen, setPdfMenuOpen] = useState(false)
+  const [showModalSeleccionarEquipos, setShowModalSeleccionarEquipos] = useState(false)
+  const [equiposSeleccionadosPDF, setEquiposSeleccionadosPDF] = useState<Set<string>>(new Set())
 
   // Delete
   const [deletePassword, setDeletePassword] = useState('')
@@ -166,6 +169,19 @@ export default function TorneoDetailPage({ basePath }: Props) {
       setNotification({ open: true, title: 'Error', message: error instanceof Error ? error.message : 'Error al cambiar inscripciones', type: 'error' })
     } finally {
       setTogglingInscripciones(false)
+    }
+  }
+
+  const handleToggleEliminacionDelegados = async () => {
+    if (!torneo) return
+    try {
+      setTogglingEliminacion(true)
+      const updated = await toggleEliminacionDelegados(torneo.id, !torneo.delegados_pueden_eliminar)
+      setTorneo(updated)
+    } catch (error) {
+      setNotification({ open: true, title: 'Error', message: error instanceof Error ? error.message : 'Error al cambiar configuración', type: 'error' })
+    } finally {
+      setTogglingEliminacion(false)
     }
   }
 
@@ -446,12 +462,6 @@ export default function TorneoDetailPage({ basePath }: Props) {
     }
   }
 
-  const handleDescargarCategoria = () => {
-    if (categoriaTab === 'todos') return
-    const cat = categoriasDelTorneo.find(c => c.id === categoriaTab)
-    const insc = inscripciones.filter(i => i.categoria_id === categoriaTab)
-    generarPDF(insc, `${cat?.nombre || 'categoria'}-planilla.pdf`)
-  }
 
   const handleDescargarTodo = () => {
     generarPDF(inscripciones, `${torneo?.nombre || 'torneo'}-planilla-completa.pdf`)
@@ -507,16 +517,17 @@ export default function TorneoDetailPage({ basePath }: Props) {
                       <span className="material-symbols-outlined text-base text-primary">picture_as_pdf</span>
                       Todos los equipos
                     </button>
-                    {categoriasDelTorneo.map(cat => (
-                      <button
-                        key={cat.id}
-                        onClick={() => { setPdfMenuOpen(false); generarPDF(inscripciones.filter(i => i.categoria_id === cat.id), `${cat.nombre}-planilla.pdf`) }}
-                        className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                      >
-                        <span className="material-symbols-outlined text-base text-primary">filter_list</span>
-                        {cat.nombre}
-                      </button>
-                    ))}
+                    <button
+                      onClick={() => {
+                        setPdfMenuOpen(false)
+                        setEquiposSeleccionadosPDF(new Set(inscripciones.map(i => i.id)))
+                        setShowModalSeleccionarEquipos(true)
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-base text-primary">checklist</span>
+                      Seleccionar equipos
+                    </button>
                   </div>
                 )}
               </div>
@@ -561,8 +572,9 @@ export default function TorneoDetailPage({ basePath }: Props) {
         </p>
       </div>
 
-      {/* ── Toggle inscripciones ── */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+      {/* ── Toggles ── */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-4">
+        {/* Toggle inscripciones */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${inscripcionesAbiertas ? 'bg-green-100 dark:bg-green-500/20' : 'bg-slate-100 dark:bg-slate-700'}`}>
@@ -586,6 +598,37 @@ export default function TorneoDetailPage({ basePath }: Props) {
           >
             <span className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform ${
               inscripcionesAbiertas ? 'left-7' : 'left-1'
+            }`} />
+          </button>
+        </div>
+
+        {/* Divisor */}
+        <div className="border-t border-slate-100 dark:border-slate-700" />
+
+        {/* Toggle eliminación por delegados */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${torneo.delegados_pueden_eliminar ? 'bg-amber-100 dark:bg-amber-500/20' : 'bg-slate-100 dark:bg-slate-700'}`}>
+              <span className={`material-symbols-outlined text-xl ${torneo.delegados_pueden_eliminar ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'}`}>
+                person_remove
+              </span>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-slate-900 dark:text-white">Delegados pueden eliminar</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {torneo.delegados_pueden_eliminar ? 'Los delegados pueden quitar jugadores' : 'Solo el club puede quitar jugadores'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleToggleEliminacionDelegados}
+            disabled={togglingEliminacion}
+            className={`relative w-14 h-8 rounded-full transition-colors disabled:opacity-50 ${
+              torneo.delegados_pueden_eliminar ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-600'
+            }`}
+          >
+            <span className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform ${
+              torneo.delegados_pueden_eliminar ? 'left-7' : 'left-1'
             }`} />
           </button>
         </div>
@@ -725,8 +768,12 @@ export default function TorneoDetailPage({ basePath }: Props) {
                   href={`${basePath}/${torneoId}/equipo/${inscripcion.equipo_id}`}
                   className="flex items-center gap-3 px-4 py-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700"
                 >
-                  <div className="w-10 h-10 shrink-0 rounded-lg bg-white dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700">
-                    <span className="material-symbols-outlined text-xl text-primary">shield</span>
+                  <div className="w-10 h-10 shrink-0 rounded-lg bg-white dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700 overflow-hidden">
+                    {inscripcion.equipo_logo_url ? (
+                      <img src={inscripcion.equipo_logo_url} alt={inscripcion.equipo_nombre} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="material-symbols-outlined text-xl text-primary">shield</span>
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{inscripcion.equipo_nombre}</h4>
@@ -1000,6 +1047,144 @@ export default function TorneoDetailPage({ basePath }: Props) {
         message={notification.message}
         type={notification.type}
       />
+
+      {/* Modal seleccionar equipos para PDF */}
+      {showModalSeleccionarEquipos && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          onClick={() => setShowModalSeleccionarEquipos(false)}
+        >
+          <div
+            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl w-full max-w-md flex flex-col max-h-[80vh]"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-700 shrink-0">
+              <div>
+                <h3 className="text-base font-semibold text-slate-900 dark:text-white">Seleccionar equipos</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  {equiposSeleccionadosPDF.size} de {inscripciones.length} seleccionados
+                </p>
+              </div>
+              <button
+                onClick={() => setShowModalSeleccionarEquipos(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              >
+                <span className="material-symbols-outlined text-xl">close</span>
+              </button>
+            </div>
+
+            {/* Controles seleccionar/deseleccionar */}
+            <div className="flex items-center gap-2 px-5 py-2.5 border-b border-slate-100 dark:border-slate-700 shrink-0">
+              <button
+                onClick={() => setEquiposSeleccionadosPDF(new Set(inscripciones.map(i => i.id)))}
+                className="text-xs text-primary hover:underline"
+              >
+                Seleccionar todos
+              </button>
+              <span className="text-slate-300 dark:text-slate-600">·</span>
+              <button
+                onClick={() => setEquiposSeleccionadosPDF(new Set())}
+                className="text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:underline"
+              >
+                Deseleccionar todos
+              </button>
+            </div>
+
+            {/* Lista de equipos */}
+            <div className="overflow-y-auto flex-1 px-3 py-2">
+              {categoriasDelTorneo.map(cat => {
+                const insc = inscripciones.filter(i => i.categoria_id === cat.id)
+                if (insc.length === 0) return null
+                return (
+                  <div key={cat.id} className="mb-3">
+                    <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider px-2 mb-1">{cat.nombre}</p>
+                    {insc.map(i => (
+                      <label
+                        key={i.id}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={equiposSeleccionadosPDF.has(i.id)}
+                          onChange={e => {
+                            setEquiposSeleccionadosPDF(prev => {
+                              const next = new Set(prev)
+                              if (e.target.checked) next.add(i.id)
+                              else next.delete(i.id)
+                              return next
+                            })
+                          }}
+                          className="w-4 h-4 rounded accent-primary shrink-0"
+                        />
+                        <div className="w-8 h-8 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center overflow-hidden border border-primary/20">
+                          {i.equipo_logo_url ? (
+                            <img src={i.equipo_logo_url} alt={i.equipo_nombre} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="material-symbols-outlined text-base text-primary">shield</span>
+                          )}
+                        </div>
+                        <span className="text-sm text-slate-800 dark:text-slate-200 font-medium">{i.equipo_nombre}</span>
+                      </label>
+                    ))}
+                  </div>
+                )
+              })}
+              {/* Equipos sin categoría agrupada (fallback) */}
+              {categoriasDelTorneo.length === 0 && inscripciones.map(i => (
+                <label
+                  key={i.id}
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={equiposSeleccionadosPDF.has(i.id)}
+                    onChange={e => {
+                      setEquiposSeleccionadosPDF(prev => {
+                        const next = new Set(prev)
+                        if (e.target.checked) next.add(i.id)
+                        else next.delete(i.id)
+                        return next
+                      })
+                    }}
+                    className="w-4 h-4 rounded accent-primary shrink-0"
+                  />
+                  <div className="w-8 h-8 shrink-0 rounded-lg bg-primary/10 flex items-center justify-center overflow-hidden border border-primary/20">
+                    {i.equipo_logo_url ? (
+                      <img src={i.equipo_logo_url} alt={i.equipo_nombre} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="material-symbols-outlined text-base text-primary">shield</span>
+                    )}
+                  </div>
+                  <span className="text-sm text-slate-800 dark:text-slate-200 font-medium">{i.equipo_nombre}</span>
+                </label>
+              ))}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-4 border-t border-slate-200 dark:border-slate-700 shrink-0 flex gap-3">
+              <button
+                onClick={() => setShowModalSeleccionarEquipos(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                disabled={equiposSeleccionadosPDF.size === 0 || generandoPDF || cargandoJugadoresPDF}
+                onClick={() => {
+                  const seleccionadas = inscripciones.filter(i => equiposSeleccionadosPDF.has(i.id))
+                  setShowModalSeleccionarEquipos(false)
+                  generarPDF(seleccionadas, `${torneo?.nombre || 'torneo'}-seleccion.pdf`)
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-base">picture_as_pdf</span>
+                Descargar ({equiposSeleccionadosPDF.size})
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -339,6 +339,14 @@ export async function toggleInscripciones(torneoId: string, abiertas: boolean): 
   return res.data
 }
 
+export async function toggleEliminacionDelegados(torneoId: string, permitido: boolean): Promise<Torneo> {
+  const res = await apiFetch(`/clubes/torneos/${torneoId}/eliminacion-delegados`, {
+    method: 'PATCH',
+    body: JSON.stringify({ delegados_pueden_eliminar: permitido }),
+  })
+  return res.data
+}
+
 export async function getTorneos(): Promise<Torneo[]> {
   const res = await apiFetch('/clubes/torneos')
   return res.data
@@ -530,6 +538,7 @@ export interface JugadorTorneo {
   inscripcion_inicio?: string | null
   inscripcion_fin?: string | null
   inscripciones_abiertas: boolean
+  delegados_pueden_eliminar: boolean
   max_jugadores_por_equipo: number
   club_id: string
   created_at: string

@@ -38,6 +38,7 @@ export interface Torneo {
   inscripcion_inicio?: string | null
   inscripcion_fin?: string | null
   inscripciones_abiertas: boolean
+  delegados_pueden_eliminar: boolean
   max_jugadores_por_equipo: number
   club_id: string
   categorias?: Categoria[]
@@ -83,6 +84,7 @@ export interface Inscripcion {
   torneo_nombre: string
   equipo_id: string
   equipo_nombre: string
+  equipo_logo_url?: string | null
   categoria_id: string
   categoria_nombre: string
   created_at: string

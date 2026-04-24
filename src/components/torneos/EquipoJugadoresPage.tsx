@@ -363,8 +363,12 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
         </button>
 
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 shrink-0 rounded-xl bg-primary/10 flex items-center justify-center">
-            <span className="material-symbols-outlined text-2xl text-primary">shield</span>
+          <div className="w-14 h-14 shrink-0 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden border border-primary/20">
+            {inscripcion?.equipo_logo_url ? (
+              <img src={inscripcion.equipo_logo_url} alt={inscripcion.equipo_nombre} className="w-full h-full object-cover" />
+            ) : (
+              <span className="material-symbols-outlined text-3xl text-primary">shield</span>
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
