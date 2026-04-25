@@ -32,8 +32,8 @@ export default function ClubJugadoresPage() {
   const loadJugadores = async () => {
     try {
       setLoading(true)
-      const data = await getJugadores()
-      setJugadores(data)
+      const response = await getJugadores()
+      setJugadores(response.data)
     } catch (error) {
       setNotification({
         open: true,
