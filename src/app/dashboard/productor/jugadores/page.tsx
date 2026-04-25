@@ -1,13 +1,16 @@
 'use client'
 
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/authStore'
 import NotificationModal from '@/components/ui/NotificationModal'
 import DatePicker from '@/components/ui/DatePicker'
 import BulkImportWizard from '@/components/bulk-import/BulkImportWizard'
 import TournamentImportWizard from '@/components/bulk-import/TournamentImportWizard'
-import { getJugadoresProductor, getPolizaActiva, createPoliza, uploadPoliza, toggleJugadorPagado, verifyPassword, type JugadorResponse, type PolizaGeneral } from '@/lib/api'
+import { getJugadoresProductor, getEquipos, getPolizaActiva, createPoliza, uploadPoliza, toggleJugadorPagado, deleteJugador, verifyPassword, type JugadorResponse, type PolizaGeneral } from '@/lib/api'
+import { type Equipo } from '@/types/club'
+
+const PAGE_SIZE = 50
 
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return '-'
@@ -20,12 +23,19 @@ export default function ProductorJugadoresPage() {
   useAuthStore()
 
   const [jugadores, setJugadores] = useState<JugadorResponse[]>([])
+  const [equipos, setEquipos] = useState<Equipo[]>([])
   const [polizaActiva, setPolizaActiva] = useState<PolizaGeneral | null>(null)
   const [loading, setLoading] = useState(true)
   const [filtroEstado, setFiltroEstado] = useState<'' | 'pagado' | 'no_pagado'>('')
+  const [filtroEquipos, setFiltroEquipos] = useState<string[]>([])
+  const [equipoDropdownOpen, setEquipoDropdownOpen] = useState(false)
+  const equipoDropdownRef = useRef<HTMLDivElement>(null)
   const [busqueda, setBusqueda] = useState('')
+  const [busquedaDebounced, setBusquedaDebounced] = useState('')
   const [page, setPage] = useState(1)
-  const PAGE_SIZE = 50
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const [stats, setStats] = useState({ total: 0, pagados: 0, noPagados: 0 })
 
   // Three-dot menu
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
@@ -45,8 +55,8 @@ export default function ProductorJugadoresPage() {
   const [polizaFile, setPolizaFile] = useState<File | null>(null)
   const [polizaCreating, setPolizaCreating] = useState(false)
 
-  // Modal de confirmación de pagado=false
-  const [unpaidModal, setUnpaidModal] = useState<{ open: boolean; jugador: JugadorResponse | null }>({ open: false, jugador: null })
+  // Modal de confirmación de cambio de pagado (ambas direcciones)
+  const [unpaidModal, setUnpaidModal] = useState<{ open: boolean; jugador: JugadorResponse | null; targetPagado: boolean }>({ open: false, jugador: null, targetPagado: false })
   const [unpaidPassword, setUnpaidPassword] = useState('')
   const [unpaidError, setUnpaidError] = useState('')
 
@@ -61,21 +71,44 @@ export default function ProductorJugadoresPage() {
   const [showBulkImport, setShowBulkImport] = useState(false)
   const [showTournamentImport, setShowTournamentImport] = useState(false)
 
-  // Fetch jugadores and poliza from API
-  const fetchData = useCallback(async () => {
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Debounce search
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      setBusquedaDebounced(busqueda)
+      setPage(1)
+    }, 350)
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [busqueda])
+
+  // Reset page when filters change
+  useEffect(() => { setPage(1) }, [filtroEstado, filtroEquipos])
+
+  // Fetch jugadores paginated
+  const fetchJugadores = useCallback(async (currentPage: number, search: string, estado: string, equipoIdsFiltro: string[]) => {
     try {
       setLoading(true)
-      const [jugadoresData, polizaData] = await Promise.all([
-        getJugadoresProductor(),
-        getPolizaActiva(),
-      ])
-      setJugadores(jugadoresData)
-      setPolizaActiva(polizaData)
+      const params: Parameters<typeof getJugadoresProductor>[0] = {
+        page: currentPage,
+        limit: PAGE_SIZE,
+      }
+      if (search) params.search = search
+      if (estado === 'pagado') params.pagado = true
+      if (estado === 'no_pagado') params.pagado = false
+      if (equipoIdsFiltro.length > 0) params.equipoIds = equipoIdsFiltro
+
+      const res = await getJugadoresProductor(params)
+      setJugadores(res.data)
+      setTotal(res.total)
+      setTotalPages(res.totalPages)
+      setStats(res.stats)
     } catch (err: any) {
       setNotification({
         open: true,
         title: 'Error',
-        message: err.message || 'Error al cargar datos',
+        message: err.message || 'Error al cargar jugadores',
         type: 'error'
       })
     } finally {
@@ -83,9 +116,41 @@ export default function ProductorJugadoresPage() {
     }
   }, [])
 
+  // Fetch poliza once on mount
+  const fetchPoliza = useCallback(async () => {
+    try {
+      const polizaData = await getPolizaActiva()
+      setPolizaActiva(polizaData)
+    } catch {
+      // non-critical
+    }
+  }, [])
+
   useEffect(() => {
-    fetchData()
-  }, [fetchData])
+    fetchPoliza()
+  }, [fetchPoliza])
+
+  // Load equipos on mount
+  useEffect(() => {
+    getEquipos().then(setEquipos).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    fetchJugadores(page, busquedaDebounced, filtroEstado, filtroEquipos)
+  }, [page, busquedaDebounced, filtroEstado, filtroEquipos, fetchJugadores])
+
+  // Close equipo dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (equipoDropdownRef.current && !equipoDropdownRef.current.contains(e.target as Node)) {
+        setEquipoDropdownOpen(false)
+      }
+    }
+    if (equipoDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [equipoDropdownOpen])
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -101,33 +166,6 @@ export default function ProductorJugadoresPage() {
     }
   }, [openMenuId])
 
-  // Stats
-  const stats = useMemo(() => {
-    const total = jugadores.length
-    const pagados = jugadores.filter(j => j.pagado).length
-    const noPagados = total - pagados
-    return { total, pagados, noPagados }
-  }, [jugadores])
-
-  const jugadoresFiltrados = useMemo(() => {
-    return jugadores.filter(j => {
-      const search = busqueda.toLowerCase()
-      const nombreCompleto = `${j.apellido} ${j.nombre}`.toLowerCase()
-      const matchBusqueda = !busqueda || nombreCompleto.includes(search) || j.dni.includes(search)
-      const matchEstado = !filtroEstado || (filtroEstado === 'pagado' && j.pagado) || (filtroEstado === 'no_pagado' && !j.pagado)
-      return matchBusqueda && matchEstado
-    })
-  }, [jugadores, filtroEstado, busqueda])
-
-  // Reset page when filters/search change
-  useEffect(() => { setPage(1) }, [busqueda, filtroEstado])
-
-  const totalPages = Math.max(1, Math.ceil(jugadoresFiltrados.length / PAGE_SIZE))
-  const jugadoresPaginados = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE
-    return jugadoresFiltrados.slice(start, start + PAGE_SIZE)
-  }, [jugadoresFiltrados, page])
-
   // Card click filter
   const handleCardClick = (tipo: '' | 'pagado' | 'no_pagado') => {
     setFiltroEstado(prev => prev === tipo ? '' : tipo)
@@ -137,7 +175,7 @@ export default function ProductorJugadoresPage() {
   const handleDownloadExcel = () => {
     const BOM = '\uFEFF'
     const headers = ['Nombre', 'DNI', 'Fecha Nacimiento', 'Pagado', 'Estado']
-    const rows = jugadoresFiltrados.map(j => {
+    const rows = jugadores.map(j => {
       return [
         `${j.apellido} ${j.nombre}`.toUpperCase(),
         j.dni,
@@ -156,25 +194,11 @@ export default function ProductorJugadoresPage() {
     URL.revokeObjectURL(url)
   }
 
-  // Toggle pagado
-  const handleTogglePagado = async (jugador: JugadorResponse) => {
-    if (!jugador.pagado) {
-      // Marcar como pagado: directo, sin contraseña
-      try {
-        setTogglingPagado(jugador.id)
-        await toggleJugadorPagado(jugador.id, true)
-        setJugadores(prev => prev.map(j => j.id === jugador.id ? { ...j, pagado: true } : j))
-      } catch (err: any) {
-        setNotification({ open: true, title: 'Error', message: err.message || 'Error al actualizar estado', type: 'error' })
-      } finally {
-        setTogglingPagado(null)
-      }
-    } else {
-      // Marcar como no pagado: pedir contraseña
-      setUnpaidModal({ open: true, jugador })
-      setUnpaidPassword('')
-      setUnpaidError('')
-    }
+  // Toggle pagado — siempre pide contraseña
+  const handleTogglePagado = (jugador: JugadorResponse) => {
+    setUnpaidModal({ open: true, jugador, targetPagado: !jugador.pagado })
+    setUnpaidPassword('')
+    setUnpaidError('')
   }
 
   const handleUnpaidConfirm = async () => {
@@ -183,20 +207,24 @@ export default function ProductorJugadoresPage() {
       setUnpaidError('Ingresa tu contraseña')
       return
     }
+    const { jugador, targetPagado } = unpaidModal
     try {
-      setTogglingPagado(unpaidModal.jugador.id)
-      // Verificar contraseña
+      setTogglingPagado(jugador.id)
       await verifyPassword(unpaidPassword)
-      // Si el login fue exitoso, cambiar el estado
-      await toggleJugadorPagado(unpaidModal.jugador.id, false)
-      setJugadores(prev => prev.map(j => j.id === unpaidModal.jugador!.id ? { ...j, pagado: false } : j))
-      setUnpaidModal({ open: false, jugador: null })
+      await toggleJugadorPagado(jugador.id, targetPagado)
+      setJugadores(prev => prev.map(j => j.id === jugador.id ? { ...j, pagado: targetPagado } : j))
+      setStats(prev => ({
+        ...prev,
+        pagados: prev.pagados + (targetPagado ? 1 : -1),
+        noPagados: prev.noPagados + (targetPagado ? -1 : 1),
+      }))
+      setUnpaidModal({ open: false, jugador: null, targetPagado: false })
     } catch (err: any) {
       if (err.message?.includes('Contraseña') || err.message?.includes('contraseña') || err.message?.includes('Credenciales') || err.message?.includes('credenciales') || err.message?.includes('Unauthorized')) {
         setUnpaidError('Contraseña incorrecta')
       } else {
         setNotification({ open: true, title: 'Error', message: err.message || 'Error al actualizar estado', type: 'error' })
-        setUnpaidModal({ open: false, jugador: null })
+        setUnpaidModal({ open: false, jugador: null, targetPagado: false })
       }
     } finally {
       setTogglingPagado(null)
@@ -212,14 +240,26 @@ export default function ProductorJugadoresPage() {
     setDeleteError('')
   }
 
-  const handleDeleteConfirm = () => {
-    if (deletePassword !== 'test') {
-      setDeleteError('Contraseña incorrecta')
+  const [deletingJugador, setDeletingJugador] = useState(false)
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteModal.jugador) return
+    if (!deletePassword) {
+      setDeleteError('Ingresá tu contraseña')
       return
     }
-    if (deleteModal.jugador) {
+    try {
+      setDeletingJugador(true)
+      await verifyPassword(deletePassword)
+      await deleteJugador(deleteModal.jugador.id)
       const nombre = `${deleteModal.jugador.apellido} ${deleteModal.jugador.nombre}`
       setJugadores(prev => prev.filter(j => j.id !== deleteModal.jugador!.id))
+      setStats(prev => ({
+        total: prev.total - 1,
+        pagados: deleteModal.jugador!.pagado ? prev.pagados - 1 : prev.pagados,
+        noPagados: deleteModal.jugador!.pagado ? prev.noPagados : prev.noPagados - 1,
+      }))
+      setTotal(prev => prev - 1)
       setDeleteModal({ open: false, jugador: null })
       setNotification({
         open: true,
@@ -227,6 +267,15 @@ export default function ProductorJugadoresPage() {
         message: `${nombre} fue eliminado correctamente.`,
         type: 'success'
       })
+    } catch (err: any) {
+      if (err.message?.includes('Contraseña') || err.message?.includes('contraseña') || err.message?.includes('Credenciales') || err.message?.includes('credenciales') || err.message?.includes('Unauthorized')) {
+        setDeleteError('Contraseña incorrecta')
+      } else {
+        setNotification({ open: true, title: 'Error', message: err.message || 'Error al eliminar jugador', type: 'error' })
+        setDeleteModal({ open: false, jugador: null })
+      }
+    } finally {
+      setDeletingJugador(false)
     }
   }
 
@@ -247,13 +296,13 @@ export default function ProductorJugadoresPage() {
         observaciones: polizaObservaciones || undefined,
       })
 
-      // Si hay archivo, subirlo
       if (polizaFile && newPoliza.id) {
         await uploadPoliza(newPoliza.id, polizaFile)
       }
 
-      // Recargar datos (pagado se reseteo para todos)
-      await fetchData()
+      await fetchPoliza()
+      await fetchJugadores(1, busquedaDebounced, filtroEstado, filtroEquipos)
+      setPage(1)
       setPolizaModal(false)
       setPolizaInicio('')
       setPolizaFin('')
@@ -348,7 +397,6 @@ export default function ProductorJugadoresPage() {
       </div>
 
       {/* Summary Cards - Mobile: compact row / Desktop: full cards */}
-      {/* Mobile compact stats */}
       <div className="grid grid-cols-3 gap-2 md:hidden">
         <button
           onClick={() => handleCardClick('')}
@@ -379,7 +427,6 @@ export default function ProductorJugadoresPage() {
         </button>
       </div>
 
-      {/* Desktop full cards */}
       <div className="hidden md:grid grid-cols-3 gap-6">
         {/* Total */}
         <button
@@ -458,142 +505,223 @@ export default function ProductorJugadoresPage() {
         </button>
       </div>
 
-      {/* Search bar */}
-      <div className="relative group max-w-md">
-        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 group-focus-within:text-primary transition-colors">search</span>
-        <input
-          type="text"
-          placeholder="Buscar jugador por nombre o DNI..."
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          className="w-full bg-slate-100 dark:bg-slate-800/50 border-none rounded-xl py-2.5 pl-11 pr-4 text-sm focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-slate-500 dark:placeholder:text-slate-500"
-        />
+      {/* Search bar + Equipo filter */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative group max-w-md flex-1 min-w-[200px]">
+          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 group-focus-within:text-primary transition-colors">search</span>
+          <input
+            type="text"
+            placeholder="Buscar jugador por nombre o DNI..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            className="w-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 pl-11 pr-4 text-sm focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all placeholder:text-slate-500 dark:placeholder:text-slate-500"
+          />
+        </div>
+
+        {/* Equipo multi-select dropdown */}
+        <div className="relative shrink-0" ref={equipoDropdownRef}>
+          <button
+            onClick={() => setEquipoDropdownOpen(prev => !prev)}
+            className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm font-bold border transition-all
+              ${filtroEquipos.length > 0
+                ? 'border-primary/50 bg-primary/10 text-primary'
+                : 'border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+              }`}
+          >
+            <span className="material-symbols-outlined text-[18px]">filter_list</span>
+            <span>Equipo{filtroEquipos.length > 0 ? ` (${filtroEquipos.length})` : ''}</span>
+            <span className="material-symbols-outlined text-[16px] ml-0.5">{equipoDropdownOpen ? 'keyboard_arrow_up' : 'keyboard_arrow_down'}</span>
+          </button>
+
+          {equipoDropdownOpen && (
+            <div className="absolute right-0 top-full mt-1.5 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl shadow-black/10 dark:shadow-black/30 z-50 py-1.5 overflow-hidden">
+              {equipos.length === 0 ? (
+                <p className="px-4 py-3 text-xs text-slate-400 dark:text-slate-500">No hay equipos disponibles</p>
+              ) : (
+                <>
+                  {filtroEquipos.length > 0 && (
+                    <button
+                      onClick={() => { setFiltroEquipos([]); setEquipoDropdownOpen(false) }}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-xs font-bold text-primary hover:bg-primary/5 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-sm">close</span>
+                      Limpiar filtro
+                    </button>
+                  )}
+                  <div className="max-h-56 overflow-y-auto">
+                    {equipos.map(eq => {
+                      const checked = filtroEquipos.includes(eq.id)
+                      return (
+                        <button
+                          key={eq.id}
+                          onClick={() => {
+                            setFiltroEquipos(prev =>
+                              checked ? prev.filter(id => id !== eq.id) : [...prev, eq.id]
+                            )
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                        >
+                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
+                            checked
+                              ? 'bg-primary border-primary'
+                              : 'border-slate-300 dark:border-slate-600'
+                          }`}>
+                            {checked && <span className="material-symbols-outlined text-white text-[11px] leading-none">check</span>}
+                          </div>
+                          <span className="font-medium text-slate-700 dark:text-slate-200 truncate">
+                            {eq.nombre}
+                            {eq.categorias && eq.categorias.length > 0 && (
+                              <span className="ml-1 text-xs text-slate-400 dark:text-slate-500">· {eq.categorias.map(c => c.nombre).join(', ')}</span>
+                            )}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Table */}
       <div className="bg-white/80 dark:bg-white/[0.03] backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-2xl overflow-hidden shadow-2xl shadow-black/5 dark:shadow-black/20">
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="flex items-center gap-3 text-slate-400">
-              <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              <span className="text-sm font-medium">Cargando jugadores...</span>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto table-scroll">
-              <table className="w-full text-left border-collapse min-w-[700px]">
-                <thead>
-                  <tr className="bg-slate-100/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
-                    <th className="px-6 py-4 sm:py-5 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Nombre</th>
-                    <th className="px-6 py-4 sm:py-5 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">DNI</th>
-                    <th className="px-6 py-4 sm:py-5 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Nacimiento</th>
-                    <th className="px-6 py-4 sm:py-5 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 text-center">Pagado</th>
-                    <th className="px-6 py-4 sm:py-5 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400"></th>
+        <div className="overflow-x-auto table-scroll">
+          <table className="w-full text-left border-collapse min-w-[700px]">
+            <thead>
+              <tr className="bg-slate-100/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                <th className="px-6 py-4 sm:py-5 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Nombre</th>
+                <th className="px-6 py-4 sm:py-5 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">DNI</th>
+                <th className="px-6 py-4 sm:py-5 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Nacimiento</th>
+                <th className="px-6 py-4 sm:py-5 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 hidden xl:table-cell">Equipos</th>
+                <th className="px-6 py-4 sm:py-5 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 text-center">Pagado</th>
+                <th className="px-6 py-4 sm:py-5 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+              {loading ? (
+                Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-6 py-4"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded animate-pulse w-40" /></td>
+                    <td className="px-6 py-4"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded animate-pulse w-20" /></td>
+                    <td className="px-6 py-4"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded animate-pulse w-24" /></td>
+                    <td className="px-6 py-4 hidden xl:table-cell"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded animate-pulse w-32" /></td>
+                    <td className="px-6 py-4"><div className="h-5 w-11 bg-slate-200 dark:bg-slate-700 rounded-full animate-pulse mx-auto" /></td>
+                    <td className="px-6 py-4"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded animate-pulse w-4 ml-auto" /></td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                  {jugadoresPaginados.map((jugador) => {
-                    const nombreCompleto = `${jugador.apellido} ${jugador.nombre}`.toUpperCase()
-                    const isToggling = togglingPagado === jugador.id
-                    return (
-                      <tr key={jugador.id} className="hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors group">
-                        <td className="px-6 py-4">
-                          <span className="text-sm font-bold text-slate-900 dark:text-slate-100 uppercase whitespace-nowrap">{nombreCompleto}</span>
-                        </td>
-                        <td className="px-6 py-4 text-sm font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">{jugador.dni}</td>
-                        <td className="px-6 py-4 text-sm font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                          {formatDate(jugador.fecha_nacimiento)}
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <button
-                            onClick={() => handleTogglePagado(jugador)}
-                            disabled={isToggling}
-                            className="inline-flex items-center justify-center"
-                          >
-                            {isToggling ? (
-                              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              <div className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${
-                                jugador.pagado ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'
-                              }`}>
-                                <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-transform ${
-                                  jugador.pagado ? 'translate-x-[22px]' : 'translate-x-0.5'
-                                }`} />
-                              </div>
-                            )}
-                          </button>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <button
-                            onClick={(e) => {
-                              if (openMenuId === jugador.id) {
-                                setOpenMenuId(null)
-                                setMenuPos(null)
-                              } else {
-                                const rect = e.currentTarget.getBoundingClientRect()
-                                setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
-                                setOpenMenuId(jugador.id)
-                              }
-                            }}
-                            className="material-symbols-outlined text-slate-400 hover:text-primary transition-colors"
-                          >
-                            more_vert
-                          </button>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                  {jugadoresFiltrados.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-16 text-center text-slate-400 dark:text-slate-500">
-                        <span className="material-symbols-outlined text-4xl mb-2 block opacity-40">search_off</span>
-                        <p className="text-sm font-medium">No se encontraron jugadores</p>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                ))
+              ) : jugadores.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-16 text-center text-slate-400 dark:text-slate-500">
+                    <span className="material-symbols-outlined text-4xl mb-2 block opacity-40">search_off</span>
+                    <p className="text-sm font-medium">No se encontraron jugadores</p>
+                  </td>
+                </tr>
+              ) : jugadores.map((jugador) => {
+                const nombreCompleto = `${jugador.apellido} ${jugador.nombre}`.toUpperCase()
+                const isToggling = togglingPagado === jugador.id
+                return (
+                  <tr key={jugador.id} className="hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors group">
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-bold text-slate-900 dark:text-slate-100 uppercase whitespace-nowrap">{nombreCompleto}</span>
+                    </td>
+                    <td className="px-6 py-4 text-sm font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">{jugador.dni}</td>
+                    <td className="px-6 py-4 text-sm font-medium text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                      {formatDate(jugador.fecha_nacimiento)}
+                    </td>
+                    <td className="px-6 py-4 hidden xl:table-cell">
+                      {jugador.equipos_torneo && jugador.equipos_torneo.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {jugador.equipos_torneo.map((eq, i) => (
+                            <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">
+                              {eq.equipo_nombre}
+                              {eq.categoria_nombre && (
+                                <span className="text-primary/60">· {eq.categoria_nombre}</span>
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 dark:text-slate-600 text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <button
+                        onClick={() => handleTogglePagado(jugador)}
+                        disabled={isToggling}
+                        className="inline-flex items-center justify-center"
+                      >
+                        {isToggling ? (
+                          <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <div className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${
+                            jugador.pagado ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-600'
+                          }`}>
+                            <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-transform ${
+                              jugador.pagado ? 'translate-x-[22px]' : 'translate-x-0.5'
+                            }`} />
+                          </div>
+                        )}
+                      </button>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={(e) => {
+                          if (openMenuId === jugador.id) {
+                            setOpenMenuId(null)
+                            setMenuPos(null)
+                          } else {
+                            const rect = e.currentTarget.getBoundingClientRect()
+                            setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+                            setOpenMenuId(jugador.id)
+                          }
+                        }}
+                        className="material-symbols-outlined text-slate-400 hover:text-primary transition-colors"
+                      >
+                        more_vert
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        {/* Pagination Footer */}
+        <div className="px-4 sm:px-6 py-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400 shrink-0">
+            {total > PAGE_SIZE
+              ? `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, total)} de ${total}`
+              : `${total} jugadores`}
+            {filtroEstado && (
+              <button onClick={() => setFiltroEstado('')} className="ml-2 text-primary hover:underline">
+                Limpiar filtro
+              </button>
+            )}
+          </p>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1 || loading}
+                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              >
+                <span className="material-symbols-outlined text-lg text-slate-600 dark:text-slate-300">chevron_left</span>
+              </button>
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300 min-w-[4rem] text-center">
+                {page} / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages || loading}
+                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+              >
+                <span className="material-symbols-outlined text-lg text-slate-600 dark:text-slate-300">chevron_right</span>
+              </button>
             </div>
-            {/* Pagination Footer */}
-            <div className="px-4 sm:px-6 py-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
-              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 shrink-0">
-                {jugadoresFiltrados.length > PAGE_SIZE
-                  ? `${(page - 1) * PAGE_SIZE + 1}-${Math.min(page * PAGE_SIZE, jugadoresFiltrados.length)} de ${jugadoresFiltrados.length}`
-                  : `${jugadoresFiltrados.length} jugadores`}
-                {filtroEstado && (
-                  <button onClick={() => setFiltroEstado('')} className="ml-2 text-primary hover:underline">
-                    Limpiar filtro
-                  </button>
-                )}
-              </p>
-              {totalPages > 1 && (
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-lg text-slate-600 dark:text-slate-300">chevron_left</span>
-                  </button>
-                  <span className="text-xs font-bold text-slate-600 dark:text-slate-300 min-w-[4rem] text-center">
-                    {page} / {totalPages}
-                  </span>
-                  <button
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                    className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
-                  >
-                    <span className="material-symbols-outlined text-lg text-slate-600 dark:text-slate-300">chevron_right</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          </>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Modal de Eliminación con Contraseña */}
@@ -633,27 +761,32 @@ export default function ProductorJugadoresPage() {
               </button>
               <button
                 onClick={handleDeleteConfirm}
-                className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-rose-500/20"
+                disabled={deletingJugador}
+                className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-rose-500/20"
               >
-                Eliminar
+                {deletingJugador ? 'Verificando...' : 'Eliminar'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal de Confirmación para marcar como No Pagado */}
+      {/* Modal de Confirmación para cambiar estado de pago */}
       {unpaidModal.open && unpaidModal.jugador && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setUnpaidModal({ open: false, jugador: null })}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setUnpaidModal({ open: false, jugador: null, targetPagado: false })}>
           <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-center mb-4">
-              <div className="bg-amber-500/10 p-3 rounded-full">
-                <span className="material-symbols-outlined text-amber-500 text-2xl">warning</span>
+              <div className={`${unpaidModal.targetPagado ? 'bg-emerald-500/10' : 'bg-amber-500/10'} p-3 rounded-full`}>
+                <span className={`material-symbols-outlined text-2xl ${unpaidModal.targetPagado ? 'text-emerald-500' : 'text-amber-500'}`}>
+                  {unpaidModal.targetPagado ? 'check_circle' : 'warning'}
+                </span>
               </div>
             </div>
-            <h3 className="text-slate-900 dark:text-white text-lg font-bold text-center mb-2">Marcar como no pagado</h3>
+            <h3 className="text-slate-900 dark:text-white text-lg font-bold text-center mb-2">
+              {unpaidModal.targetPagado ? 'Marcar como pagado' : 'Marcar como no pagado'}
+            </h3>
             <p className="text-slate-500 dark:text-slate-400 text-sm text-center mb-4">
-              Vas a cambiar el estado de <strong className="text-slate-900 dark:text-white">{unpaidModal.jugador.apellido} {unpaidModal.jugador.nombre}</strong> a no pagado. Confirmá con tu contraseña.
+              Vas a cambiar el estado de <strong className="text-slate-900 dark:text-white">{unpaidModal.jugador.apellido} {unpaidModal.jugador.nombre}</strong> a <strong>{unpaidModal.targetPagado ? 'pagado' : 'no pagado'}</strong>. Confirmá con tu contraseña.
             </p>
             <div className="mb-4">
               <label className="block text-slate-500 dark:text-slate-400 text-xs font-medium mb-1.5">Tu contraseña</label>
@@ -672,7 +805,7 @@ export default function ProductorJugadoresPage() {
             </div>
             <div className="flex gap-3">
               <button
-                onClick={() => setUnpaidModal({ open: false, jugador: null })}
+                onClick={() => setUnpaidModal({ open: false, jugador: null, targetPagado: false })}
                 className="flex-1 px-4 py-2.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-sm font-bold transition-all"
               >
                 Cancelar
@@ -680,7 +813,7 @@ export default function ProductorJugadoresPage() {
               <button
                 onClick={handleUnpaidConfirm}
                 disabled={togglingPagado !== null}
-                className="flex-1 px-4 py-2.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-amber-500/20"
+                className={`flex-1 px-4 py-2.5 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-all ${unpaidModal.targetPagado ? 'bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-500/20' : 'bg-amber-600 hover:bg-amber-500 shadow-lg shadow-amber-500/20'}`}
               >
                 {togglingPagado ? 'Verificando...' : 'Confirmar'}
               </button>
@@ -703,27 +836,16 @@ export default function ProductorJugadoresPage() {
               Al crear una nueva póliza, <strong className="text-rose-500">todos los jugadores se resetearán a no pagado</strong>.
             </p>
 
-            {/* Fecha inicio */}
             <div className="mb-4">
               <label className="block text-slate-500 dark:text-slate-400 text-xs font-medium mb-1.5">Fecha de inicio</label>
-              <DatePicker
-                value={polizaInicio}
-                onChange={setPolizaInicio}
-                placeholder="Seleccionar fecha"
-              />
+              <DatePicker value={polizaInicio} onChange={setPolizaInicio} placeholder="Seleccionar fecha" />
             </div>
 
-            {/* Fecha fin */}
             <div className="mb-4">
               <label className="block text-slate-500 dark:text-slate-400 text-xs font-medium mb-1.5">Fecha de finalización</label>
-              <DatePicker
-                value={polizaFin}
-                onChange={setPolizaFin}
-                placeholder="Seleccionar fecha"
-              />
+              <DatePicker value={polizaFin} onChange={setPolizaFin} placeholder="Seleccionar fecha" />
             </div>
 
-            {/* Observaciones */}
             <div className="mb-4">
               <label className="block text-slate-500 dark:text-slate-400 text-xs font-medium mb-1.5">Observaciones (opcional)</label>
               <input
@@ -735,7 +857,6 @@ export default function ProductorJugadoresPage() {
               />
             </div>
 
-            {/* Upload PDF */}
             <div className="mb-5">
               <label className="block text-slate-500 dark:text-slate-400 text-xs font-medium mb-1.5">Archivo PDF (opcional)</label>
               <label className="flex items-center gap-3 px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl cursor-pointer hover:border-primary transition-colors">
@@ -743,12 +864,7 @@ export default function ProductorJugadoresPage() {
                 <span className="text-sm text-slate-500 dark:text-slate-400 truncate flex-1">
                   {polizaFile ? polizaFile.name : 'Seleccionar archivo PDF'}
                 </span>
-                <input
-                  type="file"
-                  accept=".pdf"
-                  className="hidden"
-                  onChange={(e) => setPolizaFile(e.target.files?.[0] || null)}
-                />
+                <input type="file" accept=".pdf" className="hidden" onChange={(e) => setPolizaFile(e.target.files?.[0] || null)} />
               </label>
             </div>
 
@@ -865,18 +981,14 @@ export default function ProductorJugadoresPage() {
       <BulkImportWizard
         isOpen={showBulkImport}
         onClose={() => setShowBulkImport(false)}
-        onImportComplete={() => {
-          fetchData()
-        }}
+        onImportComplete={() => { fetchJugadores(1, busquedaDebounced, filtroEstado, filtroEquipos); setPage(1) }}
       />
 
       {/* Tournament Import Wizard */}
       <TournamentImportWizard
         isOpen={showTournamentImport}
         onClose={() => setShowTournamentImport(false)}
-        onImportComplete={() => {
-          fetchData()
-        }}
+        onImportComplete={() => { fetchJugadores(1, busquedaDebounced, filtroEstado, filtroEquipos); setPage(1) }}
       />
     </div>
   )
