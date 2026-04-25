@@ -103,10 +103,10 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
     const timeout = setTimeout(async () => {
       try {
         setBuscando(true)
-        const yaEnEquipo = new Set(jugadores.map(j => j.jugador_id))
         const yaSeleccionados = new Set(jugadoresSeleccionados.map(j => j.id))
-        const res = await buscarJugadorPorDni(busqueda)
-        setResultadosBusqueda(res.filter(j => !yaEnEquipo.has(j.id) && !yaSeleccionados.has(j.id)))
+        const res = await buscarJugadorPorDni(busqueda, torneoId)
+        // Mostrar todos — los ya en equipo se marcan en verde en el render
+        setResultadosBusqueda((res ?? []).filter(j => !yaSeleccionados.has(j.id)))
       } catch { setResultadosBusqueda([]) }
       finally { setBuscando(false) }
     }, 300)
@@ -143,7 +143,7 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
   const handleQuitarJugador = async () => {
     if (!showConfirmQuitar) return
     try {
-      await quitarJugadorEquipoTorneo(torneoId, equipoId, showConfirmQuitar.id)
+      await quitarJugadorEquipoTorneo(torneoId, equipoId, showConfirmQuitar.jugador_id)
       setJugadores(prev => prev.filter(j => j.id !== showConfirmQuitar.id))
       const nombre = showConfirmQuitar.nombre_completo
       setShowConfirmQuitar(null)
@@ -208,7 +208,7 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
     try {
       setLimpiando(true)
       for (const j of jugadoresSinPago) {
-        await quitarJugadorEquipoTorneo(torneoId, equipoId, j.id)
+        await quitarJugadorEquipoTorneo(torneoId, equipoId, j.jugador_id)
       }
       setJugadores(prev => prev.filter(j => j.pagado !== false))
       setShowModalLimpiar(false)
@@ -689,25 +689,68 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
                     Resultados ({resultadosBusqueda.length})
                   </p>
                   <div className="flex flex-col gap-1">
-                    {resultadosBusqueda.map(j => (
-                      j.pagado === false ? (
-                        <div
-                          key={j.id}
-                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-red-50 dark:bg-red-500/5 border border-red-200 dark:border-red-500/20 text-left cursor-not-allowed"
-                        >
-                          <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center shrink-0">
-                            <span className="material-symbols-outlined text-sm text-red-400">person</span>
+                    {resultadosBusqueda.map(j => {
+                      const yaEnEquipo = jugadores.some(jj => jj.jugador_id === j.id)
+                      if (yaEnEquipo) {
+                        return (
+                          <div
+                            key={j.id}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 cursor-default"
+                          >
+                            <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center shrink-0">
+                              <span className="material-symbols-outlined text-sm text-emerald-600 dark:text-emerald-400">check_circle</span>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">{j.apellido}, {j.nombre}</p>
+                              <p className="text-xs text-emerald-600 dark:text-emerald-400">DNI: {j.dni}</p>
+                            </div>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 shrink-0 whitespace-nowrap">
+                              Ya en el equipo
+                            </span>
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{j.apellido}, {j.nombre}</p>
-                            <p className="text-xs text-red-500 dark:text-red-400 flex items-center gap-1">
-                              <span className="material-symbols-outlined text-xs">warning</span>
-                              Seguro no pagado
-                            </p>
+                        )
+                      }
+                      if (j.equipo_en_torneo && !jugadores.some(jj => jj.jugador_id === j.id)) {
+                        return (
+                          <div
+                            key={j.id}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-red-50 dark:bg-red-500/5 border border-red-200 dark:border-red-500/20 cursor-not-allowed"
+                          >
+                            <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center shrink-0">
+                              <span className="material-symbols-outlined text-sm text-red-400">group</span>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{j.apellido}, {j.nombre}</p>
+                              <p className="text-xs text-red-500 dark:text-red-400 flex items-center gap-1">
+                                <span className="material-symbols-outlined text-xs">shield</span>
+                                Jugando en {j.equipo_en_torneo}
+                              </p>
+                            </div>
+                            <span className="material-symbols-outlined text-red-400 text-lg shrink-0">block</span>
                           </div>
-                          <span className="material-symbols-outlined text-red-400 text-lg shrink-0">block</span>
-                        </div>
-                      ) : (
+                        )
+                      }
+                      if (j.pagado === false) {
+                        return (
+                          <div
+                            key={j.id}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-red-50 dark:bg-red-500/5 border border-red-200 dark:border-red-500/20 text-left cursor-not-allowed"
+                          >
+                            <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center shrink-0">
+                              <span className="material-symbols-outlined text-sm text-red-400">person</span>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{j.apellido}, {j.nombre}</p>
+                              <p className="text-xs text-red-500 dark:text-red-400 flex items-center gap-1">
+                                <span className="material-symbols-outlined text-xs">warning</span>
+                                Seguro no pagado
+                              </p>
+                            </div>
+                            <span className="material-symbols-outlined text-red-400 text-lg shrink-0">block</span>
+                          </div>
+                        )
+                      }
+                      return (
                         <button
                           key={j.id}
                           onClick={() => {
@@ -726,7 +769,7 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
                           <span className="material-symbols-outlined text-primary text-lg shrink-0">add_circle</span>
                         </button>
                       )
-                    ))}
+                    })}
                   </div>
                 </div>
               )}

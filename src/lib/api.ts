@@ -193,6 +193,10 @@ export interface JugadorResponse {
     fecha_alta?: string
     fecha_baja?: string
   }[]
+  equipos_torneo?: {
+    equipo_nombre: string
+    categoria_nombre: string | null
+  }[]
   created_at?: string
   updated_at?: string
 }
@@ -208,14 +212,41 @@ export interface PolizaGeneral {
   created_at: string
 }
 
-export async function getJugadores(): Promise<JugadorResponse[]> {
-  const res = await apiFetch('/jugadores/mi-club')
-  return res.data
+export interface JugadoresPaginados {
+  data: JugadorResponse[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+  stats: { total: number; pagados: number; noPagados: number }
 }
 
-export async function getJugadoresProductor(): Promise<JugadorResponse[]> {
-  const res = await apiFetch('/jugadores/mis-jugadores')
-  return res.data
+export interface JugadoresParams {
+  page?: number
+  limit?: number
+  search?: string
+  pagado?: boolean
+  equipoIds?: string[]
+}
+
+function buildJugadoresQuery(params?: JugadoresParams): string {
+  const qs = new URLSearchParams()
+  if (params?.page) qs.set('page', String(params.page))
+  if (params?.limit) qs.set('limit', String(params.limit))
+  if (params?.search) qs.set('search', params.search)
+  if (params?.pagado !== undefined) qs.set('pagado', String(params.pagado))
+  if (params?.equipoIds && params.equipoIds.length > 0) qs.set('equipo_id', params.equipoIds.join(','))
+  return qs.toString() ? `?${qs.toString()}` : ''
+}
+
+export async function getJugadores(params?: JugadoresParams): Promise<JugadoresPaginados> {
+  const res = await apiFetch(`/jugadores/mi-club${buildJugadoresQuery(params)}`)
+  return res
+}
+
+export async function getJugadoresProductor(params?: JugadoresParams): Promise<JugadoresPaginados> {
+  const res = await apiFetch(`/jugadores/mis-jugadores${buildJugadoresQuery(params)}`)
+  return res
 }
 
 export async function createJugador(data: {
@@ -629,11 +660,13 @@ export interface JugadorBusqueda {
   apellido: string
   dni: string
   pagado: boolean
+  equipo_en_torneo?: string | null
 }
 
-export async function buscarJugadorPorDni(dni: string): Promise<JugadorBusqueda[]> {
+export async function buscarJugadorPorDni(dni: string, torneoId?: string): Promise<JugadorBusqueda[]> {
   if (dni.length < 3) return []
-  const res = await apiFetch(`/jugadores/buscar-por-dni/${encodeURIComponent(dni)}`)
+  const params = torneoId ? `?torneoId=${encodeURIComponent(torneoId)}` : ''
+  const res = await apiFetch(`/jugadores/buscar-por-dni/${encodeURIComponent(dni)}${params}`)
   return res.data
 }
 
@@ -723,6 +756,10 @@ export async function uploadPoliza(polizaId: string, file: File): Promise<{ arch
   }
 
   return json.data
+}
+
+export async function deleteJugador(jugadorId: string): Promise<void> {
+  await apiFetch(`/jugadores/${jugadorId}`, { method: 'DELETE' })
 }
 
 export async function toggleJugadorPagado(jugadorId: string, pagado: boolean): Promise<JugadorResponse> {

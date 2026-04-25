@@ -90,19 +90,25 @@ export default function JugadorEquipoDetailPage() {
   // Búsqueda dinámica por DNI
   useEffect(() => {
     if (dniInput.length < 3) { setResultadosBusqueda([]); return }
+    let cancelled = false
     const timeout = setTimeout(async () => {
       try {
         setBuscando(true)
-        const res = await buscarJugadorPorDni(dniInput)
-        // Filtrar jugadores que ya están en el equipo o ya seleccionados
-        const yaEnEquipo = new Set((equipo?.jugadores ?? []).map(j => j.id))
+        const res = await buscarJugadorPorDni(dniInput, torneoId)
+        if (cancelled) return
+        // Mostrar todos los resultados — los ya en equipo se marcan en el render
         const yaSeleccionados = new Set(jugadoresSeleccionados.map(j => j.id))
-        setResultadosBusqueda(res.filter(j => !yaEnEquipo.has(j.id) && !yaSeleccionados.has(j.id)))
-      } catch { setResultadosBusqueda([]) }
-      finally { setBuscando(false) }
+        setResultadosBusqueda((res ?? []).filter(j => !yaSeleccionados.has(j.id)))
+      } catch (err: any) {
+        if (cancelled) return
+        setResultadosBusqueda([])
+        setNotification({ open: true, title: 'Error al buscar', message: err.message || 'No se pudo buscar el jugador', type: 'error' })
+      } finally {
+        if (!cancelled) setBuscando(false)
+      }
     }, 300)
-    return () => clearTimeout(timeout)
-  }, [dniInput, equipo, jugadoresSeleccionados])
+    return () => { cancelled = true; clearTimeout(timeout) }
+  }, [dniInput, jugadoresSeleccionados])
 
   const misInscripcionesTorneo = inscripciones.filter(i => i.torneo_id === torneoId)
   const esMiEquipo = misInscripcionesTorneo.some(i => i.torneo_equipo_id === equipoId)
@@ -568,6 +574,49 @@ export default function JugadorEquipoDetailPage() {
                   <div className="flex flex-col gap-1">
                     {resultadosBusqueda.map(j => {
                       const seleccionado = jugadoresSeleccionados.some(s => s.id === j.id)
+                      const yaEnEquipo = (equipo?.jugadores ?? []).some(jj => jj.id === j.id)
+                      if (yaEnEquipo) {
+                        return (
+                          <div
+                            key={j.id}
+                            className="flex items-center gap-3 p-3 rounded-xl border bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 cursor-default"
+                          >
+                            <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 border-2 border-emerald-500 bg-emerald-500">
+                              <span className="material-symbols-outlined text-white text-sm" style={{ fontVariationSettings: "'wght' 700" }}>check</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300 truncate">
+                                {j.apellido}, {j.nombre}
+                              </p>
+                              <p className="text-xs font-mono text-emerald-600 dark:text-emerald-400">{j.dni}</p>
+                            </div>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 shrink-0 whitespace-nowrap">
+                              Ya en el equipo
+                            </span>
+                          </div>
+                        )
+                      }
+                      if (j.equipo_en_torneo) {
+                        return (
+                          <div
+                            key={j.id}
+                            className="flex items-center gap-3 p-3 rounded-xl border bg-red-50 dark:bg-red-500/5 border-red-200 dark:border-red-500/20 cursor-not-allowed"
+                          >
+                            <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 border-2 border-red-300 bg-red-100">
+                              <span className="material-symbols-outlined text-red-500 text-sm">block</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 truncate">
+                                {j.apellido}, {j.nombre}
+                              </p>
+                              <p className="text-xs text-red-500 dark:text-red-400 flex items-center gap-1">
+                                <span className="material-symbols-outlined text-xs">shield</span>
+                                Jugando en {j.equipo_en_torneo}
+                              </p>
+                            </div>
+                          </div>
+                        )
+                      }
                       return (
                         <button
                           key={j.id}
@@ -607,7 +656,7 @@ export default function JugadorEquipoDetailPage() {
               {dniInput.length >= 3 && !buscando && resultadosBusqueda.length === 0 && (
                 <div className="text-center py-6">
                   <span className="material-symbols-outlined text-3xl text-slate-300 dark:text-slate-600 block mb-1">search_off</span>
-                  <p className="text-sm text-slate-400 dark:text-slate-500">No se encontraron jugadores con ese DNI</p>
+                  <p className="text-sm text-slate-400 dark:text-slate-500">No se encontraron jugadores</p>
                 </div>
               )}
 
@@ -642,15 +691,21 @@ export default function JugadorEquipoDetailPage() {
                       jugadoresSeleccionados.map(j => agregarJugadorPorDelegado(torneoId, equipoId, j.dni))
                     )
                     const exitosos = resultados.filter(r => r.status === 'fulfilled').length
-                    const fallidos = resultados.filter(r => r.status === 'rejected').length
+                    const rechazados = resultados.filter(r => r.status === 'rejected') as PromiseRejectedResult[]
                     setShowModalAgregar(false)
                     setDniInput('')
                     setJugadoresSeleccionados([])
                     setResultadosBusqueda([])
-                    if (fallidos === 0) {
+                    if (rechazados.length === 0) {
                       setNotification({ open: true, title: 'Jugadores agregados', message: `${exitosos} jugador${exitosos !== 1 ? 'es' : ''} agregado${exitosos !== 1 ? 's' : ''} al equipo`, type: 'success' })
+                    } else if (exitosos === 0) {
+                      // Todos fallaron — mostrar el primer mensaje de error
+                      const primerError = rechazados[0].reason?.message || 'No se pudo agregar los jugadores'
+                      setNotification({ open: true, title: 'Error al agregar', message: primerError, type: 'error' })
                     } else {
-                      setNotification({ open: true, title: 'Parcialmente completado', message: `${exitosos} agregado${exitosos !== 1 ? 's' : ''}, ${fallidos} con error`, type: 'error' })
+                      // Algunos fallaron — mostrar cuántos y el primer error
+                      const primerError = rechazados[0].reason?.message || 'Error desconocido'
+                      setNotification({ open: true, title: 'Parcialmente completado', message: `${exitosos} agregado${exitosos !== 1 ? 's' : ''} correctamente. ${rechazados.length} con error: ${primerError}`, type: 'error' })
                     }
                     await fetchData()
                   } catch (err: any) {
