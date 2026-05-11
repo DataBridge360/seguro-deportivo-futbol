@@ -950,3 +950,14 @@ export async function getResumenHoy(): Promise<ResumenHoyResponse> {
   const res = await apiFetch('/cupones/resumen-hoy')
   return res.data
 }
+
+// ========================================
+// FCM - Firebase Cloud Messaging
+// ========================================
+
+export async function registerFCMToken(token: string): Promise<void> {
+  await apiFetch('/fcm/register-token', {
+    method: 'POST',
+    body: JSON.stringify({ token }),
+  })
+}
