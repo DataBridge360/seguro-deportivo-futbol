@@ -15,28 +15,37 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+// Forzar activación inmediata del SW actualizado
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 // Manejo de mensajes recibidos cuando la PWA está en background
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Mensaje recibido:', payload);
 
-  const { title, body, icon } = payload.notification ?? {};
-  const notificationTitle = title ?? 'Nueva notificación';
+  // El backend ahora envía title/body en payload.data (no en payload.notification)
+  const title = payload.data?.title ?? 'Nueva notificación';
+  const body = payload.data?.body ?? '';
+
   const notificationOptions = {
-    body: body ?? '',
-    icon: icon ?? '/icon-192.png',
+    body: body,
+    icon: '/icon-192.png',
     badge: '/badge-72.png',
     data: payload.data,
     tag: payload.data?.notificacion_id ?? 'default',
     requireInteraction: false,
   };
 
-  console.log('[firebase-messaging-sw.js] 🚀 Intentando mostrar notificación:', {
-    title: notificationTitle,
+  console.log('[firebase-messaging-sw.js] 🚀 Mostrando notificación:', {
+    title: title,
     options: notificationOptions
   });
 
-  // Retornar la promesa para que Firebase sepa si funcionó
-  return self.registration.showNotification(notificationTitle, notificationOptions)
+  // Mostrar la notificación (única fuente de verdad)
+  return self.registration.showNotification(title, notificationOptions)
     .then(() => {
       console.log('[firebase-messaging-sw.js] ✅ Notificación mostrada exitosamente');
     })

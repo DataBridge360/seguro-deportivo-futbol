@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getToken, onMessage } from 'firebase/messaging';
+import { getToken } from 'firebase/messaging';
 import { getMessagingIfSupported } from '@/lib/firebase';
 import { registerFCMToken } from '@/lib/api';
 
@@ -40,8 +40,16 @@ export function useFCMToken() {
         return false;
       }
 
-      // Registrar Service Worker
-      const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+      // Registrar Service Worker (forzar actualización)
+      const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
+        updateViaCache: 'none'
+      });
+
+      // Forzar actualización del SW si hay uno nuevo
+      if (registration.waiting) {
+        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+
       await navigator.serviceWorker.ready;
 
       // Obtener token FCM
@@ -74,38 +82,6 @@ export function useFCMToken() {
       setLoading(false);
     }
   };
-
-  // Mensajes recibidos con la PWA en foreground
-  useEffect(() => {
-    let unsubscribe: (() => void) | undefined;
-
-    (async () => {
-      const messaging = await getMessagingIfSupported();
-      if (!messaging) return;
-
-      unsubscribe = onMessage(messaging, (payload) => {
-        console.log('🔔 [FOREGROUND] Mensaje recibido:', payload);
-
-        // IMPORTANTE: onMessage solo detecta mensajes cuando la app está ABIERTA
-        // Para mostrar una notificación visual, necesitamos crearla manualmente:
-        if (payload.notification) {
-          const { title, body } = payload.notification;
-
-          // Crear notificación nativa del navegador
-          if (Notification.permission === 'granted') {
-            new Notification(title || 'Nueva notificación', {
-              body: body || '',
-              icon: '/icon-192.png',
-              badge: '/badge-72.png',
-              tag: payload.data?.notificacion_id || 'foreground-notification',
-            });
-          }
-        }
-      });
-    })();
-
-    return () => unsubscribe?.();
-  }, []);
 
   return { token, permission, loading, error, requestPermission };
 }
