@@ -8,6 +8,8 @@ import { getNavigationForRole } from '@/lib/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { getNoLeidasCount } from '@/lib/api'
+import NotificationPermissionBanner from '@/components/NotificationPermissionBanner'
+import FCMDebugPanel from '@/components/FCMDebugPanel'
 
 // Mobile nav items for jugador
 const jugadorNavItems = [
@@ -238,6 +240,12 @@ export default function DashboardLayout({
             })}
           </nav>
         </div>
+
+        {/* Notification Permission Banner */}
+        <NotificationPermissionBanner />
+
+        {/* FCM Debug Panel - solo en dev */}
+        {process.env.NODE_ENV === 'development' && <FCMDebugPanel />}
       </div>
     )
   }
