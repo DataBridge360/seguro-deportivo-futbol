@@ -82,8 +82,11 @@ export default function DashboardLayout({
   useEffect(() => {
     fetchUnreadCount()
     unreadIntervalRef.current = setInterval(fetchUnreadCount, 30000)
+    const onRead = () => fetchUnreadCount()
+    window.addEventListener('notifications:read', onRead)
     return () => {
       if (unreadIntervalRef.current) clearInterval(unreadIntervalRef.current)
+      window.removeEventListener('notifications:read', onRead)
     }
   }, [fetchUnreadCount])
 

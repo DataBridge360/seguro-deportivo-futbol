@@ -844,9 +844,28 @@ export async function createNotificacion(data: CreateNotificacionData): Promise<
   return res.data
 }
 
-export async function getMisNotificaciones(): Promise<NotificacionDestinatarioResponse[]> {
-  const res = await apiFetch('/notificaciones/mis-notificaciones')
-  return res.data
+export interface MisNotificacionesPage {
+  data: NotificacionDestinatarioResponse[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
+export async function getMisNotificaciones(
+  page = 1,
+  limit = 10,
+  filtro: 'no_leidas' | 'leidas' | 'all' = 'no_leidas',
+): Promise<MisNotificacionesPage> {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit), filtro })
+  const res = await apiFetch(`/notificaciones/mis-notificaciones?${params.toString()}`)
+  return {
+    data: res.data ?? [],
+    total: res.total ?? 0,
+    page: res.page ?? page,
+    limit: res.limit ?? limit,
+    totalPages: res.totalPages ?? 1,
+  }
 }
 
 export async function getNoLeidasCount(): Promise<number> {

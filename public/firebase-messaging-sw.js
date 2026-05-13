@@ -59,7 +59,7 @@ self.addEventListener('notificationclick', (event) => {
   console.log('[firebase-messaging-sw.js] Click en notificación:', event);
   event.notification.close();
 
-  const url = event.notification.data?.url ?? '/dashboard/jugador/notificaciones';
+  const url = event.notification.data?.url ?? '/dashboard/notificaciones';
   const fullUrl = self.location.origin + url;
 
   event.waitUntil(
