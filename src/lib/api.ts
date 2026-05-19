@@ -488,6 +488,17 @@ export async function desinscribirEquipo(inscripcionId: string): Promise<void> {
   })
 }
 
+export async function actualizarInhabilitacionEquipoTorneo(
+  inscripcionId: string,
+  data: { inhabilitado_por_deuda: boolean; motivo?: string; password: string }
+): Promise<Inscripcion> {
+  const res = await apiFetch(`/clubes/torneo-equipos/${inscripcionId}/inhabilitacion`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+  return res.data
+}
+
 // Jugadores en Equipo-Torneo API Functions
 
 export async function getJugadoresEquipoTorneo(torneoId: string, equipoId: string): Promise<JugadorEquipoTorneo[]> {
@@ -590,6 +601,9 @@ export interface JugadorInscripcion {
   equipo_logo_url?: string | null
   categoria_id: string
   categoria_nombre: string
+  inhabilitado_por_deuda: boolean
+  inhabilitado_motivo?: string | null
+  inhabilitado_at?: string | null
   numero_camiseta?: number | null
   posicion?: string | null
   capitan: boolean
@@ -631,6 +645,9 @@ export interface EquipoTorneo {
   equipo_logo_url?: string | null
   categoria_id: string
   categoria_nombre: string
+  inhabilitado_por_deuda: boolean
+  inhabilitado_motivo?: string | null
+  inhabilitado_at?: string | null
   jugadores: EquipoTorneoJugador[]
   delegados: EquipoTorneoDelegado[]
 }

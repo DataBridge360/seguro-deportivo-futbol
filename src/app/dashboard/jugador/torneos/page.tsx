@@ -7,6 +7,9 @@ import type { JugadorTorneo, JugadorInscripcion, EquipoTorneo } from '@/lib/api'
 import NotificationModal from '@/components/ui/NotificationModal'
 import { useAuthStore } from '@/stores/authStore'
 
+const WHATSAPP_NUMBER = '542996130664'
+const DEFAULT_DEUDA_MESSAGE = 'Este equipo está inhabilitado por falta de pago. Regularizá la deuda para volver a acceder.'
+
 function calcularEstado(torneo: JugadorTorneo): string {
   if (torneo.estado === 'cancelado') return 'cancelado'
   const hoy = new Date().toISOString().split('T')[0]
@@ -66,6 +69,7 @@ export default function JugadorTorneosPage() {
   const [torneoTab, setTorneoTab] = useState<'mi-equipo' | 'todos'>('mi-equipo')
   const [busqueda, setBusqueda] = useState('')
   const [categoriaTab, setCategoriaTab] = useState<string>('todos')
+  const [equipoBloqueado, setEquipoBloqueado] = useState<EquipoTorneo | null>(null)
 
   const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' }>({
     open: false, title: '', message: '', type: 'success',
@@ -107,6 +111,22 @@ export default function JugadorTorneosPage() {
     } finally {
       setLoadingEquipos(false)
     }
+  }
+
+  const handleOpenEquipo = (equipo: EquipoTorneo) => {
+    if (!selectedTorneo) return
+    if (equipo.inhabilitado_por_deuda) {
+      setEquipoBloqueado(equipo)
+      return
+    }
+    router.push(`/dashboard/jugador/torneos/${selectedTorneo.id}/equipo/${equipo.id}`)
+  }
+
+  const handleRegularizarPago = (equipo: EquipoTorneo) => {
+    const mensaje = encodeURIComponent(
+      `Hola, quiero regularizar el pago del equipo ${equipo.equipo_nombre} (${equipo.categoria_nombre}).`
+    )
+    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${mensaje}`, '_blank')
   }
 
   // ─── Computed values for torneo detail ───────────────────────────────────────
@@ -268,8 +288,12 @@ export default function JugadorTorneosPage() {
                   return (
                     <div
                       key={equipo.id}
-                      onClick={() => router.push(`/dashboard/jugador/torneos/${selectedTorneo.id}/equipo/${equipo.id}`)}
-                      className="bg-white dark:bg-slate-800 rounded-xl border-2 border-primary/30 p-4 cursor-pointer hover:border-primary/50 transition-colors active:scale-[0.99]"
+                      onClick={() => handleOpenEquipo(equipo)}
+                      className={`bg-white dark:bg-slate-800 rounded-xl border-2 p-4 cursor-pointer transition-colors active:scale-[0.99] ${
+                        equipo.inhabilitado_por_deuda
+                          ? 'border-red-200 dark:border-red-500/30 opacity-80'
+                          : 'border-primary/30 hover:border-primary/50'
+                      }`}
                     >
                       <div className="flex items-center gap-3">
                         <div className="size-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -282,6 +306,12 @@ export default function JugadorTorneosPage() {
                             {jugadorId && equipo.delegados?.some(d => d.jugador_id === jugadorId) && (
                               <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">Delegado</span>
                             )}
+                            {equipo.inhabilitado_por_deuda && (
+                              <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300 inline-flex items-center gap-1">
+                                <span className="material-symbols-outlined text-xs">lock</span>
+                                Falta de pago
+                              </span>
+                            )}
                           </div>
                           <p className="text-sm text-slate-500 dark:text-slate-400">{equipo.categoria_nombre}</p>
                           <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
@@ -290,7 +320,7 @@ export default function JugadorTorneosPage() {
                             {inscripcion?.posicion && ` · ${inscripcion.posicion}`}
                           </p>
                         </div>
-                        <span className="material-symbols-outlined text-slate-400 text-lg shrink-0">chevron_right</span>
+                        <span className="material-symbols-outlined text-slate-400 text-lg shrink-0">{equipo.inhabilitado_por_deuda ? 'lock' : 'chevron_right'}</span>
                       </div>
                     </div>
                   )
@@ -377,8 +407,12 @@ export default function JugadorTorneosPage() {
                   return (
                     <div
                       key={equipo.id}
-                      onClick={() => router.push(`/dashboard/jugador/torneos/${selectedTorneo.id}/equipo/${equipo.id}`)}
-                      className={`bg-white dark:bg-slate-800 rounded-xl border p-4 cursor-pointer hover:border-primary/50 dark:hover:border-primary/30 transition-colors active:scale-[0.99] ${esMiEquipo ? 'border-primary/40 dark:border-primary/30' : 'border-slate-200 dark:border-slate-700'}`}
+                      onClick={() => handleOpenEquipo(equipo)}
+                      className={`bg-white dark:bg-slate-800 rounded-xl border p-4 cursor-pointer transition-colors active:scale-[0.99] ${
+                        equipo.inhabilitado_por_deuda
+                          ? 'border-red-200 dark:border-red-500/30 opacity-80'
+                          : esMiEquipo ? 'border-primary/40 dark:border-primary/30 hover:border-primary/50 dark:hover:border-primary/30' : 'border-slate-200 dark:border-slate-700 hover:border-primary/50 dark:hover:border-primary/30'
+                      }`}
                     >
                       <div className="flex items-center gap-3">
                         <div className={`size-10 rounded-xl flex items-center justify-center shrink-0 ${esMiEquipo ? 'bg-primary/20' : 'bg-primary/10'}`}>
@@ -390,12 +424,18 @@ export default function JugadorTorneosPage() {
                             {esMiEquipo && (
                               <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-primary/10 text-primary whitespace-nowrap">Mi equipo</span>
                             )}
+                            {equipo.inhabilitado_por_deuda && (
+                              <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300 whitespace-nowrap inline-flex items-center gap-1">
+                                <span className="material-symbols-outlined text-xs">lock</span>
+                                Falta de pago
+                              </span>
+                            )}
                           </div>
                           <p className="text-xs text-slate-500 dark:text-slate-400">
                             {equipo.categoria_nombre} · {equipo.jugadores.length} jugador{equipo.jugadores.length !== 1 ? 'es' : ''}
                           </p>
                         </div>
-                        <span className="material-symbols-outlined text-slate-400 text-lg shrink-0">chevron_right</span>
+                        <span className="material-symbols-outlined text-slate-400 text-lg shrink-0">{equipo.inhabilitado_por_deuda ? 'lock' : 'chevron_right'}</span>
                       </div>
                     </div>
                   )
@@ -412,6 +452,31 @@ export default function JugadorTorneosPage() {
           message={notification.message}
           type={notification.type}
         />
+        {equipoBloqueado && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setEquipoBloqueado(null)}>
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center mx-auto mb-3">
+                <span className="material-symbols-outlined text-red-500 text-2xl">lock</span>
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white text-center mb-2">Equipo inhabilitado</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-300 text-center mb-1">
+                {equipoBloqueado.equipo_nombre} · {equipoBloqueado.categoria_nombre}
+              </p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 text-center mb-5">
+                {equipoBloqueado.inhabilitado_motivo || DEFAULT_DEUDA_MESSAGE}
+              </p>
+              <div className="flex flex-col gap-2">
+                <button onClick={() => handleRegularizarPago(equipoBloqueado)} className="w-full px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2">
+                  <span className="material-symbols-outlined text-lg">chat</span>
+                  Regularizar por WhatsApp
+                </button>
+                <button onClick={() => setEquipoBloqueado(null)} className="w-full px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors">
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }

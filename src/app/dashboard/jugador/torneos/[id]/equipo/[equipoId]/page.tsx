@@ -13,6 +13,9 @@ import type { JugadorTorneo, JugadorInscripcion, EquipoTorneo } from '@/lib/api'
 import NotificationModal from '@/components/ui/NotificationModal'
 import { useAuthStore } from '@/stores/authStore'
 
+const WHATSAPP_NUMBER = '542996130664'
+const DEFAULT_DEUDA_MESSAGE = 'Este equipo está inhabilitado por falta de pago. Regularizá la deuda para volver a acceder.'
+
 function formatDate(dateStr: string) {
   if (!dateStr) return ''
   const [y, m, d] = dateStr.split('-')
@@ -118,6 +121,7 @@ export default function JugadorEquipoDetailPage() {
   const esDelegado = equipo?.delegados?.some(d => d.jugador_id === jugadorId) ?? false
 
   const handleDesinscribirse = async () => {
+    if (equipo?.inhabilitado_por_deuda) return
     try {
       setDesinscribiendo(true)
       await desinscribirseEquipo(torneoId, equipoId)
@@ -133,6 +137,7 @@ export default function JugadorEquipoDetailPage() {
   }
 
   const handleAgregarseAMiMismo = async () => {
+    if (equipo?.inhabilitado_por_deuda) return
     try {
       setAgregando(true)
       await inscribirseEquipo(torneoId, equipoId)
@@ -147,6 +152,7 @@ export default function JugadorEquipoDetailPage() {
 
   const handleQuitarJugador = async () => {
     if (!showConfirmQuitar) return
+    if (equipo?.inhabilitado_por_deuda) return
     try {
       setQuitandoId(showConfirmQuitar.id)
       await quitarJugadorPorDelegado(torneoId, equipoId, showConfirmQuitar.id)
@@ -159,6 +165,14 @@ export default function JugadorEquipoDetailPage() {
     } finally {
       setQuitandoId(null)
     }
+  }
+
+  const handleRegularizarPago = () => {
+    if (!equipo) return
+    const mensaje = encodeURIComponent(
+      `Hola, quiero regularizar el pago del equipo ${equipo.equipo_nombre} (${equipo.categoria_nombre}).`
+    )
+    window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${mensaje}`, '_blank')
   }
 
   const loadLogoBase64 = async (src: string): Promise<string> => {
@@ -278,6 +292,33 @@ export default function JugadorEquipoDetailPage() {
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-8 text-center">
           <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2 block">error</span>
           <p className="text-sm text-slate-500 dark:text-slate-400">Equipo no encontrado</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (equipo.inhabilitado_por_deuda) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-6">
+        <button onClick={() => router.back()} className="flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
+          <span className="material-symbols-outlined text-lg">arrow_back</span>
+          Volver al torneo
+        </button>
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-red-200 dark:border-red-500/30 p-8 text-center">
+          <div className="w-14 h-14 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center mx-auto mb-4">
+            <span className="material-symbols-outlined text-red-500 text-3xl">lock</span>
+          </div>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white mb-1">Equipo inhabilitado</h1>
+          <p className="text-sm text-slate-600 dark:text-slate-300 mb-2">
+            {equipo.equipo_nombre} · {equipo.categoria_nombre}
+          </p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
+            {equipo.inhabilitado_motivo || DEFAULT_DEUDA_MESSAGE}
+          </p>
+          <button onClick={handleRegularizarPago} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold transition-colors">
+            <span className="material-symbols-outlined text-lg">chat</span>
+            Regularizar por WhatsApp
+          </button>
         </div>
       </div>
     )

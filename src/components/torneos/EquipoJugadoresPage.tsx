@@ -7,7 +7,7 @@ import {
   agregarJugadorEquipoTorneo, quitarJugadorEquipoTorneo,
   desinscribirEquipo,
   getDelegadosEquipoAdmin, asignarDelegadoAdmin, quitarDelegadoAdmin,
-  buscarJugadorPorDni,
+  buscarJugadorPorDni, actualizarInhabilitacionEquipoTorneo,
 } from '@/lib/api'
 import type { DelegadoEquipo, JugadorBusqueda } from '@/lib/api'
 import type { Inscripcion, JugadorEquipoTorneo } from '@/types/club'
@@ -57,6 +57,12 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
   const [showConfirmDesinscribir, setShowConfirmDesinscribir] = useState(false)
   const [desinscribiendo, setDesinscribiendo] = useState(false)
 
+  // Inhabilitación por deuda
+  const [showModalInhabilitar, setShowModalInhabilitar] = useState(false)
+  const [motivoInhabilitacion, setMotivoInhabilitacion] = useState('')
+  const [passwordInhabilitacion, setPasswordInhabilitacion] = useState('')
+  const [inhabilitacionError, setInhabilitacionError] = useState('')
+
   // Delegados
   const [delegados, setDelegados] = useState<DelegadoEquipo[]>([])
   const [showModalDelegados, setShowModalDelegados] = useState(false)
@@ -82,7 +88,7 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
         getEquiposInscritos(torneoId),
         getJugadoresEquipoTorneo(torneoId, equipoId),
       ])
-      const insc = inscripcionesData.find(i => i.equipo_id === equipoId)
+      const insc = inscripcionesData.find(i => i.id === equipoId || i.equipo_id === equipoId)
       setInscripcion(insc || null)
       setJugadores(jugadoresData)
       if (insc) {
@@ -119,6 +125,51 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
     setResultadosBusqueda([])
     setErrors({})
     setShowModalAgregar(true)
+  }
+
+  const handleOpenInhabilitar = () => {
+    if (!inscripcion) return
+    setMotivoInhabilitacion(inscripcion.inhabilitado_motivo || '')
+    setPasswordInhabilitacion('')
+    setInhabilitacionError('')
+    setShowModalInhabilitar(true)
+  }
+
+  const handleActualizarInhabilitacion = async () => {
+    if (!inscripcion) return
+    if (!passwordInhabilitacion.trim()) {
+      setInhabilitacionError('Ingresá tu contraseña')
+      return
+    }
+    const nextValue = !inscripcion.inhabilitado_por_deuda
+    try {
+      setSubmitting(true)
+      const updated = await actualizarInhabilitacionEquipoTorneo(inscripcion.id, {
+        inhabilitado_por_deuda: nextValue,
+        motivo: nextValue ? motivoInhabilitacion : undefined,
+        password: passwordInhabilitacion,
+      })
+      setInscripcion(updated)
+      setShowModalInhabilitar(false)
+      setMotivoInhabilitacion('')
+      setPasswordInhabilitacion('')
+      setInhabilitacionError('')
+      setNotification({
+        open: true,
+        title: nextValue ? 'Equipo inhabilitado' : 'Equipo habilitado',
+        message: nextValue ? 'Los jugadores verán el aviso de falta de pago' : 'El equipo vuelve a estar disponible',
+        type: 'success',
+      })
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Error al actualizar el equipo'
+      if (msg.toLowerCase().includes('contraseña') || msg.toLowerCase().includes('password')) {
+        setInhabilitacionError('Contraseña incorrecta')
+      } else {
+        setNotification({ open: true, title: 'Error', message: msg, type: 'error' })
+      }
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleAgregarJugadores = async () => {
@@ -371,11 +422,22 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-              {inscripcion?.equipo_nombre || 'Equipo'}
-            </h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+                {inscripcion?.equipo_nombre || 'Equipo'}
+              </h1>
+              {inscripcion?.inhabilitado_por_deuda && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300 text-[10px] font-semibold">
+                  <span className="material-symbols-outlined text-xs">lock</span>
+                  Deuda pendiente
+                </span>
+              )}
+            </div>
             {inscripcion && (
               <p className="text-sm text-slate-500 dark:text-slate-400">{inscripcion.categoria_nombre}</p>
+            )}
+            {inscripcion?.inhabilitado_motivo && (
+              <p className="text-xs text-red-600 dark:text-red-300 mt-1">{inscripcion.inhabilitado_motivo}</p>
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -405,6 +467,57 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
           </div>
         </div>
       </div>
+
+      {/* ── Estado de pago ── */}
+      {inscripcion && (
+        <div className={`rounded-xl border p-4 ${
+          inscripcion.inhabilitado_por_deuda
+            ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/25'
+            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+        }`}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                inscripcion.inhabilitado_por_deuda
+                  ? 'bg-red-100 dark:bg-red-500/20'
+                  : 'bg-green-100 dark:bg-green-500/20'
+              }`}>
+                <span className={`material-symbols-outlined text-xl ${
+                  inscripcion.inhabilitado_por_deuda
+                    ? 'text-red-600 dark:text-red-300'
+                    : 'text-green-700 dark:text-green-400'
+                }`}>
+                  {inscripcion.inhabilitado_por_deuda ? 'lock' : 'lock_open'}
+                </span>
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-900 dark:text-white">Estado de pago del equipo</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {inscripcion.inhabilitado_por_deuda
+                    ? 'Inhabilitado por deuda pendiente'
+                    : 'Habilitado para jugadores'}
+                </p>
+                {inscripcion.inhabilitado_motivo && (
+                  <p className="text-xs text-red-600 dark:text-red-300 mt-1">{inscripcion.inhabilitado_motivo}</p>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={handleOpenInhabilitar}
+              className={`shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                inscripcion.inhabilitado_por_deuda
+                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                  : 'bg-red-500 hover:bg-red-600 text-white'
+              }`}
+            >
+              <span className="material-symbols-outlined text-lg">
+                {inscripcion.inhabilitado_por_deuda ? 'lock_open' : 'lock'}
+              </span>
+              {inscripcion.inhabilitado_por_deuda ? 'Habilitar equipo' : 'Inhabilitar por deuda'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Delegados ── */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
@@ -815,6 +928,64 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
             <div className="flex gap-2">
               <button onClick={() => setShowConfirmQuitar(null)} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors">Cancelar</button>
               <button onClick={handleQuitarJugador} className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors">Quitar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal inhabilitar por deuda */}
+      {showModalInhabilitar && inscripcion && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => !submitting && setShowModalInhabilitar(false)}>
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className={`w-9 h-9 rounded-full flex items-center justify-center ${inscripcion.inhabilitado_por_deuda ? 'bg-green-100 dark:bg-green-500/20' : 'bg-red-100 dark:bg-red-500/20'}`}>
+                <span className={`material-symbols-outlined text-lg ${inscripcion.inhabilitado_por_deuda ? 'text-green-600 dark:text-green-400' : 'text-red-500'}`}>
+                  {inscripcion.inhabilitado_por_deuda ? 'lock_open' : 'lock'}
+                </span>
+              </div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                {inscripcion.inhabilitado_por_deuda ? 'Habilitar equipo' : 'Inhabilitar por deuda'}
+              </h3>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+              {inscripcion.inhabilitado_por_deuda
+                ? <>Vas a habilitar <strong>&quot;{inscripcion.equipo_nombre}&quot;</strong> en {inscripcion.categoria_nombre}.</>
+                : <>Vas a inhabilitar <strong>&quot;{inscripcion.equipo_nombre}&quot;</strong> en {inscripcion.categoria_nombre}. Los jugadores verán el aviso de falta de pago.</>}
+            </p>
+            {!inscripcion.inhabilitado_por_deuda && (
+              <div className="mb-3">
+                <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1">Motivo opcional</label>
+                <textarea
+                  value={motivoInhabilitacion}
+                  onChange={(e) => setMotivoInhabilitacion(e.target.value)}
+                  rows={3}
+                  maxLength={240}
+                  placeholder="Ej: Falta regularizar la cuota del torneo"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:border-primary resize-none"
+                />
+              </div>
+            )}
+            <div className="mb-4">
+              <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1">Contraseña</label>
+              <input
+                type="password"
+                value={passwordInhabilitacion}
+                onChange={(e) => { setPasswordInhabilitacion(e.target.value); setInhabilitacionError('') }}
+                placeholder="Ingresá tu contraseña"
+                className={`w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:border-primary ${inhabilitacionError ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'}`}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleActualizarInhabilitacion() }}
+              />
+              {inhabilitacionError && <p className="text-red-400 text-xs mt-1">{inhabilitacionError}</p>}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setShowModalInhabilitar(false)} disabled={submitting} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">Cancelar</button>
+              <button
+                onClick={handleActualizarInhabilitacion}
+                disabled={submitting}
+                className={`flex-1 px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${inscripcion.inhabilitado_por_deuda ? 'bg-green-600 hover:bg-green-700' : 'bg-red-500 hover:bg-red-600'}`}
+              >
+                {submitting ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Guardando...</> : inscripcion.inhabilitado_por_deuda ? 'Habilitar' : 'Inhabilitar'}
+              </button>
             </div>
           </div>
         </div>
