@@ -88,6 +88,9 @@ export interface Inscripcion {
   categoria_id: string
   categoria_nombre: string
   created_at: string
+  inhabilitado_por_deuda: boolean
+  inhabilitado_motivo?: string | null
+  inhabilitado_at?: string | null
 }
 
 // Tipos para Partidos
