@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import Link from 'next/link'
 import {
   getTorneos, getEquiposInscritos, inscribirEquipo, desinscribirEquipo,
   getEquipos, getCategorias, toggleInscripciones, toggleEliminacionDelegados, deleteTorneo, updateTorneo,
@@ -763,10 +762,14 @@ export default function TorneoDetailPage({ basePath }: Props) {
           ) : (
             <div className="space-y-3">
               {inscripcionesFiltradas.map((inscripcion) => (
-                <Link
+                <div
                   key={inscripcion.id}
-                  href={`${basePath}/${torneoId}/equipo/${inscripcion.equipo_id}`}
-                  className="flex items-center gap-3 px-4 py-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700"
+                  onClick={() => router.push(`${basePath}/${torneoId}/equipo/${inscripcion.id}`)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-colors ${
+                    inscripcion.inhabilitado_por_deuda
+                      ? 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/25'
+                      : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:border-primary/40'
+                  }`}
                 >
                   <div className="w-10 h-10 shrink-0 rounded-lg bg-white dark:bg-slate-800 flex items-center justify-center border border-slate-200 dark:border-slate-700 overflow-hidden">
                     {inscripcion.equipo_logo_url ? (
@@ -776,11 +779,22 @@ export default function TorneoDetailPage({ basePath }: Props) {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{inscripcion.equipo_nombre}</h4>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{inscripcion.categoria_nombre}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-sm font-semibold text-slate-900 dark:text-white">{inscripcion.equipo_nombre}</h4>
+                      {inscripcion.inhabilitado_por_deuda && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300 text-[10px] font-semibold">
+                          <span className="material-symbols-outlined text-xs">lock</span>
+                          Deuda pendiente
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {inscripcion.categoria_nombre}
+                      {inscripcion.inhabilitado_motivo ? ` · ${inscripcion.inhabilitado_motivo}` : ''}
+                    </p>
                   </div>
                   <span className="material-symbols-outlined text-xl text-slate-400 shrink-0">chevron_right</span>
-                </Link>
+                </div>
               ))}
             </div>
           )}
