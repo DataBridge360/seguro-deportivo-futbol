@@ -27,24 +27,33 @@ export default function NotificacionesPage() {
   const router = useRouter()
   const [notificaciones, setNotificaciones] = useState<NotificacionDestinatarioResponse[]>([])
   const [loading, setLoading] = useState(true)
+  const [listLoading, setListLoading] = useState(false)
   const [selected, setSelected] = useState<NotificacionDestinatarioResponse | null>(null)
   const [filtro, setFiltro] = useState<Filtro>('no_leidas')
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
   const initialLoadDone = useRef(false)
+  const requestSeq = useRef(0)
 
   const fetchNotificaciones = useCallback(async (p: number, f: Filtro) => {
+    const seq = requestSeq.current + 1
+    requestSeq.current = seq
     try {
       if (!initialLoadDone.current) setLoading(true)
+      else setListLoading(true)
       const res = await getMisNotificaciones(p, PAGE_SIZE, f)
+      if (seq !== requestSeq.current) return
       setNotificaciones(res.data)
       setTotal(res.total)
       setTotalPages(res.totalPages)
       initialLoadDone.current = true
     } catch {
     } finally {
-      setLoading(false)
+      if (seq === requestSeq.current) {
+        setLoading(false)
+        setListLoading(false)
+      }
     }
   }, [])
 
@@ -58,25 +67,42 @@ export default function NotificacionesPage() {
   }, [fetchNotificaciones, page, filtro])
 
   const handleClick = async (notif: NotificacionDestinatarioResponse) => {
+    const readNotif = { ...notif, leida: true }
+    setSelected(readNotif)
+
     if (!notif.leida) {
-      await marcarNotificacionLeida(notif.id).catch(() => {})
-      setNotificaciones(prev => prev.map(n => n.id === notif.id ? { ...n, leida: true } : n))
+      if (filtro === 'no_leidas') {
+        setNotificaciones(prev => prev.filter(n => n.id !== notif.id))
+        setTotal(prev => Math.max(0, prev - 1))
+      } else {
+        setNotificaciones(prev => prev.map(n => n.id === notif.id ? readNotif : n))
+      }
+      marcarNotificacionLeida(notif.id).catch(() => {})
       window.dispatchEvent(new Event('notifications:read'))
     }
-    setSelected({ ...notif, leida: true })
   }
 
   const handleMarkAllRead = async () => {
-    await marcarTodasNotificacionesLeidas().catch(() => {})
+    if (filtro === 'no_leidas') {
+      setNotificaciones([])
+      setTotal(0)
+      setTotalPages(1)
+    }
+    marcarTodasNotificacionesLeidas().catch(() => {})
     window.dispatchEvent(new Event('notifications:read'))
-    fetchNotificaciones(1, filtro)
     setPage(1)
+    if (filtro === 'leidas') fetchNotificaciones(1, filtro)
   }
 
   const switchFiltro = (f: Filtro) => {
     if (f === filtro) return
+    requestSeq.current += 1
     setFiltro(f)
     setPage(1)
+    setTotal(0)
+    setTotalPages(1)
+    setNotificaciones([])
+    setListLoading(true)
   }
 
   if (loading && !initialLoadDone.current) {
@@ -137,7 +163,11 @@ export default function NotificacionesPage() {
       </div>
 
       {/* Lista de notificaciones */}
-      {notificaciones.length === 0 ? (
+      {listLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : notificaciones.length === 0 ? (
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-10 text-center">
           <span className="material-symbols-outlined text-5xl text-slate-300 dark:text-slate-600">
             {filtro === 'no_leidas' ? 'mark_email_read' : 'inbox'}

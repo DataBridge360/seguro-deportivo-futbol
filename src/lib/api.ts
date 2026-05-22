@@ -850,6 +850,7 @@ export interface CreateNotificacionData {
     tipo_descuento: 'porcentaje' | 'monto_fijo'
     valor_descuento: number
     fecha_vencimiento?: string
+    color?: CouponColor
   }
 }
 
@@ -908,13 +909,15 @@ export async function getNotificacionesEnviadas(): Promise<NotificacionEnviadaRe
 export interface CuponResponse {
   id: string
   club_id: string
-  jugador_id: string
+  jugador_id: string | null
   notificacion_id: string | null
-  codigo: string
+  cupon_origen_id?: string | null
+  codigo: string | null
   titulo: string
   descripcion: string | null
   tipo_descuento: 'porcentaje' | 'monto_fijo'
   valor_descuento: number
+  color?: CouponColor
   monto_minimo_compra: number | null
   fecha_vencimiento: string | null
   usado: boolean
@@ -923,6 +926,7 @@ export interface CuponResponse {
   monto_descuento: number | null
   monto_total: number | null
   canjeado_por: string | null
+  es_plantilla?: boolean
   created_at: string
   jugadores?: {
     id: string
@@ -945,6 +949,7 @@ export interface ResumenCuponesResponse {
     titulo: string
     tipo_descuento: string
     valor_descuento: number
+    color?: CouponColor
     monto_compra: number
     monto_descuento: number
     monto_total: number
@@ -959,6 +964,8 @@ export interface ResumenCuponesResponse {
   }
 }
 
+export type CouponColor = 'amber' | 'blue' | 'green' | 'red' | 'purple'
+
 export async function getMisCupones(): Promise<CuponResponse[]> {
   const res = await apiFetch('/cupones/mis-cupones')
   return res.data
@@ -966,6 +973,11 @@ export async function getMisCupones(): Promise<CuponResponse[]> {
 
 export async function buscarCupon(codigo: string): Promise<CuponResponse> {
   const res = await apiFetch(`/cupones/buscar/${encodeURIComponent(codigo)}`)
+  return res.data
+}
+
+export async function generarCodigoCupon(id: string): Promise<CuponResponse> {
+  const res = await apiFetch(`/cupones/${id}/generar-codigo`, { method: 'POST' })
   return res.data
 }
 

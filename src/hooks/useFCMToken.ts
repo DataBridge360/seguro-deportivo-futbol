@@ -21,6 +21,12 @@ export function useFCMToken() {
       return false;
     }
 
+    if (Notification.permission === 'denied') {
+      setPermission('denied');
+      setError('Las notificaciones estan bloqueadas en el navegador para este sitio');
+      return false;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -29,31 +35,26 @@ export function useFCMToken() {
       setPermission(result);
 
       if (result !== 'granted') {
-        setError('Permiso de notificaciones denegado');
+        setError('Permiso de notificaciones no otorgado');
         return false;
       }
 
-      // Obtener messaging
+      if (Notification.permission !== 'granted') {
+        setPermission(Notification.permission);
+        setError('El navegador no dejo habilitado el permiso de notificaciones');
+        return false;
+      }
+
+      console.log('Solicitando token FCM con VAPID:', process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.substring(0, 20) + '...');
+
       const messaging = await getMessagingIfSupported();
       if (!messaging) {
-        setError('Mensajería no soportada en este navegador');
+        setError('Mensajeria no soportada en este navegador');
         return false;
       }
 
-      // Registrar Service Worker (forzar actualización)
-      const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-        updateViaCache: 'none'
-      });
-
-      // Forzar actualización del SW si hay uno nuevo
-      if (registration.waiting) {
-        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-      }
-
+      const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
       await navigator.serviceWorker.ready;
-
-      // Obtener token FCM
-      console.log('🔑 Solicitando token FCM con VAPID:', process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.substring(0, 20) + '...');
 
       const fcmToken = await getToken(messaging, {
         vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
@@ -61,22 +62,27 @@ export function useFCMToken() {
       });
 
       if (fcmToken) {
-        console.log('✅ Token FCM obtenido:', fcmToken.substring(0, 50) + '...');
+        console.log('Token FCM obtenido:', fcmToken.substring(0, 50) + '...');
         setToken(fcmToken);
 
-        // Enviar al backend
-        console.log('📤 Registrando token en backend...');
+        console.log('Registrando token en backend...');
         await registerFCMToken(fcmToken);
-        console.log('✅ Token registrado en backend exitosamente');
+        console.log('Token registrado en backend exitosamente');
         return true;
       } else {
-        console.error('❌ No se pudo obtener el token FCM');
+        console.warn('No se pudo obtener el token FCM');
         setError('No se pudo obtener el token FCM');
         return false;
       }
     } catch (err: any) {
-      console.error('Error solicitando permiso de notificaciones:', err);
-      setError(err.message ?? 'Error desconocido');
+      console.warn('Error solicitando permiso de notificaciones:', err);
+      const message = String(err?.message ?? '');
+      if (message.toLowerCase().includes('denied') || message.toLowerCase().includes('permission')) {
+        setPermission(Notification.permission);
+        setError('El navegador rechazo la suscripcion push. Revisar permisos del sitio.');
+      } else {
+        setError(message || 'Error desconocido');
+      }
       return false;
     } finally {
       setLoading(false);

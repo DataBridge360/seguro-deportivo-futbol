@@ -9,6 +9,7 @@ import {
   getCategorias,
   CreateNotificacionData,
   NotificacionEnviadaResponse,
+  CouponColor,
 } from '@/lib/api'
 import type { Equipo, Torneo, Categoria } from '@/types/club'
 import NotificationModal from '@/components/ui/NotificationModal'
@@ -31,6 +32,18 @@ const tipoDestinatarioOptions: {
 const ASUNTO_MAX = 80
 const MENSAJE_MAX = 500
 const TITULO_CUPON_MAX = 60
+
+const couponColorOptions: { value: CouponColor; label: string; swatch: string; preview: string; active: string }[] = [
+  { value: 'amber', label: 'Amarillo', swatch: 'bg-amber-500', preview: 'from-amber-400 via-amber-500 to-orange-500 shadow-amber-500/20', active: 'ring-amber-500 border-amber-400' },
+  { value: 'blue', label: 'Azul', swatch: 'bg-blue-500', preview: 'from-blue-500 via-sky-500 to-cyan-500 shadow-blue-500/20', active: 'ring-blue-500 border-blue-400' },
+  { value: 'green', label: 'Verde', swatch: 'bg-green-500', preview: 'from-green-500 via-emerald-500 to-teal-500 shadow-green-500/20', active: 'ring-green-500 border-green-400' },
+  { value: 'red', label: 'Rojo', swatch: 'bg-red-500', preview: 'from-red-500 via-rose-500 to-pink-500 shadow-red-500/20', active: 'ring-red-500 border-red-400' },
+  { value: 'purple', label: 'Violeta', swatch: 'bg-purple-500', preview: 'from-purple-500 via-violet-500 to-fuchsia-500 shadow-purple-500/20', active: 'ring-purple-500 border-purple-400' },
+]
+
+function getCouponColor(value: CouponColor) {
+  return couponColorOptions.find(option => option.value === value) || couponColorOptions[0]
+}
 
 function timeAgo(dateStr: string): string {
   const now = new Date()
@@ -70,9 +83,14 @@ export default function NotificacionesPanel() {
   const [valorCupon, setValorCupon] = useState('')
   const [tituloCupon, setTituloCupon] = useState('')
   const [fechaVencimiento, setFechaVencimiento] = useState('')
+  const [colorCupon, setColorCupon] = useState<CouponColor>('amber')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [sending, setSending] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [sendProgress, setSendProgress] = useState<{ label: string; percent: number } | null>(null)
   const [showNotification, setShowNotification] = useState(false)
+  const [notifTitle, setNotifTitle] = useState('Notificacion enviada')
+  const [notifType, setNotifType] = useState<'success' | 'error'>('success')
   const [notifMessage, setNotifMessage] = useState('')
 
   const [equipos, setEquipos] = useState<Equipo[]>([])
@@ -113,9 +131,14 @@ export default function NotificacionesPanel() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validate()) return
+    setConfirmOpen(true)
+  }
 
+  const confirmSend = async () => {
     try {
+      setConfirmOpen(false)
       setSending(true)
+      setSendProgress({ label: 'Preparando envio', percent: 15 })
       const data: CreateNotificacionData = {
         titulo: asunto.trim(),
         mensaje: mensaje.trim(),
@@ -129,25 +152,37 @@ export default function NotificacionesPanel() {
           tipo_descuento: tipoCupon,
           valor_descuento: parseFloat(valorCupon),
           fecha_vencimiento: new Date(fechaVencimiento + 'T23:59:59').toISOString(),
+          color: colorCupon,
         }
       }
+      setSendProgress({
+        label: incluirCupon ? 'Creando plantilla de cupon en servidor' : 'Creando notificacion en servidor',
+        percent: 45,
+      })
       const result = await createNotificacion(data)
+      setSendProgress({ label: 'Finalizando envio', percent: 90 })
+      setNotifTitle('Notificacion enviada')
+      setNotifType('success')
       setNotifMessage(
         incluirCupon
-          ? `Notificacion enviada a ${result.destinatarios_count} jugadores con cupon de ${formatDescuento(tipoCupon, parseFloat(valorCupon))}.`
+          ? `Notificacion enviada a ${result.destinatarios_count} jugadores. Se creo una plantilla de cupon de ${formatDescuento(tipoCupon, parseFloat(valorCupon))}; cada codigo se generara cuando el jugador lo abra.`
           : `Notificacion enviada a ${result.destinatarios_count} jugadores.`
       )
       setShowNotification(true)
     } catch (error) {
+      setNotifTitle('Error al enviar')
+      setNotifType('error')
       setNotifMessage(error instanceof Error ? error.message : 'Error al enviar')
       setShowNotification(true)
     } finally {
       setSending(false)
+      setSendProgress(null)
     }
   }
 
   const handleNotificationClose = () => {
     setShowNotification(false)
+    if (notifType !== 'success') return
     setTipoDestinatario('')
     setFiltroId('')
     setAsunto('')
@@ -156,6 +191,7 @@ export default function NotificacionesPanel() {
     setValorCupon('')
     setTituloCupon('')
     setFechaVencimiento('')
+    setColorCupon('amber')
     getNotificacionesEnviadas()
       .then((data) => { setHistorial(data); setHistorialPage(1) })
       .catch(() => {})
@@ -179,6 +215,10 @@ export default function NotificacionesPanel() {
   const cuponFechaTexto = fechaVencimiento
     ? new Date(fechaVencimiento + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })
     : 'sin fecha'
+  const cuponColor = getCouponColor(colorCupon)
+  const confirmMessage = incluirCupon
+    ? `Vas a enviar una notificacion con una plantilla de cupon ${cuponValorTexto} a "${tipoFiltroLabel(tipoDestinatario)}". Los codigos se generaran cuando cada jugador abra el cupon.`
+    : `Vas a enviar una notificacion a "${tipoFiltroLabel(tipoDestinatario)}".`
 
   // Shared input class
   const inputBase =
@@ -338,7 +378,7 @@ export default function NotificacionesPanel() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-slate-900 dark:text-white text-sm">Incluir cupon de descuento</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Se generara un cupon unico para cada destinatario</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Se creara una plantilla; cada codigo se genera al abrirlo</p>
               </div>
               {/* iOS toggle */}
               <div className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${
@@ -451,10 +491,31 @@ export default function NotificacionesPanel() {
                   </div>
                 </div>
 
+                <div>
+                  <label className="block text-slate-700 dark:text-slate-300 text-xs font-semibold mb-1.5 uppercase tracking-wide">Color del cupon</label>
+                  <div className="grid grid-cols-5 gap-2">
+                    {couponColorOptions.map(option => {
+                      const active = colorCupon === option.value
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => setColorCupon(option.value)}
+                          className={`h-10 rounded-xl border bg-white/50 dark:bg-slate-900/30 flex items-center justify-center transition-all ${active ? `ring-2 ${option.active}` : 'border-slate-200/70 dark:border-slate-700/50 hover:border-slate-400/60'}`}
+                          aria-label={option.label}
+                          title={option.label}
+                        >
+                          <span className={`w-5 h-5 rounded-full ${option.swatch}`} />
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
                 {/* Preview del cupon */}
                 <div className="mt-2">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Vista previa</p>
-                  <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-400 via-amber-500 to-orange-500 p-4 text-white shadow-lg shadow-amber-500/20">
+                  <div className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${cuponColor.preview} p-4 text-white shadow-lg`}>
                     <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white/10 blur-2xl" />
                     <div className="absolute -left-4 -bottom-4 w-16 h-16 rounded-full bg-white/10 blur-xl" />
                     <div className="relative flex items-center gap-3">
@@ -591,10 +652,54 @@ export default function NotificacionesPanel() {
       <NotificationModal
         isOpen={showNotification}
         onClose={handleNotificationClose}
-        title="Notificacion enviada"
+        title={notifTitle}
         message={notifMessage}
-        type="success"
+        type={notifType}
       />
+
+      {confirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-5 shadow-2xl">
+            <div className="w-11 h-11 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-3">
+              <span className="material-symbols-outlined">warning</span>
+            </div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Confirmar envio</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">{confirmMessage}</p>
+            <div className="flex gap-3 mt-5">
+              <button
+                type="button"
+                onClick={() => setConfirmOpen(false)}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm font-semibold transition-colors"
+              >
+                Revisar
+              </button>
+              <button
+                type="button"
+                onClick={confirmSend}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-white text-sm font-semibold transition-colors"
+              >
+                Enviar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sendProgress && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-5 shadow-2xl">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Enviando</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{sendProgress.label}</p>
+            <div className="mt-5 h-3 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-300"
+                style={{ width: `${sendProgress.percent}%` }}
+              />
+            </div>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 text-right">{sendProgress.percent}%</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

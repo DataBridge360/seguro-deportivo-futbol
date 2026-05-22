@@ -8,6 +8,21 @@ import DatePicker from '@/components/ui/DatePicker'
 
 type Step = 'buscar' | 'preview' | 'monto'
 type InputMode = 'manual' | 'scanner'
+type ModalType = 'success' | 'error' | 'warning'
+
+const RECENT_PAGE_SIZE = 10
+
+const couponColorText = {
+  amber: 'text-amber-600 dark:text-amber-400',
+  blue: 'text-blue-600 dark:text-blue-400',
+  green: 'text-green-600 dark:text-green-400',
+  red: 'text-red-600 dark:text-red-400',
+  purple: 'text-purple-600 dark:text-purple-400',
+} as const
+
+function getCouponTextColor(cupon: CuponResponse) {
+  return couponColorText[cupon.color || 'amber'] || couponColorText.amber
+}
 
 function getEstado(cupon: CuponResponse): 'disponible' | 'usado' | 'vencido' {
   if (cupon.usado) return 'usado'
@@ -18,6 +33,11 @@ function getEstado(cupon: CuponResponse): 'disponible' | 'usado' | 'vencido' {
 function todayDate() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function currentTime() {
+  const d = new Date()
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 function formatHora(dateStr: string): string {
@@ -34,7 +54,7 @@ export default function CantinaCajaPage() {
   const [montoCompra, setMontoCompra] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' }>({
+  const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: ModalType }>({
     open: false, title: '', message: '', type: 'success'
   })
 
@@ -105,7 +125,15 @@ export default function CantinaCajaPage() {
             const data = await buscarCupon(value)
             setCupon(data)
             const estado = data.usado ? 'usado' : (data.fecha_vencimiento && new Date(data.fecha_vencimiento) < new Date(new Date().toDateString())) ? 'vencido' : 'disponible'
-            if (estado === 'usado') { setError('Este cupon ya fue utilizado'); return }
+            if (estado === 'usado') {
+              setNotification({
+                open: true,
+                title: 'Cupon ya utilizado',
+                message: 'Este cupon ya fue canjeado anteriormente. No se puede aplicar de nuevo.',
+                type: 'warning',
+              })
+              return
+            }
             if (estado === 'vencido') { setError('Este cupon esta vencido'); return }
             setStep('preview')
           } catch (err) {
@@ -131,21 +159,26 @@ export default function CantinaCajaPage() {
   const [resumenLoading, setResumenLoading] = useState(true)
   const [desde, setDesde] = useState(todayDate)
   const [hasta, setHasta] = useState(todayDate)
-  const [showDateFilter, setShowDateFilter] = useState(false)
+  const [horaDesde, setHoraDesde] = useState('00:00')
+  const [horaHasta, setHoraHasta] = useState(currentTime)
+  const [recentPage, setRecentPage] = useState(1)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // === Fetch summary ===
   const fetchResumen = useCallback(async (showLoader = false) => {
     try {
       if (showLoader) setResumenLoading(true)
-      const data = await getResumenCupones(new Date(desde + 'T00:00:00').toISOString(), new Date(hasta + 'T23:59:59').toISOString())
+      const inicio = new Date(`${desde}T${horaDesde || '00:00'}:00`)
+      const fin = new Date(`${hasta}T${horaHasta || '23:59'}:59`)
+      const data = await getResumenCupones(inicio.toISOString(), fin.toISOString())
       setResumen(data)
+      if (showLoader) setRecentPage(1)
     } catch {
       // silent fail on polling
     } finally {
       setResumenLoading(false)
     }
-  }, [desde, hasta])
+  }, [desde, hasta, horaDesde, horaHasta])
 
   // Initial load + polling every 30s
   useEffect(() => {
@@ -169,7 +202,12 @@ export default function CantinaCajaPage() {
       setCupon(data)
       const estado = getEstado(data)
       if (estado === 'usado') {
-        setError('Este cupon ya fue utilizado')
+        setNotification({
+          open: true,
+          title: 'Cupon ya utilizado',
+          message: 'Este cupon ya fue canjeado anteriormente. No se puede aplicar de nuevo.',
+          type: 'warning',
+        })
         return
       }
       if (estado === 'vencido') {
@@ -204,11 +242,13 @@ export default function CantinaCajaPage() {
       // Re-fetch summary immediately after successful canje
       fetchResumen(false)
     } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error al canjear'
+      const alreadyUsed = message.toLowerCase().includes('ya fue utilizado')
       setNotification({
         open: true,
-        title: 'Error',
-        message: err instanceof Error ? err.message : 'Error al canjear',
-        type: 'error'
+        title: alreadyUsed ? 'Cupon ya utilizado' : 'Error',
+        message: alreadyUsed ? 'Este cupon ya fue canjeado anteriormente. No se puede aplicar de nuevo.' : message,
+        type: alreadyUsed ? 'warning' : 'error'
       })
     } finally {
       setLoading(false)
@@ -239,13 +279,19 @@ export default function CantinaCajaPage() {
   }
 
   const totales = resumen?.totales ?? { total_canjes: 0, total_compras: 0, total_descuentos: 0, total_cobrado: 0 }
+  const totalRecentPages = Math.max(1, Math.ceil((resumen?.cupones.length ?? 0) / RECENT_PAGE_SIZE))
+  const recentPageSafe = Math.min(recentPage, totalRecentPages)
+  const recentCupones = (resumen?.cupones ?? []).slice(
+    (recentPageSafe - 1) * RECENT_PAGE_SIZE,
+    recentPageSafe * RECENT_PAGE_SIZE
+  )
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Caja</h1>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Validar cupones y resumen del dia</p>
+        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Validar cupones y controlar el resumen del turno</p>
       </div>
 
       {/* === COUPON VALIDATION === */}
@@ -339,7 +385,7 @@ export default function CantinaCajaPage() {
           {step === 'preview' && cupon && (
             <>
               <div className="text-center py-2">
-                <p className="text-3xl font-bold text-primary">
+                <p className={`text-3xl font-bold ${getCouponTextColor(cupon)}`}>
                   {cupon.tipo_descuento === 'porcentaje' ? `${cupon.valor_descuento}%` : `$${cupon.valor_descuento.toLocaleString()}`}
                 </p>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{cupon.titulo}</p>
@@ -422,43 +468,54 @@ export default function CantinaCajaPage() {
         </div>
       </div>
 
-      {/* === DAILY SUMMARY === */}
-      <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <span className="material-symbols-outlined text-primary text-xl">point_of_sale</span>
-            Resumen del dia
+      {/* === SHIFT SUMMARY === */}
+      <div className="rounded-2xl border border-primary/20 bg-primary/5 dark:bg-primary/10 p-4 sm:p-5">
+        <div className="flex flex-col gap-1 mb-4">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary text-2xl">point_of_sale</span>
+            Resumen de turno
           </h2>
-          <button
-            onClick={() => setShowDateFilter(!showDateFilter)}
-            className="text-xs text-slate-500 hover:text-primary flex items-center gap-1 transition-colors"
-          >
-            <span className="material-symbols-outlined text-sm">calendar_today</span>
-            Cambiar fecha
-          </button>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            Filtra los canjes por fecha y hora para cerrar cada turno.
+          </p>
         </div>
 
-        {/* Date filter (hidden by default) */}
-        {showDateFilter && (
-          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4 mb-4">
-            <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
-              <div className="flex-1">
-                <label className="block text-slate-600 dark:text-slate-300 text-xs font-medium mb-1.5">Desde</label>
-                <DatePicker value={desde} onChange={setDesde} placeholder="Desde" />
-              </div>
-              <div className="flex-1">
-                <label className="block text-slate-600 dark:text-slate-300 text-xs font-medium mb-1.5">Hasta</label>
-                <DatePicker value={hasta} onChange={setHasta} placeholder="Hasta" />
-              </div>
-              <button
-                onClick={() => fetchResumen(true)}
-                className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                Consultar
-              </button>
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 mb-5">
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_8rem_1fr_8rem_auto] gap-3 sm:items-end">
+            <div>
+              <label className="block text-slate-600 dark:text-slate-300 text-xs font-medium mb-1.5">Fecha desde</label>
+              <DatePicker value={desde} onChange={setDesde} placeholder="Desde" />
             </div>
+            <div>
+              <label className="block text-slate-600 dark:text-slate-300 text-xs font-medium mb-1.5">Hora desde</label>
+              <input
+                type="time"
+                value={horaDesde}
+                onChange={(e) => setHoraDesde(e.target.value)}
+                className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:border-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-600 dark:text-slate-300 text-xs font-medium mb-1.5">Fecha hasta</label>
+              <DatePicker value={hasta} onChange={setHasta} placeholder="Hasta" />
+            </div>
+            <div>
+              <label className="block text-slate-600 dark:text-slate-300 text-xs font-medium mb-1.5">Hora hasta</label>
+              <input
+                type="time"
+                value={horaHasta}
+                onChange={(e) => setHoraHasta(e.target.value)}
+                className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:border-primary"
+              />
+            </div>
+            <button
+              onClick={() => fetchResumen(true)}
+              className="px-4 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              Consultar
+            </button>
           </div>
-        )}
+        </div>
 
         {/* Metric cards */}
         {resumenLoading ? (
@@ -518,7 +575,7 @@ export default function CantinaCajaPage() {
               {!resumen || resumen.cupones.length === 0 ? (
                 <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-8 text-center">
                   <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600">receipt_long</span>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">No hay canjes hoy</p>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">No hay canjes en este turno</p>
                 </div>
               ) : (
                 <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-x-auto">
@@ -534,7 +591,7 @@ export default function CantinaCajaPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {resumen.cupones.map((c) => (
+                      {recentCupones.map((c) => (
                         <tr key={c.id} className="border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-100/50 dark:hover:bg-slate-700/30 transition-colors">
                           <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{formatHora(c.usado_at)}</td>
                           <td className="px-4 py-3 font-mono text-xs text-slate-600 dark:text-slate-300">{c.codigo}</td>
@@ -555,6 +612,34 @@ export default function CantinaCajaPage() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+              {resumen && resumen.cupones.length > RECENT_PAGE_SIZE && (
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    {(recentPageSafe - 1) * RECENT_PAGE_SIZE + 1}–{Math.min(recentPageSafe * RECENT_PAGE_SIZE, resumen.cupones.length)} de {resumen.cupones.length}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setRecentPage(p => Math.max(1, p - 1))}
+                      disabled={recentPageSafe === 1}
+                      className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-lg text-slate-600 dark:text-slate-300">chevron_left</span>
+                    </button>
+                    <span className="text-xs font-bold text-slate-600 dark:text-slate-300 min-w-[4rem] text-center">
+                      {recentPageSafe} / {totalRecentPages}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setRecentPage(p => Math.min(totalRecentPages, p + 1))}
+                      disabled={recentPageSafe === totalRecentPages}
+                      className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-lg text-slate-600 dark:text-slate-300">chevron_right</span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

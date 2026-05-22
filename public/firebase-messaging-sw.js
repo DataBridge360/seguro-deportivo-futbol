@@ -39,7 +39,7 @@ messaging.onBackgroundMessage((payload) => {
     requireInteraction: false,
   };
 
-  console.log('[firebase-messaging-sw.js] 🚀 Mostrando notificación:', {
+  console.log('[firebase-messaging-sw.js] Mostrando notificacion:', {
     title: title,
     options: notificationOptions
   });
@@ -47,10 +47,10 @@ messaging.onBackgroundMessage((payload) => {
   // Mostrar la notificación (única fuente de verdad)
   return self.registration.showNotification(title, notificationOptions)
     .then(() => {
-      console.log('[firebase-messaging-sw.js] ✅ Notificación mostrada exitosamente');
+      console.log('[firebase-messaging-sw.js] Notificacion mostrada exitosamente');
     })
     .catch((error) => {
-      console.error('[firebase-messaging-sw.js] ❌ Error mostrando notificación:', error);
+      console.error('[firebase-messaging-sw.js] Error mostrando notificacion:', error);
     });
 });
 

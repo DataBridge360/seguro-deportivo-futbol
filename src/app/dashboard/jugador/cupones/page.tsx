@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
-import { getMisCupones, CuponResponse } from '@/lib/api'
+import { generarCodigoCupon, getMisCupones, CuponResponse } from '@/lib/api'
+import NotificationModal from '@/components/ui/NotificationModal'
 
 type Estado = 'disponible' | 'usado' | 'vencido'
 
@@ -24,13 +25,53 @@ const tabs: { key: Estado; label: string }[] = [
   { key: 'vencido', label: 'Vencidos' },
 ]
 
+const couponColorStyles = {
+  amber: {
+    accent: 'bg-amber-500',
+    iconBg: 'bg-amber-500/10 dark:bg-amber-500/15',
+    text: 'text-amber-600 dark:text-amber-400',
+  },
+  blue: {
+    accent: 'bg-blue-500',
+    iconBg: 'bg-blue-500/10 dark:bg-blue-500/15',
+    text: 'text-blue-600 dark:text-blue-400',
+  },
+  green: {
+    accent: 'bg-green-500',
+    iconBg: 'bg-green-500/10 dark:bg-green-500/15',
+    text: 'text-green-600 dark:text-green-400',
+  },
+  red: {
+    accent: 'bg-red-500',
+    iconBg: 'bg-red-500/10 dark:bg-red-500/15',
+    text: 'text-red-600 dark:text-red-400',
+  },
+  purple: {
+    accent: 'bg-purple-500',
+    iconBg: 'bg-purple-500/10 dark:bg-purple-500/15',
+    text: 'text-purple-600 dark:text-purple-400',
+  },
+} as const
+
+function getCouponStyle(cupon: CuponResponse) {
+  return couponColorStyles[cupon.color || 'amber'] || couponColorStyles.amber
+}
+
 export default function CuponesPage() {
   const [cupones, setCupones] = useState<CuponResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<CuponResponse | null>(null)
   const [copied, setCopied] = useState(false)
   const [activeTab, setActiveTab] = useState<Estado>('disponible')
+  const [generatingId, setGeneratingId] = useState<string | null>(null)
+  const [usedModal, setUsedModal] = useState<{ open: boolean; title: string; message: string }>({
+    open: false,
+    title: '',
+    message: '',
+  })
   const initialLoadDone = useRef(false)
+  const cuponesRef = useRef<CuponResponse[]>([])
+  const notifiedUsedIds = useRef<Set<string>>(new Set())
 
   // Swipe-to-dismiss
   const dragY = useRef(0)
@@ -67,6 +108,26 @@ export default function CuponesPage() {
     try {
       if (!initialLoadDone.current) setLoading(true)
       const data = await getMisCupones()
+      if (initialLoadDone.current) {
+        const previous = cuponesRef.current
+        const usedNow = data.find(cupon =>
+          cupon.usado &&
+          !notifiedUsedIds.current.has(cupon.id) &&
+          previous.some(prev => prev.id === cupon.id && !prev.usado)
+        )
+
+        if (usedNow) {
+          notifiedUsedIds.current.add(usedNow.id)
+          setSelected(current => current?.id === usedNow.id ? usedNow : current)
+          setActiveTab('usado')
+          setUsedModal({
+            open: true,
+            title: 'Cupon utilizado',
+            message: `Tu cupon "${usedNow.titulo}" ya fue canjeado y paso a la seccion de usados.`,
+          })
+        }
+      }
+      cuponesRef.current = data
       setCupones(data)
       initialLoadDone.current = true
     } catch {
@@ -78,7 +139,11 @@ export default function CuponesPage() {
   useEffect(() => {
     fetchCupones()
     const interval = setInterval(fetchCupones, 30000)
-    return () => clearInterval(interval)
+    window.addEventListener('focus', fetchCupones)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', fetchCupones)
+    }
   }, [fetchCupones])
 
   const grouped = useMemo(() => {
@@ -93,6 +158,30 @@ export default function CuponesPage() {
     navigator.clipboard.writeText(code)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const openCupon = async (cupon: CuponResponse) => {
+    if (getEstado(cupon) !== 'disponible' || cupon.codigo) {
+      setSelected(cupon)
+      return
+    }
+
+    try {
+      setGeneratingId(cupon.id)
+      const generado = await generarCodigoCupon(cupon.id)
+      setCupones(prev => {
+        const withoutTemplate = prev.filter(c => c.id !== cupon.id)
+        const exists = withoutTemplate.some(c => c.id === generado.id)
+        const next = exists
+          ? withoutTemplate.map(c => c.id === generado.id ? generado : c)
+          : [generado, ...withoutTemplate]
+        cuponesRef.current = next
+        return next
+      })
+      setSelected(generado)
+    } finally {
+      setGeneratingId(null)
+    }
   }
 
   if (loading) {
@@ -161,33 +250,35 @@ export default function CuponesPage() {
           filtered.map((cupon) => {
             const estado = getEstado(cupon)
             const isDisponible = estado === 'disponible'
+            const colorStyle = getCouponStyle(cupon)
 
             const accentBg = isDisponible
-              ? 'bg-primary'
+              ? colorStyle.accent
               : estado === 'usado'
               ? 'bg-slate-300 dark:bg-slate-600'
               : 'bg-red-300 dark:bg-red-700'
 
             const iconBg = isDisponible
-              ? 'bg-primary/10 dark:bg-primary/15'
+              ? colorStyle.iconBg
               : estado === 'usado'
               ? 'bg-slate-100 dark:bg-slate-700'
               : 'bg-red-50 dark:bg-red-500/10'
 
             const iconColor = isDisponible
-              ? 'text-primary'
+              ? colorStyle.text
               : estado === 'usado'
               ? 'text-slate-400'
               : 'text-red-400'
 
             const valueColor = isDisponible
-              ? 'text-primary'
+              ? colorStyle.text
               : 'text-slate-400 dark:text-slate-500'
 
             return (
               <button
                 key={cupon.id}
-                onClick={() => setSelected(cupon)}
+                onClick={() => openCupon(cupon)}
+                disabled={generatingId === cupon.id}
                 className={`w-full text-left bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl overflow-hidden shadow-sm transition-all active:scale-[0.98] ${
                   isDisponible
                     ? 'hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600'
@@ -236,7 +327,11 @@ export default function CuponesPage() {
 
                   {/* Chevron */}
                   <div className="flex items-center pr-3">
-                    <span className="material-symbols-outlined text-slate-300 dark:text-slate-600">chevron_right</span>
+                    {generatingId === cupon.id ? (
+                      <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <span className="material-symbols-outlined text-slate-300 dark:text-slate-600">chevron_right</span>
+                    )}
                   </div>
                 </div>
               </button>
@@ -268,7 +363,7 @@ export default function CuponesPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">{selected.titulo}</h3>
-                  <p className="text-2xl font-bold text-primary mt-0.5">
+                  <p className={`text-2xl font-bold mt-0.5 ${getCouponStyle(selected).text}`}>
                     {selected.tipo_descuento === 'porcentaje' ? `${selected.valor_descuento}% OFF` : `$${selected.valor_descuento.toLocaleString()} OFF`}
                   </p>
                 </div>
@@ -278,7 +373,7 @@ export default function CuponesPage() {
               </div>
 
               {/* QR Code - solo en disponibles */}
-              {getEstado(selected) === 'disponible' ? (
+              {getEstado(selected) === 'disponible' && selected.codigo ? (
                 <div className="flex flex-col items-center gap-3 py-2">
                   <div className="p-4 bg-white rounded-2xl shadow-sm border border-slate-100">
                     <QRCodeSVG
@@ -291,7 +386,7 @@ export default function CuponesPage() {
                   <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 w-full">
                     <span className="font-mono text-base font-bold tracking-widest text-slate-900 dark:text-white flex-1 text-center">{selected.codigo}</span>
                     <button
-                      onClick={() => copyCode(selected.codigo)}
+                      onClick={() => copyCode(selected.codigo!)}
                       className="text-primary shrink-0"
                     >
                       <span className="material-symbols-outlined text-xl">{copied ? 'check' : 'content_copy'}</span>
@@ -307,7 +402,7 @@ export default function CuponesPage() {
                   <p className={`text-sm font-semibold mt-1 ${getEstado(selected) === 'usado' ? 'text-slate-500 dark:text-slate-400' : 'text-red-500'}`}>
                     {getEstado(selected) === 'usado' ? 'Cupon ya utilizado' : 'Cupon vencido'}
                   </p>
-                  <p className="font-mono text-xs text-slate-400 mt-2">{selected.codigo}</p>
+                  {selected.codigo && <p className="font-mono text-xs text-slate-400 mt-2">{selected.codigo}</p>}
                 </div>
               )}
 
@@ -355,6 +450,14 @@ export default function CuponesPage() {
           </div>
         </div>
       )}
+
+      <NotificationModal
+        isOpen={usedModal.open}
+        onClose={() => setUsedModal(prev => ({ ...prev, open: false }))}
+        title={usedModal.title}
+        message={usedModal.message}
+        type="info"
+      />
     </div>
   )
 }

@@ -9,23 +9,22 @@ export default function FCMDebugPanel() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    // Verificar Service Worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.ready.then((registration) => {
         if (registration.active) {
-          setSwStatus(`✅ Activo (scope: ${registration.scope})`);
+          setSwStatus(`Activo (scope: ${registration.scope})`);
         } else {
-          setSwStatus('❌ No activo');
+          setSwStatus('No activo');
         }
       });
     } else {
-      setSwStatus('❌ No soportado');
+      setSwStatus('No soportado');
     }
   }, []);
 
   const testNotification = () => {
     if (Notification.permission === 'granted') {
-      new Notification('🧪 Test de Notificación', {
+      new Notification('Test de Notificacion', {
         body: 'Si ves esto, las notificaciones funcionan correctamente',
         icon: '/icon-192.png',
         tag: 'test',
@@ -51,7 +50,7 @@ export default function FCMDebugPanel() {
       alert('Service Workers eliminados. La página se recargará para generar un nuevo token.');
       window.location.reload();
     } catch (error) {
-      console.error('Error regenerando token:', error);
+      console.warn('Error regenerando service workers:', error);
       alert('Error: ' + (error as Error).message);
     }
   };
@@ -69,7 +68,7 @@ export default function FCMDebugPanel() {
       {isVisible && (
         <div className="fixed bottom-32 right-4 z-50 bg-black/90 backdrop-blur-lg text-white p-4 rounded-xl shadow-2xl border border-white/20 max-w-md text-xs font-mono">
           <div className="flex justify-between items-center mb-3">
-            <h3 className="font-bold text-sm">🔧 FCM Debug Panel</h3>
+            <h3 className="font-bold text-sm">FCM Debug Panel</h3>
             <button
               onClick={() => setIsVisible(false)}
               className="text-white/60 hover:text-white"
@@ -115,8 +114,8 @@ export default function FCMDebugPanel() {
               <strong>Protocolo válido:</strong>{' '}
               {window.location.protocol === 'https:' ||
               window.location.hostname === 'localhost'
-                ? '✅ Sí'
-                : '❌ No (necesita HTTPS)'}
+                ? 'Si'
+                : 'No (necesita HTTPS)'}
             </div>
 
             <div className="flex gap-2 mt-3">
@@ -124,13 +123,13 @@ export default function FCMDebugPanel() {
                 onClick={testNotification}
                 className="flex-1 bg-purple-600 hover:bg-purple-700 py-2 px-3 rounded font-semibold text-sm"
               >
-                🧪 Test Local
+                Test local
               </button>
               <button
                 onClick={regenerateToken}
                 className="flex-1 bg-red-600 hover:bg-red-700 py-2 px-3 rounded font-semibold text-sm"
               >
-                🔄 Regenerar Token
+                Reset SW
               </button>
             </div>
 
@@ -139,7 +138,7 @@ export default function FCMDebugPanel() {
               <ul className="list-disc pl-4 mt-1 space-y-1">
                 <li>
                   Con la app <strong>abierta</strong>: Mirá la consola, deberías
-                  ver &quot;🔔 [FOREGROUND] Mensaje recibido&quot;
+                  ver el mensaje foreground recibido
                 </li>
                 <li>
                   Con la app <strong>cerrada</strong>: Deberías ver una

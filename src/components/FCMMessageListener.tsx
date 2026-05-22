@@ -63,7 +63,6 @@ export default function FCMMessageListener() {
     return () => {
       cancelAnimationFrame(raf);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toast?.id]);
 
   // Suscribirse a mensajes FCM en foreground
