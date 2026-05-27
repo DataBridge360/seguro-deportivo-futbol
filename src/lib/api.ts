@@ -38,8 +38,17 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
   const json = await res.json()
 
   if (!res.ok) {
+    // El backend puede devolver errores en dos formatos:
+    // 1. { success: false, error: { message, code, details, hint } }
+    // 2. { message: '...' } (formato simple)
+    const errorMessage = json.error?.message || json.message || 'Error en la solicitud'
+    const isLoginRequest = path.startsWith('/auth/login/')
+    const isCredentialError =
+      isLoginRequest ||
+      /credenciales|contrase(?:ñ|n)a incorrecta|contrase(?:ñ|n)a de admin incorrecta/i.test(errorMessage)
+
     // Si el token es inválido o expiró, hacer logout automático
-    if (res.status === 401 && typeof window !== 'undefined') {
+    if (res.status === 401 && typeof window !== 'undefined' && !isCredentialError) {
       // Limpiar autenticación
       localStorage.removeItem('token')
       localStorage.removeItem('auth-storage')
@@ -54,10 +63,10 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
       throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.')
     }
 
-    // El backend puede devolver errores en dos formatos:
-    // 1. { success: false, error: { message, code, details, hint } }
-    // 2. { message: '...' } (formato simple)
-    const errorMessage = json.error?.message || json.message || 'Error en la solicitud'
+    if (isLoginRequest && res.status === 401) {
+      throw new Error('Usuario/DNI o contraseña incorrectos')
+    }
+
     throw new Error(errorMessage)
   }
 
@@ -335,6 +344,166 @@ export async function verifyPassword(password: string): Promise<void> {
     method: 'POST',
     body: JSON.stringify({ password }),
   })
+}
+
+// Admin users API
+
+export type AdminUserRole = 'admin' | 'productor' | 'club' | 'jugador' | 'cantina'
+export type AdminUserKind = 'staff' | 'jugador'
+
+export interface AdminManagedUser {
+  id: string
+  kind: AdminUserKind
+  role: AdminUserRole
+  nombre: string
+  apellido: string | null
+  usuario: string | null
+  dni: string | null
+  email: string | null
+  telefono: string | null
+  direccion: string | null
+  fecha_nacimiento: string | null
+  club_id: string | null
+  club_nombre: string | null
+  activo: boolean
+  pagado: boolean | null
+  debe_cambiar_password: boolean
+  created_at: string | null
+}
+
+export interface AdminUsersPage {
+  data: AdminManagedUser[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+  counts: {
+    staff: number
+    jugadores: number
+  }
+}
+
+export interface AdminUserPayload {
+  role: AdminUserRole
+  nombre: string
+  apellido?: string
+  dni?: string
+  fecha_nacimiento?: string
+  usuario?: string
+  email?: string
+  telefono?: string
+  direccion?: string
+  club_id?: string
+  password: string
+  activo?: boolean
+  admin_password: string
+}
+
+export type AdminUserUpdatePayload = Partial<Omit<AdminUserPayload, 'role' | 'password'>> & {
+  pagado?: boolean
+  admin_password: string
+}
+
+export async function getAdminUsers(params?: {
+  search?: string
+  role?: string
+  page?: number
+  limit?: number
+}): Promise<AdminUsersPage> {
+  const qs = new URLSearchParams()
+  if (params?.search) qs.set('search', params.search)
+  if (params?.role && params.role !== 'todos') qs.set('role', params.role)
+  if (params?.page) qs.set('page', String(params.page))
+  if (params?.limit) qs.set('limit', String(params.limit))
+  const res = await apiFetch(`/admin/users${qs.toString() ? `?${qs.toString()}` : ''}`)
+  return res
+}
+
+export async function createAdminUser(data: AdminUserPayload): Promise<void> {
+  const res = await apiFetch('/admin/users', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+  return res.data
+}
+
+export async function updateAdminUser(
+  kind: AdminUserKind,
+  id: string,
+  data: AdminUserUpdatePayload,
+): Promise<void> {
+  const res = await apiFetch(`/admin/users/${kind}/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+  return res.data
+}
+
+export async function resetAdminUserPassword(
+  kind: AdminUserKind,
+  id: string,
+  data: { password: string; admin_password: string },
+): Promise<void> {
+  await apiFetch(`/admin/users/${kind}/${id}/password`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+}
+
+export interface AdminCouponsReport {
+  cantinas: {
+    id: string
+    nombre: string
+    usuario: string | null
+    club_id: string | null
+    activo: boolean
+  }[]
+  totales: {
+    total_canjes: number
+    total_compras: number
+    total_descuentos: number
+    total_cobrado: number
+  }
+  por_dia: {
+    fecha: string
+    canjes: number
+    total_compras: number
+    total_descuentos: number
+    total_cobrado: number
+  }[]
+  por_cantina: {
+    cantina_id: string
+    cantina_nombre: string
+    canjes: number
+    total_compras: number
+    total_descuentos: number
+    total_cobrado: number
+  }[]
+  cupones: {
+    id: string
+    codigo: string | null
+    titulo: string
+    usado_at: string
+    monto_compra: number
+    monto_descuento: number
+    monto_total: number
+    cantina_id: string | null
+    cantina_nombre: string
+  }[]
+}
+
+export async function getAdminCouponsReport(params: {
+  desde: string
+  hasta: string
+  cantinaId?: string
+}): Promise<AdminCouponsReport> {
+  const qs = new URLSearchParams({
+    desde: params.desde,
+    hasta: params.hasta,
+  })
+  if (params.cantinaId && params.cantinaId !== 'todas') qs.set('cantina_id', params.cantinaId)
+  const res = await apiFetch(`/admin/reports/coupons?${qs.toString()}`)
+  return res.data
 }
 
 // Torneos API Functions
