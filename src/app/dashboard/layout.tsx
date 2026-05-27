@@ -8,6 +8,8 @@ import { getNavigationForRole } from '@/lib/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { getNoLeidasCount } from '@/lib/api'
+import NotificationPermissionBanner from '@/components/NotificationPermissionBanner'
+import FCMMessageListener from '@/components/FCMMessageListener'
 
 // Mobile nav items for jugador
 const jugadorNavItems = [
@@ -79,8 +81,11 @@ export default function DashboardLayout({
   useEffect(() => {
     fetchUnreadCount()
     unreadIntervalRef.current = setInterval(fetchUnreadCount, 30000)
+    const onRead = () => fetchUnreadCount()
+    window.addEventListener('notifications:read', onRead)
     return () => {
       if (unreadIntervalRef.current) clearInterval(unreadIntervalRef.current)
+      window.removeEventListener('notifications:read', onRead)
     }
   }, [fetchUnreadCount])
 
@@ -238,6 +243,12 @@ export default function DashboardLayout({
             })}
           </nav>
         </div>
+
+        {/* FCM Message Listener - solo UNA VEZ */}
+        <FCMMessageListener />
+
+        {/* Notification Permission Banner */}
+        <NotificationPermissionBanner />
       </div>
     )
   }

@@ -9,6 +9,10 @@ import {
   NotificacionDestinatarioResponse,
 } from '@/lib/api'
 
+type Filtro = 'no_leidas' | 'leidas'
+
+const PAGE_SIZE = 10
+
 function formatDateShort(dateStr: string): string {
   const date = new Date(dateStr)
   return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
@@ -23,45 +27,85 @@ export default function NotificacionesPage() {
   const router = useRouter()
   const [notificaciones, setNotificaciones] = useState<NotificacionDestinatarioResponse[]>([])
   const [loading, setLoading] = useState(true)
+  const [listLoading, setListLoading] = useState(false)
   const [selected, setSelected] = useState<NotificacionDestinatarioResponse | null>(null)
+  const [filtro, setFiltro] = useState<Filtro>('no_leidas')
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
   const initialLoadDone = useRef(false)
+  const requestSeq = useRef(0)
 
-  const fetchNotificaciones = useCallback(async () => {
+  const fetchNotificaciones = useCallback(async (p: number, f: Filtro) => {
+    const seq = requestSeq.current + 1
+    requestSeq.current = seq
     try {
       if (!initialLoadDone.current) setLoading(true)
-      const data = await getMisNotificaciones()
-      setNotificaciones(data)
+      else setListLoading(true)
+      const res = await getMisNotificaciones(p, PAGE_SIZE, f)
+      if (seq !== requestSeq.current) return
+      setNotificaciones(res.data)
+      setTotal(res.total)
+      setTotalPages(res.totalPages)
       initialLoadDone.current = true
     } catch {
     } finally {
-      setLoading(false)
+      if (seq === requestSeq.current) {
+        setLoading(false)
+        setListLoading(false)
+      }
     }
   }, [])
 
   useEffect(() => {
-    fetchNotificaciones()
-    const interval = setInterval(fetchNotificaciones, 30000)
+    fetchNotificaciones(page, filtro)
+  }, [fetchNotificaciones, page, filtro])
+
+  useEffect(() => {
+    const interval = setInterval(() => fetchNotificaciones(page, filtro), 30000)
     return () => clearInterval(interval)
-  }, [fetchNotificaciones])
+  }, [fetchNotificaciones, page, filtro])
 
   const handleClick = async (notif: NotificacionDestinatarioResponse) => {
+    const readNotif = { ...notif, leida: true }
+    setSelected(readNotif)
+
     if (!notif.leida) {
-      await marcarNotificacionLeida(notif.id).catch(() => {})
-      setNotificaciones(prev =>
-        prev.map(n => n.id === notif.id ? { ...n, leida: true } : n)
-      )
+      if (filtro === 'no_leidas') {
+        setNotificaciones(prev => prev.filter(n => n.id !== notif.id))
+        setTotal(prev => Math.max(0, prev - 1))
+      } else {
+        setNotificaciones(prev => prev.map(n => n.id === notif.id ? readNotif : n))
+      }
+      marcarNotificacionLeida(notif.id).catch(() => {})
+      window.dispatchEvent(new Event('notifications:read'))
     }
-    setSelected({ ...notif, leida: true })
   }
 
   const handleMarkAllRead = async () => {
-    await marcarTodasNotificacionesLeidas().catch(() => {})
-    setNotificaciones(prev => prev.map(n => ({ ...n, leida: true })))
+    if (filtro === 'no_leidas') {
+      setNotificaciones([])
+      setTotal(0)
+      setTotalPages(1)
+    }
+    marcarTodasNotificacionesLeidas().catch(() => {})
+    window.dispatchEvent(new Event('notifications:read'))
+    setPage(1)
+    if (filtro === 'leidas') fetchNotificaciones(1, filtro)
   }
 
-  const unreadCount = notificaciones.filter(n => !n.leida).length
+  const switchFiltro = (f: Filtro) => {
+    if (f === filtro) return
+    requestSeq.current += 1
+    setFiltro(f)
+    setPage(1)
+    setTotal(0)
+    setTotalPages(1)
+    setNotificaciones([])
+    setListLoading(true)
+  }
 
-  if (loading) {
+  if (loading && !initialLoadDone.current) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -73,15 +117,15 @@ export default function NotificacionesPage() {
     <div className="max-w-lg mx-auto pb-6">
       {/* Header con gradiente */}
       <div className="-mx-3 -mt-4 md:-mx-4 md:-mt-8 mb-5">
-        <div className="bg-gradient-to-b from-primary/10 to-transparent dark:from-primary/5 pt-2 pb-6 px-4">
-          <div className="flex items-center justify-between">
+        <div className="bg-gradient-to-b from-primary/10 to-transparent dark:from-primary/5 pt-2 pb-5 px-4">
+          <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-xl font-bold text-slate-900 dark:text-white">Notificaciones</h1>
               <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
-                {unreadCount > 0 ? `${unreadCount} sin leer` : 'Todas leidas'}
+                {filtro === 'no_leidas' ? `${total} sin leer` : `${total} leidas`}
               </p>
             </div>
-            {unreadCount > 0 && (
+            {filtro === 'no_leidas' && total > 0 && (
               <button
                 onClick={handleMarkAllRead}
                 className="text-xs font-semibold text-primary bg-primary/10 px-3 py-1.5 rounded-lg hover:bg-primary/20 transition-colors flex items-center gap-1"
@@ -91,14 +135,46 @@ export default function NotificacionesPage() {
               </button>
             )}
           </div>
+
+          {/* Tabs */}
+          <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800/60 rounded-xl">
+            <button
+              onClick={() => switchFiltro('no_leidas')}
+              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                filtro === 'no_leidas'
+                  ? 'bg-white dark:bg-slate-700 text-primary shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400'
+              }`}
+            >
+              No leidas
+            </button>
+            <button
+              onClick={() => switchFiltro('leidas')}
+              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-all ${
+                filtro === 'leidas'
+                  ? 'bg-white dark:bg-slate-700 text-primary shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400'
+              }`}
+            >
+              Leidas
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Lista de notificaciones */}
-      {notificaciones.length === 0 ? (
+      {listLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : notificaciones.length === 0 ? (
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-10 text-center">
-          <span className="material-symbols-outlined text-5xl text-slate-300 dark:text-slate-600">notifications_off</span>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-3">No tenes notificaciones</p>
+          <span className="material-symbols-outlined text-5xl text-slate-300 dark:text-slate-600">
+            {filtro === 'no_leidas' ? 'mark_email_read' : 'inbox'}
+          </span>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-3">
+            {filtro === 'no_leidas' ? 'No tenes notificaciones sin leer' : 'No tenes notificaciones leidas'}
+          </p>
         </div>
       ) : (
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
@@ -111,7 +187,6 @@ export default function NotificacionesPage() {
               } ${idx !== notificaciones.length - 1 ? 'border-b border-slate-100 dark:border-slate-700' : ''}`}
             >
               <div className="flex items-start gap-3">
-                {/* Icono de campana */}
                 <div className={`size-10 rounded-full flex items-center justify-center shrink-0 border-2 ${
                   !notif.leida
                     ? 'border-primary/30 bg-primary/5'
@@ -124,7 +199,6 @@ export default function NotificacionesPage() {
                   </span>
                 </div>
 
-                {/* Contenido */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <p className={`text-sm leading-snug ${
@@ -158,7 +232,37 @@ export default function NotificacionesPage() {
         </div>
       )}
 
-      {/* Modal detalle de notificacion */}
+      {/* Paginación */}
+      {total > PAGE_SIZE && (
+        <div className="mt-3 flex items-center justify-between gap-2 px-1">
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+            {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, total)} de {total}
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1 || loading}
+              className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+            >
+              <span className="material-symbols-outlined text-lg text-slate-600 dark:text-slate-300">chevron_left</span>
+            </button>
+            <span className="text-xs font-bold text-slate-600 dark:text-slate-300 min-w-[4rem] text-center">
+              {page} / {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages || loading}
+              className="p-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+            >
+              <span className="material-symbols-outlined text-lg text-slate-600 dark:text-slate-300">chevron_right</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal detalle */}
       {selected && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSelected(null)} />

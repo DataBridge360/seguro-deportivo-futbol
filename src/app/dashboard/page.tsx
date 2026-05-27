@@ -8,6 +8,18 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { getMisCupones, CuponResponse } from '@/lib/api'
 
+const couponTextColor = {
+  amber: 'text-amber-600 dark:text-amber-400',
+  blue: 'text-blue-600 dark:text-blue-400',
+  green: 'text-green-600 dark:text-green-400',
+  red: 'text-red-600 dark:text-red-400',
+  purple: 'text-purple-600 dark:text-purple-400',
+} as const
+
+function getCouponTextColor(cupon: CuponResponse) {
+  return couponTextColor[cupon.color || 'amber'] || couponTextColor.amber
+}
+
 // Modal QR
 function QRModal({ isOpen, onClose, dni }: { isOpen: boolean; onClose: () => void; dni: string }) {
   if (!isOpen) return null
@@ -305,7 +317,7 @@ function JugadorDashboard() {
                   href="/dashboard/jugador/cupones"
                   className="min-w-[200px] bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm hover:border-primary transition-colors"
                 >
-                  <p className="text-2xl font-bold text-primary">
+                  <p className={`text-2xl font-bold ${getCouponTextColor(cupon)}`}>
                     {cupon.tipo_descuento === 'porcentaje' ? `${cupon.valor_descuento}%` : `$${cupon.valor_descuento.toLocaleString()}`}
                   </p>
                   <p className="text-sm font-semibold text-slate-900 dark:text-white mt-1 line-clamp-1">{cupon.titulo}</p>

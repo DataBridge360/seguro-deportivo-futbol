@@ -1,0 +1,38 @@
+# Convenciones del Proyecto - Seguro Deportivo
+
+## UI/UX
+
+### Notificaciones y Alertas
+- **NUNCA usar `alert()`, `confirm()` o `prompt()` nativos del navegador** (no funcionan bien en mobile y rompen la experiencia)
+- Para confirmaciones destructivas (eliminar, desinscribir, etc.) usar un **modal de confirmación personalizado** con botones Cancelar/Confirmar
+- Para feedback al usuario usar el componente `NotificationModal`
+- Mantener consistencia con el diseño glass/blur del proyecto (`backdrop-blur`, `bg-black/60`)
+
+### Estilos
+- Usar Tailwind CSS para todos los estilos
+- Seguir el sistema de diseño con efectos glass (`backdrop-blur`, `bg-white/50`, etc.)
+- Usar Material Symbols para iconos (`material-symbols-outlined`)
+
+## Estructura
+
+### Rutas del Dashboard
+- `/dashboard` - Página principal
+- `/dashboard/jugador/*` - Secciones del jugador
+- `/dashboard/admin/*` - Panel de administración
+
+## Desarrollo
+
+### Regla importante
+- **NUNCA ejecutar `npm run build` mientras se están haciendo cambios**. Pisa la carpeta `.next` que usa `npm run dev` y rompe el HMR (Hot Module Replacement). Solo ejecutar build cuando el usuario diga "guarda los cambios".
+
+## Comandos
+
+### "Guarda los cambios"
+Cuando el usuario diga "guarda los cambios", ejecutar en orden:
+1. `npm run build` - Compilar el proyecto
+1.1. Si hay errores, corregirlos
+2. `npm run lint` - Verificar código
+2.1. Si hay errores, corregirlos
+3. `git add .` - Agregar archivos
+4. `git commit -m "mensaje descriptivo"` - Commit SIN mencionar a Codex/Co-Authored-By
+5. `git push` - Subir cambios al repositorio
