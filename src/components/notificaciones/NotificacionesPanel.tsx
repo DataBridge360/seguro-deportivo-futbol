@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import {
   createNotificacion,
+  eliminarCuponNotificacion,
   getNotificacionesEnviadas,
   getEquipos,
   getTorneos,
@@ -88,6 +89,7 @@ export default function NotificacionesPanel() {
   const [sending, setSending] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [sendProgress, setSendProgress] = useState<{ label: string; percent: number } | null>(null)
+  const [deletingCouponId, setDeletingCouponId] = useState<string | null>(null)
   const [showNotification, setShowNotification] = useState(false)
   const [notifTitle, setNotifTitle] = useState('Notificacion enviada')
   const [notifType, setNotifType] = useState<'success' | 'error'>('success')
@@ -151,7 +153,7 @@ export default function NotificacionesPanel() {
           titulo: tituloCupon.trim(),
           tipo_descuento: tipoCupon,
           valor_descuento: parseFloat(valorCupon),
-          fecha_vencimiento: new Date(fechaVencimiento + 'T23:59:59').toISOString(),
+          fecha_vencimiento: fechaVencimiento,
           color: colorCupon,
         }
       }
@@ -199,6 +201,28 @@ export default function NotificacionesPanel() {
 
   const clearError = (field: string) => {
     if (errors[field]) setErrors(prev => { const next = { ...prev }; delete next[field]; return next })
+  }
+
+  const handleEliminarCupon = async (notificacion: NotificacionEnviadaResponse) => {
+    const ok = window.confirm('Eliminar este cupon? Dejaremos los cupones ya usados en el historial.')
+    if (!ok) return
+
+    try {
+      setDeletingCouponId(notificacion.id)
+      await eliminarCuponNotificacion(notificacion.id)
+      setHistorial(prev => prev.map(item =>
+        item.id === notificacion.id
+          ? { ...item, cupon_eliminado_at: new Date().toISOString() }
+          : item
+      ))
+    } catch (error) {
+      setNotifTitle('Error al eliminar cupon')
+      setNotifType('error')
+      setNotifMessage(error instanceof Error ? error.message : 'No se pudo eliminar el cupon')
+      setShowNotification(true)
+    } finally {
+      setDeletingCouponId(null)
+    }
   }
 
   const needsSecondDropdown = ['equipo', 'torneo', 'categoria'].includes(tipoDestinatario)
@@ -607,13 +631,33 @@ export default function NotificacionesPanel() {
                         {tipoFiltroLabel(notif.tipo_filtro)}
                       </span>
                       {notif.con_cupon && (
-                        <span className="inline-block px-2 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[11px] rounded-full border border-amber-500/20 font-medium">
-                          Con cupon
+                        <span className={`inline-block px-2 py-0.5 text-[11px] rounded-full border font-medium ${
+                          notif.cupon_eliminado_at
+                            ? 'bg-slate-100/80 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400 border-slate-200/60 dark:border-slate-600/50'
+                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                        }`}>
+                          {notif.cupon_eliminado_at ? 'Cupon eliminado' : 'Con cupon'}
                         </span>
                       )}
                       <span className="text-slate-400 dark:text-slate-500 text-[11px]">{timeAgo(notif.created_at)}</span>
                     </div>
                   </div>
+                  {notif.con_cupon && !notif.cupon_eliminado_at && (
+                    <button
+                      type="button"
+                      onClick={() => handleEliminarCupon(notif)}
+                      disabled={deletingCouponId === notif.id}
+                      className="p-2 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-50 transition-colors"
+                      aria-label="Eliminar cupon"
+                      title="Eliminar cupon"
+                    >
+                      {deletingCouponId === notif.id ? (
+                        <span className="block w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <span className="material-symbols-outlined text-lg">delete</span>
+                      )}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
