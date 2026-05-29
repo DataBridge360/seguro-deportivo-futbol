@@ -133,8 +133,17 @@ function CredentialCard({ memberData, onShowQR }: {
 
 function getEstado(cupon: CuponResponse): 'disponible' | 'usado' | 'vencido' {
   if (cupon.usado) return 'usado'
-  if (cupon.fecha_vencimiento && new Date(cupon.fecha_vencimiento) < new Date(new Date().toDateString())) return 'vencido'
+  if (cupon.fecha_vencimiento && cupon.fecha_vencimiento.slice(0, 10) < todayDate()) return 'vencido'
   return 'disponible'
+}
+
+function todayDate() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function isAnuncioVisible(anuncio: Pick<AnuncioResponse, 'fecha_vencimiento' | 'activo'>) {
+  return anuncio.activo && anuncio.fecha_vencimiento.slice(0, 10) >= todayDate()
 }
 
 // Componente del dashboard para jugador
@@ -198,6 +207,7 @@ function JugadorDashboard() {
   }
 
   const cuponesDisponibles = cupones.filter(c => getEstado(c) === 'disponible')
+  const anunciosInicio = anuncios.filter(isAnuncioVisible)
 
   if (loading) {
     return (
@@ -282,17 +292,14 @@ function JugadorDashboard() {
           })}
         </div>
 
-        {anuncios.length > 0 && (
+        {anunciosInicio.length > 0 && (
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">Anuncios</h2>
-            </div>
             <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
-              {anuncios.slice(0, 6).map((anuncio) => (
+              {anunciosInicio.slice(0, 6).map((anuncio) => (
                 <Link
                   key={anuncio.id}
                   href={`/dashboard/jugador/anuncios/${anuncio.id}`}
-                  className="min-w-[200px] aspect-[1.6/1] bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden hover:border-primary transition-colors"
+                  className="min-w-[300px] w-[300px] h-[94px] sm:min-w-[360px] sm:w-[360px] sm:h-[113px] bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden hover:border-primary transition-colors"
                 >
                   <img
                     src={anuncio.imagen_url}

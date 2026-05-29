@@ -9,13 +9,18 @@ type Estado = 'disponible' | 'usado' | 'vencido'
 
 function getEstado(cupon: CuponResponse): Estado {
   if (cupon.usado) return 'usado'
-  if (cupon.fecha_vencimiento && new Date(cupon.fecha_vencimiento) < new Date(new Date().toDateString())) return 'vencido'
+  if (cupon.fecha_vencimiento && cupon.fecha_vencimiento.slice(0, 10) < todayDate()) return 'vencido'
   return 'disponible'
 }
 
 function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00')
+  const d = new Date(dateStr.slice(0, 10) + 'T00:00:00')
   return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+function todayDate() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 

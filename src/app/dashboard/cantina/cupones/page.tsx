@@ -26,7 +26,7 @@ function getCouponTextColor(cupon: CuponResponse) {
 
 function getEstado(cupon: CuponResponse): 'disponible' | 'usado' | 'vencido' {
   if (cupon.usado) return 'usado'
-  if (cupon.fecha_vencimiento && new Date(cupon.fecha_vencimiento) < new Date(new Date().toDateString())) return 'vencido'
+  if (cupon.fecha_vencimiento && cupon.fecha_vencimiento.slice(0, 10) < todayDate()) return 'vencido'
   return 'disponible'
 }
 
@@ -127,7 +127,7 @@ export default function CantinaCajaPage() {
             setLoading(true)
             const data = await buscarCupon(value)
             setCupon(data)
-            const estado = data.usado ? 'usado' : (data.fecha_vencimiento && new Date(data.fecha_vencimiento) < new Date(new Date().toDateString())) ? 'vencido' : 'disponible'
+            const estado = getEstado(data)
             if (estado === 'usado') {
               setNotification({
                 open: true,

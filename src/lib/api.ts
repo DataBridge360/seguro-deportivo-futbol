@@ -1001,6 +1001,8 @@ export interface NotificacionEnviadaResponse {
   mensaje: string
   tipo_filtro: string
   con_cupon: boolean
+  cupon_id?: string | null
+  cupon_eliminado_at?: string | null
   prioridad: string
   created_at: string
   notificacion_destinatario: { count: number }[]
@@ -1071,6 +1073,10 @@ export async function marcarTodasNotificacionesLeidas(): Promise<void> {
 export async function getNotificacionesEnviadas(): Promise<NotificacionEnviadaResponse[]> {
   const res = await apiFetch('/notificaciones/enviadas')
   return res.data
+}
+
+export async function eliminarCuponNotificacion(notificacionId: string): Promise<void> {
+  await apiFetch(`/cupones/notificacion/${encodeURIComponent(notificacionId)}`, { method: 'DELETE' })
 }
 
 // Cupones API Functions
@@ -1177,6 +1183,7 @@ export interface AnuncioResponse {
   titulo: string
   descripcion: string | null
   imagen_url: string
+  fecha_vencimiento: string
   activo: boolean
   created_at: string
   updated_at: string
@@ -1201,11 +1208,13 @@ export async function crearAnuncio(data: {
   titulo: string
   descripcion?: string
   imagen: File
+  fecha_vencimiento: string
 }): Promise<AnuncioResponse> {
   const formData = new FormData()
   formData.append('titulo', data.titulo)
   formData.append('descripcion', data.descripcion || '')
   formData.append('imagen', data.imagen)
+  formData.append('fecha_vencimiento', data.fecha_vencimiento)
 
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
 

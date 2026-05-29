@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import {
   getMisNotificaciones,
   marcarNotificacionLeida,
@@ -24,7 +23,6 @@ function formatDateFull(dateStr: string): string {
 }
 
 export default function NotificacionesPage() {
-  const router = useRouter()
   const [notificaciones, setNotificaciones] = useState<NotificacionDestinatarioResponse[]>([])
   const [loading, setLoading] = useState(true)
   const [listLoading, setListLoading] = useState(false)
@@ -289,12 +287,11 @@ export default function NotificacionesPage() {
                 <button
                   onClick={() => {
                     setSelected(null)
-                    router.push('/dashboard/jugador/cupones')
                   }}
                   className="w-full py-3 bg-primary hover:bg-primary/90 text-white rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2"
                 >
                   <span className="material-symbols-outlined text-base">confirmation_number</span>
-                  Ver cupon
+                  Entendido
                 </button>
               )}
 
