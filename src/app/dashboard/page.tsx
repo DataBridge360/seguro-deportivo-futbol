@@ -6,7 +6,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { QRCodeSVG } from 'qrcode.react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { getMisCupones, CuponResponse } from '@/lib/api'
+import { getMisAnuncios, getMisCupones, AnuncioResponse, CuponResponse } from '@/lib/api'
 
 const couponTextColor = {
   amber: 'text-amber-600 dark:text-amber-400',
@@ -133,8 +133,17 @@ function CredentialCard({ memberData, onShowQR }: {
 
 function getEstado(cupon: CuponResponse): 'disponible' | 'usado' | 'vencido' {
   if (cupon.usado) return 'usado'
-  if (cupon.fecha_vencimiento && new Date(cupon.fecha_vencimiento) < new Date(new Date().toDateString())) return 'vencido'
+  if (cupon.fecha_vencimiento && cupon.fecha_vencimiento.slice(0, 10) < todayDate()) return 'vencido'
   return 'disponible'
+}
+
+function todayDate() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function isAnuncioVisible(anuncio: Pick<AnuncioResponse, 'fecha_vencimiento' | 'activo'>) {
+  return anuncio.activo && anuncio.fecha_vencimiento.slice(0, 10) >= todayDate()
 }
 
 // Componente del dashboard para jugador
@@ -144,6 +153,7 @@ function JugadorDashboard() {
   const [loading, setLoading] = useState(true)
   const [dniRaw, setDniRaw] = useState('')
   const [cupones, setCupones] = useState<CuponResponse[]>([])
+  const [anuncios, setAnuncios] = useState<AnuncioResponse[]>([])
   const [memberData, setMemberData] = useState({
     name: user?.name || 'Usuario',
     club: '',
@@ -188,6 +198,7 @@ function JugadorDashboard() {
 
       // Cupones en paralelo pero sin romper si falla
       getMisCupones().then(setCupones).catch(() => {})
+      getMisAnuncios().then(setAnuncios).catch(() => {})
     } catch (error) {
       console.error('Error al cargar perfil:', error)
     } finally {
@@ -196,6 +207,7 @@ function JugadorDashboard() {
   }
 
   const cuponesDisponibles = cupones.filter(c => getEstado(c) === 'disponible')
+  const anunciosInicio = anuncios.filter(isAnuncioVisible)
 
   if (loading) {
     return (
@@ -279,6 +291,26 @@ function JugadorDashboard() {
             )
           })}
         </div>
+
+        {anunciosInicio.length > 0 && (
+          <div>
+            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+              {anunciosInicio.slice(0, 6).map((anuncio) => (
+                <Link
+                  key={anuncio.id}
+                  href={`/dashboard/jugador/anuncios/${anuncio.id}`}
+                  className="min-w-[300px] w-[300px] h-[94px] sm:min-w-[360px] sm:w-[360px] sm:h-[113px] bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden hover:border-primary transition-colors"
+                >
+                  <img
+                    src={anuncio.imagen_url}
+                    alt={anuncio.titulo}
+                    className="h-full w-full object-cover"
+                  />
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Solicitar Seguro */}
         <a

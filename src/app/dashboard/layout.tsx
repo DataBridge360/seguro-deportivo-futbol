@@ -40,6 +40,10 @@ function getBackRoute(pathname: string): string {
     return '/dashboard/jugador/torneos'
   }
 
+  if (/\/dashboard\/jugador\/anuncios\/[^/]+/.test(pathname)) {
+    return '/dashboard'
+  }
+
   // Si es una sub-ruta, ir a la ruta padre
   const segments = pathname.split('/')
   if (segments.length > 3) {

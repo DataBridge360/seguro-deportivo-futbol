@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import jsQR from 'jsqr'
 import { buscarCupon, canjearCupon, CuponResponse, getResumenCupones, ResumenCuponesResponse } from '@/lib/api'
 import NotificationModal from '@/components/ui/NotificationModal'
-import DatePicker from '@/components/ui/DatePicker'
+import DateTimePicker from '@/components/ui/DateTimePicker'
 
 type Step = 'buscar' | 'preview' | 'monto'
 type InputMode = 'manual' | 'scanner'
@@ -26,7 +26,7 @@ function getCouponTextColor(cupon: CuponResponse) {
 
 function getEstado(cupon: CuponResponse): 'disponible' | 'usado' | 'vencido' {
   if (cupon.usado) return 'usado'
-  if (cupon.fecha_vencimiento && new Date(cupon.fecha_vencimiento) < new Date(new Date().toDateString())) return 'vencido'
+  if (cupon.fecha_vencimiento && cupon.fecha_vencimiento.slice(0, 10) < todayDate()) return 'vencido'
   return 'disponible'
 }
 
@@ -35,14 +35,17 @@ function todayDate() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-function currentTime() {
-  const d = new Date()
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-}
-
 function formatHora(dateStr: string): string {
   const d = new Date(dateStr)
   return d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+}
+
+function toLocalDateTimeValue(date: string, time: string): number {
+  return new Date(`${date}T${time || '00:00'}:00`).getTime()
+}
+
+function toLocalDateTimeString(date: string, time: string): string {
+  return `${date}T${time || '00:00'}:00`
 }
 
 export default function CantinaCajaPage() {
@@ -124,7 +127,7 @@ export default function CantinaCajaPage() {
             setLoading(true)
             const data = await buscarCupon(value)
             setCupon(data)
-            const estado = data.usado ? 'usado' : (data.fecha_vencimiento && new Date(data.fecha_vencimiento) < new Date(new Date().toDateString())) ? 'vencido' : 'disponible'
+            const estado = getEstado(data)
             if (estado === 'usado') {
               setNotification({
                 open: true,
@@ -160,9 +163,32 @@ export default function CantinaCajaPage() {
   const [desde, setDesde] = useState(todayDate)
   const [hasta, setHasta] = useState(todayDate)
   const [horaDesde, setHoraDesde] = useState('00:00')
-  const [horaHasta, setHoraHasta] = useState(currentTime)
+  const [horaHasta, setHoraHasta] = useState('23:59')
   const [recentPage, setRecentPage] = useState(1)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const updateDesde = (nextDate = desde, nextTime = horaDesde) => {
+    setDesde(nextDate)
+    setHoraDesde(nextTime)
+    if (toLocalDateTimeValue(nextDate, nextTime) > toLocalDateTimeValue(hasta, horaHasta)) {
+      setHasta(nextDate)
+      setHoraHasta(nextTime)
+    }
+  }
+
+  const updateHasta = (nextDate = hasta, nextTime = horaHasta) => {
+    if (toLocalDateTimeValue(nextDate, nextTime) < toLocalDateTimeValue(desde, horaDesde)) return
+    setHasta(nextDate)
+    setHoraHasta(nextTime)
+  }
+
+  const setHoyCompleto = () => {
+    const today = todayDate()
+    setDesde(today)
+    setHoraDesde('00:00')
+    setHasta(today)
+    setHoraHasta('23:59')
+  }
 
   // === Fetch summary ===
   const fetchResumen = useCallback(async (showLoader = false) => {
@@ -481,39 +507,43 @@ export default function CantinaCajaPage() {
         </div>
 
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4 mb-5">
-          <div className="grid grid-cols-1 sm:grid-cols-[1fr_8rem_1fr_8rem_auto] gap-3 sm:items-end">
+          <div className="grid gap-4 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
             <div>
-              <label className="block text-slate-600 dark:text-slate-300 text-xs font-medium mb-1.5">Fecha desde</label>
-              <DatePicker value={desde} onChange={setDesde} placeholder="Desde" />
-            </div>
-            <div>
-              <label className="block text-slate-600 dark:text-slate-300 text-xs font-medium mb-1.5">Hora desde</label>
-              <input
-                type="time"
-                value={horaDesde}
-                onChange={(e) => setHoraDesde(e.target.value)}
-                className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:border-primary"
+              <label className="block text-slate-600 dark:text-slate-300 text-xs font-medium mb-1.5">Desde</label>
+              <DateTimePicker
+                dateValue={desde}
+                timeValue={horaDesde}
+                onDateChange={(value) => updateDesde(value, horaDesde)}
+                onTimeChange={(value) => updateDesde(desde, value)}
+                placeholder="Inicio del turno"
               />
             </div>
             <div>
-              <label className="block text-slate-600 dark:text-slate-300 text-xs font-medium mb-1.5">Fecha hasta</label>
-              <DatePicker value={hasta} onChange={setHasta} placeholder="Hasta" />
-            </div>
-            <div>
-              <label className="block text-slate-600 dark:text-slate-300 text-xs font-medium mb-1.5">Hora hasta</label>
-              <input
-                type="time"
-                value={horaHasta}
-                onChange={(e) => setHoraHasta(e.target.value)}
-                className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm focus:outline-none focus:border-primary"
+              <label className="block text-slate-600 dark:text-slate-300 text-xs font-medium mb-1.5">Hasta</label>
+              <DateTimePicker
+                dateValue={hasta}
+                timeValue={horaHasta}
+                onDateChange={(value) => updateHasta(value, horaHasta)}
+                onTimeChange={(value) => updateHasta(hasta, value)}
+                placeholder="Fin del turno"
+                minDateTime={toLocalDateTimeString(desde, horaDesde)}
               />
             </div>
-            <button
-              onClick={() => fetchResumen(true)}
-              className="px-4 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              Consultar
-            </button>
+            <div className="grid grid-cols-2 gap-2 lg:flex">
+              <button
+                type="button"
+                onClick={setHoyCompleto}
+                className="px-4 py-2.5 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 rounded-lg text-sm font-medium transition-colors"
+              >
+                Hoy completo
+              </button>
+              <button
+                onClick={() => fetchResumen(true)}
+                className="px-4 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                Consultar
+              </button>
+            </div>
           </div>
         </div>
 
