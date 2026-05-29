@@ -6,7 +6,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { QRCodeSVG } from 'qrcode.react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { getMisCupones, CuponResponse } from '@/lib/api'
+import { getMisAnuncios, getMisCupones, AnuncioResponse, CuponResponse } from '@/lib/api'
 
 const couponTextColor = {
   amber: 'text-amber-600 dark:text-amber-400',
@@ -144,6 +144,7 @@ function JugadorDashboard() {
   const [loading, setLoading] = useState(true)
   const [dniRaw, setDniRaw] = useState('')
   const [cupones, setCupones] = useState<CuponResponse[]>([])
+  const [anuncios, setAnuncios] = useState<AnuncioResponse[]>([])
   const [memberData, setMemberData] = useState({
     name: user?.name || 'Usuario',
     club: '',
@@ -188,6 +189,7 @@ function JugadorDashboard() {
 
       // Cupones en paralelo pero sin romper si falla
       getMisCupones().then(setCupones).catch(() => {})
+      getMisAnuncios().then(setAnuncios).catch(() => {})
     } catch (error) {
       console.error('Error al cargar perfil:', error)
     } finally {
@@ -279,6 +281,29 @@ function JugadorDashboard() {
             )
           })}
         </div>
+
+        {anuncios.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">Anuncios</h2>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+              {anuncios.slice(0, 6).map((anuncio) => (
+                <Link
+                  key={anuncio.id}
+                  href={`/dashboard/jugador/anuncios/${anuncio.id}`}
+                  className="min-w-[200px] aspect-[1.6/1] bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden hover:border-primary transition-colors"
+                >
+                  <img
+                    src={anuncio.imagen_url}
+                    alt={anuncio.titulo}
+                    className="h-full w-full object-cover"
+                  />
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Solicitar Seguro */}
         <a

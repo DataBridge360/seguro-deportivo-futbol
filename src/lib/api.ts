@@ -1168,6 +1168,69 @@ export async function getResumenHoy(): Promise<ResumenHoyResponse> {
   return res.data
 }
 
+// Anuncios API Functions
+
+export interface AnuncioResponse {
+  id: string
+  club_id: string
+  creado_por: string | null
+  titulo: string
+  descripcion: string | null
+  imagen_url: string
+  activo: boolean
+  created_at: string
+  updated_at: string
+}
+
+export async function getMisAnuncios(): Promise<AnuncioResponse[]> {
+  const res = await apiFetch('/anuncios/mis-anuncios')
+  return res.data
+}
+
+export async function getAnuncio(id: string): Promise<AnuncioResponse> {
+  const res = await apiFetch(`/anuncios/mis-anuncios/${encodeURIComponent(id)}`)
+  return res.data
+}
+
+export async function getAnunciosCantina(): Promise<AnuncioResponse[]> {
+  const res = await apiFetch('/anuncios/cantina')
+  return res.data
+}
+
+export async function crearAnuncio(data: {
+  titulo: string
+  descripcion?: string
+  imagen: File
+}): Promise<AnuncioResponse> {
+  const formData = new FormData()
+  formData.append('titulo', data.titulo)
+  formData.append('descripcion', data.descripcion || '')
+  formData.append('imagen', data.imagen)
+
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+
+  const res = await fetch(`${API_URL}/anuncios`, {
+    method: 'POST',
+    headers: {
+      'ngrok-skip-browser-warning': 'true',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  })
+
+  const json = await res.json()
+
+  if (!res.ok) {
+    throw new Error(json.error?.message || json.message || 'Error al crear el anuncio')
+  }
+
+  return json.data
+}
+
+export async function eliminarAnuncio(id: string): Promise<void> {
+  await apiFetch(`/anuncios/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
 // ========================================
 // FCM - Firebase Cloud Messaging
 // ========================================

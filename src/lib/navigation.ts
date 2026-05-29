@@ -153,6 +153,13 @@ export const navigationItems: NavItem[] = [
     roles: ['cantina']
   },
   {
+    label: 'Anuncios',
+    href: '/dashboard/cantina/anuncios',
+    icon: 'Megaphone',
+    materialIcon: 'campaign',
+    roles: ['cantina']
+  },
+  {
     label: 'Notificaciones',
     href: '/dashboard/cantina/notificaciones',
     icon: 'Bell',
