@@ -407,7 +407,7 @@ export default function DashboardPage() {
 
   // Redirect roles that don't use /dashboard as home
   useEffect(() => {
-    if (user?.role === 'productor') {
+    if (user?.role === 'productor' || user?.role === 'developer') {
       router.replace('/dashboard/productor/jugadores')
     } else if (user?.role === 'club') {
       router.replace('/dashboard/club/torneos')
@@ -420,7 +420,7 @@ export default function DashboardPage() {
     return <JugadorDashboard />
   }
 
-  if (user?.role === 'productor' || user?.role === 'club' || user?.role === 'cantina') {
+  if (user?.role === 'productor' || user?.role === 'developer' || user?.role === 'club' || user?.role === 'cantina') {
     return null // Redirecting...
   }
 

@@ -6,8 +6,8 @@ import { useAuthStore } from '@/stores/authStore'
 import NotificationModal from '@/components/ui/NotificationModal'
 import DatePicker from '@/components/ui/DatePicker'
 import BulkImportWizard from '@/components/bulk-import/BulkImportWizard'
-import TournamentImportWizard from '@/components/bulk-import/TournamentImportWizard'
-import { getJugadoresProductor, getEquipos, getPolizaActiva, createPoliza, uploadPoliza, toggleJugadorPagado, deleteJugador, verifyPassword, type JugadorResponse, type PolizaGeneral } from '@/lib/api'
+import { getJugadoresProductor, getEquipos, getPolizaActiva, createPoliza, uploadPoliza, toggleJugadorPagado, deleteJugador, resetJugadorPassword, verifyPassword, type JugadorResponse, type PolizaGeneral } from '@/lib/api'
+import { generatePassword } from '@/lib/password-generator'
 import { type Equipo } from '@/types/club'
 
 const PAGE_SIZE = 50
@@ -47,6 +47,12 @@ export default function ProductorJugadoresPage() {
   const [deletePassword, setDeletePassword] = useState('')
   const [deleteError, setDeleteError] = useState('')
 
+  // Modal de restablecer contraseña
+  const [resetModal, setResetModal] = useState<{ open: boolean; jugador: JugadorResponse | null }>({ open: false, jugador: null })
+  const [resetPasswordInput, setResetPasswordInput] = useState('')
+  const [resetError, setResetError] = useState('')
+  const [resettingPassword, setResettingPassword] = useState(false)
+
   // Modal de nueva póliza
   const [polizaModal, setPolizaModal] = useState(false)
   const [polizaInicio, setPolizaInicio] = useState('')
@@ -67,9 +73,7 @@ export default function ProductorJugadoresPage() {
   const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({ open: false, title: '', message: '', type: 'info' })
 
   // Bulk Import
-  const [showImportSelector, setShowImportSelector] = useState(false)
   const [showBulkImport, setShowBulkImport] = useState(false)
-  const [showTournamentImport, setShowTournamentImport] = useState(false)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -285,6 +289,44 @@ export default function ProductorJugadoresPage() {
     router.push(`/dashboard/productor/jugadores/${jugador.id}`)
   }
 
+  // Restablecer contraseña
+  const handleResetPasswordClick = (jugador: JugadorResponse) => {
+    setOpenMenuId(null)
+    setMenuPos(null)
+    setResetModal({ open: true, jugador })
+    setResetPasswordInput('')
+    setResetError('')
+  }
+
+  const handleResetPasswordConfirm = async () => {
+    if (!resetModal.jugador) return
+    if (!resetPasswordInput) {
+      setResetError('Ingresá tu contraseña')
+      return
+    }
+    const { jugador } = resetModal
+    try {
+      setResettingPassword(true)
+      const { password } = await resetJugadorPassword(jugador.id, resetPasswordInput)
+      setResetModal({ open: false, jugador: null })
+      setNotification({
+        open: true,
+        title: 'Contraseña restablecida',
+        message: `La nueva contraseña de ${jugador.apellido} ${jugador.nombre} es ${password}.`,
+        type: 'success'
+      })
+    } catch (err: any) {
+      if (err.message === 'Contraseña incorrecta' || err.message?.includes('Credenciales') || err.message?.includes('credenciales') || err.message?.includes('Unauthorized')) {
+        setResetError('Contraseña incorrecta')
+      } else {
+        setNotification({ open: true, title: 'Error', message: err.message || 'Error al restablecer contraseña', type: 'error' })
+        setResetModal({ open: false, jugador: null })
+      }
+    } finally {
+      setResettingPassword(false)
+    }
+  }
+
   // Crear nueva póliza
   const handleCreatePoliza = async () => {
     if (!polizaInicio || !polizaFin) return
@@ -338,7 +380,7 @@ export default function ProductorJugadoresPage() {
             <span className="hidden sm:inline">Descargar</span>
           </button>
           <button
-            onClick={() => setShowImportSelector(true)}
+            onClick={() => setShowBulkImport(true)}
             className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
           >
             <span className="material-symbols-outlined text-lg sm:text-xl">upload_file</span>
@@ -771,6 +813,53 @@ export default function ProductorJugadoresPage() {
         </div>
       )}
 
+      {/* Modal de Restablecer Contraseña */}
+      {resetModal.open && resetModal.jugador && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setResetModal({ open: false, jugador: null })}>
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-center mb-4">
+              <div className="bg-primary/10 p-3 rounded-full">
+                <span className="material-symbols-outlined text-primary text-2xl">lock_reset</span>
+              </div>
+            </div>
+            <h3 className="text-slate-900 dark:text-white text-lg font-bold text-center mb-2">Restablecer contraseña</h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm text-center mb-4">
+              La contraseña de <strong className="text-slate-900 dark:text-white">{resetModal.jugador.apellido} {resetModal.jugador.nombre}</strong> se restablecerá a <strong className="text-slate-900 dark:text-white">{generatePassword(resetModal.jugador.apellido, resetModal.jugador.dni)}</strong> (apellido + últimos 3 dígitos del DNI).
+            </p>
+            <div className="mb-4">
+              <label className="block text-slate-500 dark:text-slate-400 text-xs font-medium mb-1.5">Ingresá tu contraseña para confirmar</label>
+              <input
+                type="password"
+                value={resetPasswordInput}
+                onChange={(e) => { setResetPasswordInput(e.target.value); setResetError('') }}
+                placeholder="Contraseña"
+                className="w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                autoFocus
+                onKeyDown={(e) => { if (e.key === 'Enter') handleResetPasswordConfirm() }}
+              />
+              {resetError && (
+                <p className="text-rose-500 text-xs mt-1.5 font-medium">{resetError}</p>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setResetModal({ open: false, jugador: null })}
+                className="flex-1 px-4 py-2.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-sm font-bold transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleResetPasswordConfirm}
+                disabled={resettingPassword}
+                className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-all shadow-lg shadow-primary/20"
+              >
+                {resettingPassword ? 'Verificando...' : 'Restablecer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal de Confirmación para cambiar estado de pago */}
       {unpaidModal.open && unpaidModal.jugador && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setUnpaidModal({ open: false, jugador: null, targetPagado: false })}>
@@ -897,57 +986,6 @@ export default function ProductorJugadoresPage() {
         type={notification.type}
       />
 
-      {/* Import Selector Modal */}
-      {showImportSelector && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setShowImportSelector(false)}>
-          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-center mb-4">
-              <div className="bg-primary/10 p-3 rounded-full">
-                <span className="material-symbols-outlined text-primary text-2xl">upload_file</span>
-              </div>
-            </div>
-            <h3 className="text-slate-900 dark:text-white text-lg font-bold text-center mb-1">Carga Masiva</h3>
-            <p className="text-slate-500 dark:text-slate-400 text-sm text-center mb-5">
-              Seleccioná el tipo de importación que querés realizar
-            </p>
-            <div className="space-y-3">
-              <button
-                onClick={() => { setShowImportSelector(false); setShowBulkImport(true) }}
-                className="w-full flex items-center gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-primary/50 hover:bg-primary/5 dark:hover:bg-primary/5 transition-all group"
-              >
-                <div className="size-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500 shrink-0 group-hover:bg-blue-500/20 transition-colors">
-                  <span className="material-symbols-outlined">person_add</span>
-                </div>
-                <div className="text-left flex-1">
-                  <p className="text-sm font-bold text-slate-900 dark:text-white">Carga Masiva de Jugadores</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Importar jugadores desde Excel (DNI, nombre, apellido, fecha nac.)</p>
-                </div>
-                <span className="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">chevron_right</span>
-              </button>
-              <button
-                onClick={() => { setShowImportSelector(false); setShowTournamentImport(true) }}
-                className="w-full flex items-center gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-primary/50 hover:bg-primary/5 dark:hover:bg-primary/5 transition-all group"
-              >
-                <div className="size-10 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-500 shrink-0 group-hover:bg-purple-500/20 transition-colors">
-                  <span className="material-symbols-outlined">emoji_events</span>
-                </div>
-                <div className="text-left flex-1">
-                  <p className="text-sm font-bold text-slate-900 dark:text-white">Carga Masiva de Torneo</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Crear torneo completo: categorías, equipos y jugadores desde Excel</p>
-                </div>
-                <span className="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">chevron_right</span>
-              </button>
-            </div>
-            <button
-              onClick={() => setShowImportSelector(false)}
-              className="w-full mt-4 px-4 py-2.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl text-sm font-bold transition-all text-slate-500 dark:text-slate-400"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Three-dot dropdown fixed portal */}
       {openMenuId && menuPos && (() => {
         const jugador = jugadores.find(j => j.id === openMenuId)
@@ -956,7 +994,7 @@ export default function ProductorJugadoresPage() {
           <div
             ref={menuRef}
             style={{ position: 'fixed', top: menuPos.top, right: menuPos.right }}
-            className="w-44 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl shadow-black/10 dark:shadow-black/30 z-[9999] py-1.5 overflow-hidden"
+            className="w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl shadow-black/10 dark:shadow-black/30 z-[9999] py-1.5 overflow-hidden"
           >
             <button
               onClick={() => handleEditClick(jugador)}
@@ -964,6 +1002,13 @@ export default function ProductorJugadoresPage() {
             >
               <span className="material-symbols-outlined text-lg">edit</span>
               Editar
+            </button>
+            <button
+              onClick={() => handleResetPasswordClick(jugador)}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            >
+              <span className="material-symbols-outlined text-lg">lock_reset</span>
+              Restablecer contraseña
             </button>
             <div className="border-t border-slate-200 dark:border-slate-700 my-1" />
             <button
@@ -981,13 +1026,6 @@ export default function ProductorJugadoresPage() {
       <BulkImportWizard
         isOpen={showBulkImport}
         onClose={() => setShowBulkImport(false)}
-        onImportComplete={() => { fetchJugadores(1, busquedaDebounced, filtroEstado, filtroEquipos); setPage(1) }}
-      />
-
-      {/* Tournament Import Wizard */}
-      <TournamentImportWizard
-        isOpen={showTournamentImport}
-        onClose={() => setShowTournamentImport(false)}
         onImportComplete={() => { fetchJugadores(1, busquedaDebounced, filtroEstado, filtroEquipos); setPage(1) }}
       />
     </div>

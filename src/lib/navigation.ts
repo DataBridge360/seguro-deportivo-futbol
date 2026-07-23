@@ -39,35 +39,35 @@ export const navigationItems: NavItem[] = [
     href: '/dashboard/productor/jugadores',
     icon: 'Users',
     materialIcon: 'groups',
-    roles: ['productor']
+    roles: ['productor', 'developer']
   },
   {
     label: 'Equipos',
     href: '/dashboard/productor/equipos',
     icon: 'Shield',
     materialIcon: 'shield',
-    roles: ['productor']
+    roles: ['productor', 'developer']
   },
   {
     label: 'Categorías',
     href: '/dashboard/productor/categorias',
     icon: 'Tag',
     materialIcon: 'category',
-    roles: ['productor']
+    roles: ['productor', 'developer']
   },
   {
     label: 'Torneos',
     href: '/dashboard/productor/torneos',
     icon: 'Trophy',
     materialIcon: 'emoji_events',
-    roles: ['productor']
+    roles: ['productor', 'developer']
   },
   {
     label: 'Perfil',
     href: '/dashboard/productor/perfil',
     icon: 'User',
     materialIcon: 'person',
-    roles: ['productor']
+    roles: ['productor', 'developer']
   },
 
   // Club
@@ -184,6 +184,7 @@ export function getDefaultRouteForRole(role: UserRole): string {
     case 'admin':
       return '/dashboard'
     case 'productor':
+    case 'developer':
       return '/dashboard/productor/jugadores'
     case 'club':
       return '/dashboard/club/torneos'
@@ -202,4 +203,5 @@ export const roleRoutes: Record<UserRole, string[]> = {
   club: ['/dashboard', '/dashboard/club'],
   jugador: ['/dashboard', '/dashboard/jugador'],
   cantina: ['/dashboard', '/dashboard/cantina'],
+  developer: ['/dashboard', '/dashboard/productor'],
 }
