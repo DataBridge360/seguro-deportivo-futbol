@@ -28,6 +28,12 @@ export interface CreateTorneoDTO {
   categoria_ids?: string[]
 }
 
+// null permite limpiar las fechas de inscripción ("" no es válido para columnas date)
+export interface UpdateTorneoDTO extends Omit<Partial<CreateTorneoDTO>, 'inscripcion_inicio' | 'inscripcion_fin'> {
+  inscripcion_inicio?: string | null
+  inscripcion_fin?: string | null
+}
+
 export interface Torneo {
   id: string
   nombre: string

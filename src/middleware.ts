@@ -12,6 +12,8 @@ const roleRoutePatterns: Record<string, RegExp[]> = {
   club: [/^\/dashboard$/, /^\/dashboard\/club/, ...sharedRoutes],
   jugador: [/^\/dashboard$/, /^\/dashboard\/jugador/, ...sharedRoutes],
   cantina: [/^\/dashboard$/, /^\/dashboard\/cantina/, ...sharedRoutes],
+  // developer usa las mismas vistas que productor
+  developer: [/^\/dashboard$/, /^\/dashboard\/productor/, ...sharedRoutes],
 }
 
 export function middleware(request: NextRequest) {
@@ -52,7 +54,7 @@ export function middleware(request: NextRequest) {
     const userRole = user.role
 
     // Redirect productor from /dashboard to jugadores
-    if (userRole === 'productor' && pathname === '/dashboard') {
+    if ((userRole === 'productor' || userRole === 'developer') && pathname === '/dashboard') {
       return NextResponse.redirect(new URL('/dashboard/productor/jugadores', request.url))
     }
 
@@ -67,6 +69,7 @@ export function middleware(request: NextRequest) {
         club: '/dashboard/club/mi-club',
         jugador: '/dashboard',
         cantina: '/dashboard/cantina/cupones',
+        developer: '/dashboard/productor/jugadores',
       }
       return NextResponse.redirect(new URL(defaultRoutes[userRole] || '/dashboard', request.url))
     }

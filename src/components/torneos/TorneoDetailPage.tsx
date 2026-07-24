@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import {
   getTorneos, getEquiposInscritos, inscribirEquipo, desinscribirEquipo,
   getEquipos, getCategorias, toggleInscripciones, toggleEliminacionDelegados, deleteTorneo, updateTorneo,
-  getJugadoresEquipoTorneo,
+  getJugadoresEquipoTorneo, vaciarJugadoresTorneo,
 } from '@/lib/api'
 import type { Torneo, Inscripcion, Equipo, Categoria, JugadorEquipoTorneo, CreateTorneoDTO } from '@/types/club'
 import NotificationModal from '@/components/ui/NotificationModal'
@@ -50,6 +50,7 @@ export default function TorneoDetailPage({ basePath }: Props) {
   const router = useRouter()
   const params = useParams()
   const torneoId = params.id as string
+  const esProductor = basePath.startsWith('/dashboard/productor')
 
   const [torneo, setTorneo] = useState<Torneo | null>(null)
   const [inscripciones, setInscripciones] = useState<Inscripcion[]>([])
@@ -72,6 +73,11 @@ export default function TorneoDetailPage({ basePath }: Props) {
   // Delete
   const [deletePassword, setDeletePassword] = useState('')
   const [deleteError, setDeleteError] = useState('')
+
+  // Vaciar equipos (solo productor)
+  const [showConfirmVaciar, setShowConfirmVaciar] = useState(false)
+  const [vaciarPassword, setVaciarPassword] = useState('')
+  const [vaciarError, setVaciarError] = useState('')
 
   // Edit
   const [formEditar, setFormEditar] = useState<Partial<CreateTorneoDTO>>({})
@@ -214,7 +220,11 @@ export default function TorneoDetailPage({ basePath }: Props) {
 
     try {
       setSubmitting(true)
-      const updated = await updateTorneo(torneo.id, formEditar)
+      const updated = await updateTorneo(torneo.id, {
+        ...formEditar,
+        inscripcion_inicio: formEditar.inscripcion_inicio || null,
+        inscripcion_fin: formEditar.inscripcion_fin || null,
+      })
       setTorneo(updated)
       setShowModalEditar(false)
       setNotification({ open: true, title: 'Torneo actualizado', message: 'Los cambios se guardaron correctamente', type: 'success' })
@@ -243,6 +253,34 @@ export default function TorneoDetailPage({ basePath }: Props) {
       } else {
         setShowConfirmEliminarTorneo(false)
         setNotification({ open: true, title: 'Error al eliminar', message: msg, type: 'error' })
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // ─── Vaciar equipos (quitar jugadores, mantener delegados) ────────
+
+  const handleVaciarJugadores = async () => {
+    if (!torneo) return
+    if (!vaciarPassword.trim()) { setVaciarError('Ingresá tu contraseña'); return }
+    try {
+      setSubmitting(true)
+      const result = await vaciarJugadoresTorneo(torneo.id, vaciarPassword)
+      setShowConfirmVaciar(false)
+      setVaciarPassword('')
+      setJugadoresPorEquipo({})
+      const msg = result.jugadores_quitados === 0
+        ? 'No había jugadores para quitar. Los delegados se mantienen en sus equipos.'
+        : `Se quitaron ${result.jugadores_quitados} jugador${result.jugadores_quitados !== 1 ? 'es' : ''} de ${result.equipos_afectados} equipo${result.equipos_afectados !== 1 ? 's' : ''}. Los delegados se mantienen en sus equipos.`
+      setNotification({ open: true, title: 'Equipos vaciados', message: msg, type: 'success' })
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Error desconocido'
+      if (msg.toLowerCase().includes('contraseña')) {
+        setVaciarError('Contraseña incorrecta')
+      } else {
+        setShowConfirmVaciar(false)
+        setNotification({ open: true, title: 'Error al vaciar equipos', message: msg, type: 'error' })
       }
     } finally {
       setSubmitting(false)
@@ -547,6 +585,15 @@ export default function TorneoDetailPage({ basePath }: Props) {
                     <span className="material-symbols-outlined text-base">edit</span>
                     Editar
                   </button>
+                  {esProductor && (
+                    <button
+                      onClick={() => { setMenuOpen(false); setShowConfirmVaciar(true); setVaciarPassword(''); setVaciarError('') }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-base">group_remove</span>
+                      Vaciar equipos
+                    </button>
+                  )}
                   <button
                     onClick={() => { setMenuOpen(false); setShowConfirmEliminarTorneo(true); setDeletePassword(''); setDeleteError('') }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
@@ -983,6 +1030,55 @@ export default function TorneoDetailPage({ basePath }: Props) {
               <button onClick={() => { setShowConfirmEliminarTorneo(false); setDeletePassword(''); setDeleteError('') }} disabled={submitting} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">Cancelar</button>
               <button onClick={handleEliminarTorneo} disabled={submitting} className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                 {submitting ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Eliminando...</>) : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal vaciar equipos */}
+      {showConfirmVaciar && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => { if (!submitting) { setShowConfirmVaciar(false); setVaciarPassword(''); setVaciarError('') } }}>
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-9 h-9 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center">
+                <span className="material-symbols-outlined text-amber-500 text-lg">group_remove</span>
+              </div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Vaciar equipos</h3>
+            </div>
+            <p className="text-sm text-slate-600 dark:text-slate-300 mb-3">
+              Se quitarán <strong>todos los jugadores</strong> de los equipos de <strong>&quot;{torneo.nombre}&quot;</strong>.
+            </p>
+            <ul className="text-xs text-slate-500 dark:text-slate-400 space-y-1.5 mb-3">
+              <li className="flex items-start gap-1.5">
+                <span className="material-symbols-outlined text-sm text-green-500 mt-0.5">check_circle</span>
+                Los delegados se mantienen en sus equipos
+              </li>
+              <li className="flex items-start gap-1.5">
+                <span className="material-symbols-outlined text-sm text-green-500 mt-0.5">check_circle</span>
+                Los jugadores no se eliminan del sistema, solo salen de su equipo en este torneo
+              </li>
+              <li className="flex items-start gap-1.5">
+                <span className="material-symbols-outlined text-sm text-amber-500 mt-0.5">warning</span>
+                Esta acción no se puede deshacer
+              </li>
+            </ul>
+            <div className="mb-4">
+              <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1">Contraseña</label>
+              <input
+                type="password"
+                value={vaciarPassword}
+                onChange={(e) => { setVaciarPassword(e.target.value); setVaciarError('') }}
+                placeholder="Ingresá tu contraseña"
+                className={`w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:border-primary ${vaciarError ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'}`}
+                onKeyDown={(e) => { if (e.key === 'Enter' && vaciarPassword) handleVaciarJugadores() }}
+              />
+              {vaciarError && <p className="text-red-400 text-xs mt-1">{vaciarError}</p>}
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => { setShowConfirmVaciar(false); setVaciarPassword(''); setVaciarError('') }} disabled={submitting} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">Cancelar</button>
+              <button onClick={handleVaciarJugadores} disabled={submitting} className="flex-1 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                {submitting ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Vaciando...</>) : 'Vaciar equipos'}
               </button>
             </div>
           </div>

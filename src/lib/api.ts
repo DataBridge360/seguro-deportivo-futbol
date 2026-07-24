@@ -1,6 +1,7 @@
 import type { PreviewResponse, ConfirmRequest, ImportResult, Club, TournamentPreviewResponse, TournamentConfirmRequest, TournamentImportResult } from '@/types/bulk-import'
 import type {
   CreateTorneoDTO,
+  UpdateTorneoDTO,
   Torneo,
   CreateEquipoDTO,
   UpdateEquipoDTO,
@@ -348,7 +349,7 @@ export async function verifyPassword(password: string): Promise<void> {
 
 // Admin users API
 
-export type AdminUserRole = 'admin' | 'productor' | 'club' | 'jugador' | 'cantina'
+export type AdminUserRole = 'admin' | 'productor' | 'club' | 'jugador' | 'cantina' | 'developer'
 export type AdminUserKind = 'staff' | 'jugador'
 
 export interface AdminManagedUser {
@@ -516,7 +517,7 @@ export async function createTorneo(data: CreateTorneoDTO): Promise<Torneo> {
   return res.data
 }
 
-export async function updateTorneo(torneoId: string, data: Partial<CreateTorneoDTO>): Promise<Torneo> {
+export async function updateTorneo(torneoId: string, data: UpdateTorneoDTO): Promise<Torneo> {
   const res = await apiFetch(`/clubes/torneos/${torneoId}`, {
     method: 'PATCH',
     body: JSON.stringify(data),
@@ -687,6 +688,20 @@ export async function quitarJugadorEquipoTorneo(torneoId: string, equipoId: stri
   await apiFetch(`/clubes/torneos/${torneoId}/equipos/${equipoId}/jugadores/${jugadorId}`, {
     method: 'DELETE',
   })
+}
+
+export interface VaciarJugadoresTorneoResult {
+  jugadores_quitados: number
+  delegados_mantenidos: number
+  equipos_afectados: number
+}
+
+export async function vaciarJugadoresTorneo(torneoId: string, password: string): Promise<VaciarJugadoresTorneoResult> {
+  const res = await apiFetch(`/clubes/torneos/${torneoId}/vaciar-jugadores`, {
+    method: 'POST',
+    body: JSON.stringify({ password }),
+  })
+  return res.data
 }
 
 // Partidos API Functions
@@ -954,6 +969,14 @@ export async function toggleJugadorPagado(jugadorId: string, pagado: boolean): P
     body: JSON.stringify({ pagado }),
   })
   return res.data
+}
+
+export async function resetJugadorPassword(jugadorId: string, productorPassword: string): Promise<{ password: string }> {
+  const res = await apiFetch(`/jugadores/${jugadorId}/password`, {
+    method: 'PATCH',
+    body: JSON.stringify({ productor_password: productorPassword }),
+  })
+  return { password: res.password }
 }
 
 export interface VerificacionJugador {
