@@ -9,7 +9,8 @@ import {
   buscarJugadorPorDni,
 } from '@/lib/api'
 import type { JugadorBusqueda } from '@/lib/api'
-import type { JugadorTorneo, JugadorInscripcion, EquipoTorneo } from '@/lib/api'
+import type { JugadorTorneo, JugadorInscripcion } from '@/lib/api'
+import type { EquipoTorneoConVisibilidad } from '@/types/torneos-visibilidad'
 import NotificationModal from '@/components/ui/NotificationModal'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -46,9 +47,10 @@ export default function JugadorEquipoDetailPage() {
   const jugadorId = user?.id
 
   const [torneo, setTorneo] = useState<JugadorTorneo | null>(null)
-  const [equipo, setEquipo] = useState<EquipoTorneo | null>(null)
+  const [equipo, setEquipo] = useState<EquipoTorneoConVisibilidad | null>(null)
   const [inscripciones, setInscripciones] = useState<JugadorInscripcion[]>([])
   const [loading, setLoading] = useState(true)
+  const [errorCarga, setErrorCarga] = useState<string | null>(null)
   const [desinscribiendo, setDesinscribiendo] = useState(false)
   const [showConfirmSalir, setShowConfirmSalir] = useState(false)
   const [generandoPDF, setGenerandoPDF] = useState(false)
@@ -71,6 +73,7 @@ export default function JugadorEquipoDetailPage() {
   const fetchData = async () => {
     try {
       setLoading(true)
+      setErrorCarga(null)
       const [torneosData, inscripcionesData, equiposData] = await Promise.all([
         getJugadorTorneos(),
         getJugadorInscripciones(),
@@ -79,10 +82,15 @@ export default function JugadorEquipoDetailPage() {
       const t = torneosData.find(t => t.id === torneoId)
       setTorneo(t || null)
       setInscripciones(inscripcionesData)
-      const eq = equiposData.find(e => e.id === equipoId)
+      const eq = equiposData.find(e => e.id === equipoId) as EquipoTorneoConVisibilidad | undefined
       setEquipo(eq || null)
     } catch (err: any) {
-      setNotification({ open: true, title: 'Error', message: err.message || 'Error al cargar datos', type: 'error' })
+      // El backend responde 404 cuando el torneo/equipo pertenece a otro club.
+      const message = /404|no encontrad/i.test(err.message || '')
+        ? 'Este torneo o equipo no pertenece a tu club, o ya no está disponible.'
+        : err.message || 'Error al cargar datos'
+      setErrorCarga(message)
+      setNotification({ open: true, title: 'Error', message, type: 'error' })
     } finally {
       setLoading(false)
     }
@@ -114,11 +122,17 @@ export default function JugadorEquipoDetailPage() {
   }, [dniInput, jugadoresSeleccionados])
 
   const misInscripcionesTorneo = inscripciones.filter(i => i.torneo_id === torneoId)
-  const esMiEquipo = misInscripcionesTorneo.some(i => i.torneo_equipo_id === equipoId)
+  // Fuente de verdad: el flag del backend. Fallback a la heurística previa
+  // solo si la respuesta no lo trae (compatibilidad hacia atrás).
+  const esMiEquipo = typeof equipo?.es_mi_equipo === 'boolean'
+    ? equipo.es_mi_equipo
+    : misInscripcionesTorneo.some(i => i.torneo_equipo_id === equipoId)
   const abierto = torneo ? isInscripcionAbierta(torneo) : false
 
-  // Check if current user is delegado of this team
-  const esDelegado = equipo?.delegados?.some(d => d.jugador_id === jugadorId) ?? false
+  // Check if current user is delegado of this team. En equipos ajenos el
+  // backend no envía jugador_id en delegados, así que esto solo puede dar
+  // true en el propio equipo (dato completo de todas formas).
+  const esDelegado = esMiEquipo && (equipo?.delegados?.some(d => d.jugador_id === jugadorId) ?? false)
 
   const handleDesinscribirse = async () => {
     if (equipo?.inhabilitado_por_deuda) return
@@ -189,6 +203,10 @@ export default function JugadorEquipoDetailPage() {
 
   const handleDescargarPDF = async () => {
     if (!equipo) return
+    // Guarda defensiva: la planilla solo puede descargarse para el equipo
+    // propio (nunca para equipos ajenos, aunque el botón no debería
+    // renderizarse en ese caso).
+    if (!esMiEquipo) return
     try {
       setGenerandoPDF(true)
       const html2canvas = (await import('html2canvas')).default
@@ -291,7 +309,9 @@ export default function JugadorEquipoDetailPage() {
         </button>
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-8 text-center">
           <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2 block">error</span>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Equipo no encontrado</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            {errorCarga || 'Equipo no encontrado'}
+          </p>
         </div>
       </div>
     )
@@ -407,7 +427,7 @@ export default function JugadorEquipoDetailPage() {
             </button>
           )}
 
-          {equipo.jugadores.length > 0 && (
+          {esMiEquipo && equipo.jugadores.length > 0 && (
             <button
               onClick={handleDescargarPDF}
               disabled={generandoPDF}
@@ -433,8 +453,8 @@ export default function JugadorEquipoDetailPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {equipo.delegados.map(d => (
-              <span key={d.jugador_id} className="px-2.5 py-1 bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 rounded-lg text-xs font-medium">
+            {equipo.delegados.map((d, idx) => (
+              <span key={d.jugador_id ?? `${d.nombre}-${d.apellido}-${idx}`} className="px-2.5 py-1 bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 rounded-lg text-xs font-medium">
                 {d.apellido}, {d.nombre}
               </span>
             ))}

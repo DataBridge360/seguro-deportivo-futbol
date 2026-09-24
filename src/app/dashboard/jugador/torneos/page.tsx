@@ -3,7 +3,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { getJugadorTorneos, getJugadorInscripciones, getEquiposTorneo } from '@/lib/api'
-import type { JugadorTorneo, JugadorInscripcion, EquipoTorneo } from '@/lib/api'
+import type { JugadorTorneo, JugadorInscripcion } from '@/lib/api'
+import type { EquipoTorneoConVisibilidad } from '@/types/torneos-visibilidad'
 import NotificationModal from '@/components/ui/NotificationModal'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -64,12 +65,12 @@ export default function JugadorTorneosPage() {
 
   // Detalle de torneo
   const [selectedTorneo, setSelectedTorneo] = useState<JugadorTorneo | null>(null)
-  const [equiposTorneo, setEquiposTorneo] = useState<EquipoTorneo[]>([])
+  const [equiposTorneo, setEquiposTorneo] = useState<EquipoTorneoConVisibilidad[]>([])
   const [loadingEquipos, setLoadingEquipos] = useState(false)
   const [torneoTab, setTorneoTab] = useState<'mi-equipo' | 'todos'>('mi-equipo')
   const [busqueda, setBusqueda] = useState('')
   const [categoriaTab, setCategoriaTab] = useState<string>('todos')
-  const [equipoBloqueado, setEquipoBloqueado] = useState<EquipoTorneo | null>(null)
+  const [equipoBloqueado, setEquipoBloqueado] = useState<EquipoTorneoConVisibilidad | null>(null)
 
   const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' }>({
     open: false, title: '', message: '', type: 'success',
@@ -104,16 +105,19 @@ export default function JugadorTorneosPage() {
     setLoadingEquipos(true)
     try {
       const equipos = await getEquiposTorneo(torneo.id)
-      setEquiposTorneo(equipos)
+      setEquiposTorneo(equipos as EquipoTorneoConVisibilidad[])
     } catch (err: any) {
-      setNotification({ open: true, title: 'Error', message: err.message || 'Error al cargar equipos', type: 'error' })
+      const message = /404|no encontrado/i.test(err.message || '')
+        ? 'Este torneo no pertenece a tu club o ya no está disponible.'
+        : err.message || 'Error al cargar equipos'
+      setNotification({ open: true, title: 'Error', message, type: 'error' })
       setSelectedTorneo(null)
     } finally {
       setLoadingEquipos(false)
     }
   }
 
-  const handleOpenEquipo = (equipo: EquipoTorneo) => {
+  const handleOpenEquipo = (equipo: EquipoTorneoConVisibilidad) => {
     if (!selectedTorneo) return
     if (equipo.inhabilitado_por_deuda) {
       setEquipoBloqueado(equipo)
@@ -122,7 +126,7 @@ export default function JugadorTorneosPage() {
     router.push(`/dashboard/jugador/torneos/${selectedTorneo.id}/equipo/${equipo.id}`)
   }
 
-  const handleRegularizarPago = (equipo: EquipoTorneo) => {
+  const handleRegularizarPago = (equipo: EquipoTorneoConVisibilidad) => {
     const mensaje = encodeURIComponent(
       `Hola, quiero regularizar el pago del equipo ${equipo.equipo_nombre} (${equipo.categoria_nombre}).`
     )
@@ -137,10 +141,15 @@ export default function JugadorTorneosPage() {
 
   const misEquiposEnTorneo = useMemo(() => {
     if (!selectedTorneo) return []
-    return equiposTorneo.filter(e =>
-      misInscripcionesTorneo.some(i => i.torneo_equipo_id === e.id) ||
-      (jugadorId && e.delegados?.some(d => d.jugador_id === jugadorId))
-    )
+    return equiposTorneo.filter(e => {
+      // Fuente de verdad: el flag que envía el backend. Si no viene (respuesta
+      // antigua/sin el campo), usamos la heurística previa como fallback.
+      if (typeof e.es_mi_equipo === 'boolean') return e.es_mi_equipo
+      return (
+        misInscripcionesTorneo.some(i => i.torneo_equipo_id === e.id) ||
+        (jugadorId && e.delegados?.some(d => d.jugador_id === jugadorId))
+      )
+    })
   }, [equiposTorneo, misInscripcionesTorneo, selectedTorneo, jugadorId])
 
   const categoriasDelTorneo = useMemo(() => {
@@ -403,7 +412,9 @@ export default function JugadorTorneosPage() {
             ) : (
               <div className="flex flex-col gap-2.5">
                 {equiposFiltrados.map((equipo) => {
-                  const esMiEquipo = misInscripcionesTorneo.some(i => i.torneo_equipo_id === equipo.id)
+                  const esMiEquipo = typeof equipo.es_mi_equipo === 'boolean'
+                    ? equipo.es_mi_equipo
+                    : misInscripcionesTorneo.some(i => i.torneo_equipo_id === equipo.id)
                   return (
                     <div
                       key={equipo.id}
