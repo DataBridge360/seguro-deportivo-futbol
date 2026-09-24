@@ -2,6 +2,21 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { User } from '@/types'
 import { loginWithUsuario, loginWithDNI } from '@/lib/api'
+import { clearAuthCookie, hasAuthCookie, setAuthCookie } from '@/lib/authCookie'
+
+function loginErrorMessage(err: unknown): string {
+  if (err instanceof Error) {
+    // Fetch de red caída / sin conexión: TypeError con mensajes en inglés del browser.
+    if (err instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(err.message)) {
+      return 'No se pudo conectar con el servidor. Revisá tu conexión e intentá nuevamente.'
+    }
+    if (/429|too many requests/i.test(err.message)) {
+      return 'Demasiadas solicitudes. Esperá un momento y volvé a intentar.'
+    }
+    if (err.message) return err.message
+  }
+  return 'Error al iniciar sesión'
+}
 
 interface AuthState {
   user: User | null
@@ -46,7 +61,7 @@ export const useAuthStore = create<AuthState>()(
           return true
         } catch (err) {
           set({
-            error: err instanceof Error ? err.message : 'Error al iniciar sesión',
+            error: loginErrorMessage(err),
             isLoading: false
           })
           return false
@@ -70,7 +85,7 @@ export const useAuthStore = create<AuthState>()(
           return true
         } catch (err) {
           set({
-            error: err instanceof Error ? err.message : 'Error al iniciar sesión',
+            error: loginErrorMessage(err),
             isLoading: false
           })
           return false
@@ -79,6 +94,7 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         localStorage.removeItem('token')
+        clearAuthCookie()
         set({ user: null, token: null, isAuthenticated: false, error: null })
       },
 
@@ -94,6 +110,14 @@ export const useAuthStore = create<AuthState>()(
       onRehydrateStorage: () => (state) => {
         if (state?.token) {
           localStorage.setItem('token', state.token)
+        }
+        // El store (localStorage) es la fuente de verdad en cliente; la cookie
+        // es solo un espejo para que el middleware (server) pueda leer la sesión.
+        // Si el store quedó autenticado pero la cookie no existe (por ejemplo,
+        // se borró manualmente o expiró distinto a localStorage), la reescribimos
+        // para que el middleware no eche al usuario en la próxima navegación.
+        if (state?.isAuthenticated && state.user && !hasAuthCookie()) {
+          setAuthCookie(state.user)
         }
         state?.setHasHydrated(true)
       }

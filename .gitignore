@@ -36,8 +36,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# PWA
-/public/sw.js
+# PWA (workbox build artifacts from the old next-pwa setup; NOT public/sw.js,
+# which is a tracked kill-switch service worker, see public/sw.js)
 /public/sw.js.map
 /public/workbox-*.js
 /public/workbox-*.js.map

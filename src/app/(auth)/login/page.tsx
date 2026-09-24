@@ -1,34 +1,54 @@
 'use client'
 
-import { useState, FormEvent, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, FormEvent, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { useAuthStore } from '@/stores/authStore'
 import { getDefaultRouteForRole } from '@/lib/navigation'
+import { clearAuthCookie, setAuthCookie } from '@/lib/authCookie'
 import InstallAppButton from '@/components/ui/InstallAppButton'
 
 type LoginMode = 'usuario' | 'dni'
 
 export default function LoginPage() {
-  const router = useRouter()
-  const { login, loginDNI, isLoading, error, clearError, user, isAuthenticated } = useAuthStore()
+  const { login, loginDNI, isLoading, error, clearError, user, isAuthenticated, _hasHydrated } = useAuthStore()
   const [mode, setMode] = useState<LoginMode>('dni')
   const [usuario, setUsuario] = useState('')
   const [dni, setDni] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  // Evita que el submit dispare una redirección duplicada vía el efecto de abajo
+  // (ese efecto solo debe reaccionar a un usuario que YA estaba logueado al entrar).
+  const submittingRef = useRef(false)
+  // Garantiza que la limpieza/redirección inicial corra una sola vez,
+  // y recién cuando el store terminó de leer la sesión guardada.
+  const didInitRef = useRef(false)
 
   useEffect(() => {
-    // CRÍTICO: Limpiar cookie al llegar a login para romper redirect loops
-    document.cookie = 'auth-storage=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    if (!_hasHydrated || didInitRef.current) return
+    didInitRef.current = true
 
+    // Solo al montar: si NO hay sesión en el store, esta pantalla de login
+    // es la fuente de verdad y no debe quedar una cookie vieja/huérfana que
+    // el middleware use para redirigir /login -> /dashboard.
+    // Si SÍ hay sesión (usuario ya autenticado que volvió a /login), nunca
+    // borramos su cookie: solo lo mandamos a su ruta con navegación dura
+    // para evitar una redirección soft en carrera con handleSubmit.
     if (isAuthenticated && user) {
-      router.replace(getDefaultRouteForRole(user.role))
+      if (!submittingRef.current) {
+        window.location.replace(getDefaultRouteForRole(user.role))
+      }
+      return
     }
-  }, [isAuthenticated, user, router])
+
+    clearAuthCookie()
+    // Depende solo de _hasHydrated; didInitRef evita que vuelva a correr
+    // cuando un login exitoso cambia isAuthenticated/user.
+    // (este repo no tiene eslint-plugin-react-hooks, no hace falta eslint-disable)
+  }, [_hasHydrated])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
+    if (isLoading) return
     clearError()
 
     const success = mode === 'usuario'
@@ -36,10 +56,14 @@ export default function LoginPage() {
       : await loginDNI(dni, password)
 
     if (success) {
+      submittingRef.current = true
       const { user } = useAuthStore.getState()
       if (user) {
-        document.cookie = `auth-storage=${JSON.stringify({ state: { user } })}; path=/; max-age=${60 * 60 * 24 * 7}`
-        router.replace(getDefaultRouteForRole(user.role))
+        setAuthCookie(user)
+        // Navegación dura: el browser hace un request real a la ruta destino,
+        // enviando la cookie recién escrita y sin reusar caché de RSC/redirects
+        // del router de Next (a diferencia de router.replace, que es soft nav).
+        window.location.replace(getDefaultRouteForRole(user.role))
       }
     }
   }
