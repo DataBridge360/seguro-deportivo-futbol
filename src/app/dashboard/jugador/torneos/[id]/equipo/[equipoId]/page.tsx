@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import {
   getJugadorTorneos, getJugadorInscripciones, getEquiposTorneo,
-  inscribirseEquipo, desinscribirseEquipo,
   agregarJugadorPorDelegado, quitarJugadorPorDelegado,
   buscarJugadorPorDni,
 } from '@/lib/api'
@@ -51,8 +50,6 @@ export default function JugadorEquipoDetailPage() {
   const [inscripciones, setInscripciones] = useState<JugadorInscripcion[]>([])
   const [loading, setLoading] = useState(true)
   const [errorCarga, setErrorCarga] = useState<string | null>(null)
-  const [desinscribiendo, setDesinscribiendo] = useState(false)
-  const [showConfirmSalir, setShowConfirmSalir] = useState(false)
   const [generandoPDF, setGenerandoPDF] = useState(false)
 
   // Delegado: agregar/quitar jugadores
@@ -133,36 +130,6 @@ export default function JugadorEquipoDetailPage() {
   // backend no envía jugador_id en delegados, así que esto solo puede dar
   // true en el propio equipo (dato completo de todas formas).
   const esDelegado = esMiEquipo && (equipo?.delegados?.some(d => d.jugador_id === jugadorId) ?? false)
-
-  const handleDesinscribirse = async () => {
-    if (equipo?.inhabilitado_por_deuda) return
-    try {
-      setDesinscribiendo(true)
-      await desinscribirseEquipo(torneoId, equipoId)
-      setShowConfirmSalir(false)
-      setNotification({ open: true, title: 'Desinscripcion exitosa', message: 'Saliste del equipo correctamente', type: 'success' })
-      await fetchData()
-    } catch (err: any) {
-      setShowConfirmSalir(false)
-      setNotification({ open: true, title: 'Error', message: err.message || 'No se pudo completar la desinscripcion', type: 'error' })
-    } finally {
-      setDesinscribiendo(false)
-    }
-  }
-
-  const handleAgregarseAMiMismo = async () => {
-    if (equipo?.inhabilitado_por_deuda) return
-    try {
-      setAgregando(true)
-      await inscribirseEquipo(torneoId, equipoId)
-      setNotification({ open: true, title: 'Listo', message: 'Te agregaste al equipo', type: 'success' })
-      await fetchData()
-    } catch (err: any) {
-      setNotification({ open: true, title: 'Error', message: err.message || 'No se pudo agregar', type: 'error' })
-    } finally {
-      setAgregando(false)
-    }
-  }
 
   const handleQuitarJugador = async () => {
     if (!showConfirmQuitar) return
@@ -383,22 +350,7 @@ export default function JugadorEquipoDetailPage() {
 
         {/* Action buttons */}
         <div className="flex items-center gap-2 mt-4 flex-wrap">
-          {/* Delegado: agregarse a sí mismo */}
-          {esDelegado && abierto && !esMiEquipo && (
-            <button
-              onClick={handleAgregarseAMiMismo}
-              disabled={agregando}
-              className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50"
-            >
-              {agregando ? (
-                <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Agregando...</>
-              ) : (
-                <><span className="material-symbols-outlined text-lg">person_add</span>Agregarme</>
-              )}
-            </button>
-          )}
-
-          {/* Delegado: agregar otros jugadores */}
+          {/* Delegado: agregar jugadores */}
           {esDelegado && abierto && (
             <button
               onClick={() => setShowModalAgregar(true)}
@@ -409,22 +361,12 @@ export default function JugadorEquipoDetailPage() {
             </button>
           )}
 
-          {/* Jugador normal: no puede inscribirse */}
+          {/* Jugador normal: no puede inscribirse ni salir por sí mismo */}
           {!esDelegado && abierto && !esMiEquipo && (
             <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-900 rounded-xl px-3 py-2">
               <span className="material-symbols-outlined text-sm">info</span>
-              Solo los delegados pueden gestionar el equipo
+              Pedile a tu delegado que te agregue a un equipo.
             </div>
-          )}
-
-          {esDelegado && esMiEquipo && abierto && (
-            <button
-              onClick={() => setShowConfirmSalir(true)}
-              className="flex items-center gap-1.5 px-4 py-2 border border-red-200 dark:border-red-500/30 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl text-sm font-medium transition-colors"
-            >
-              <span className="material-symbols-outlined text-lg">logout</span>
-              Salir del equipo
-            </button>
           )}
 
           {esMiEquipo && equipo.jugadores.length > 0 && (
@@ -824,47 +766,6 @@ export default function JugadorEquipoDetailPage() {
                 {quitandoId ? (
                   <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Quitando...</>
                 ) : 'Quitar'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal confirmar salir */}
-      {showConfirmSalir && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-          onClick={() => !desinscribiendo && setShowConfirmSalir(false)}
-        >
-          <div
-            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-center mb-4">
-              <div className="w-14 h-14 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center">
-                <span className="material-symbols-outlined text-red-500 text-2xl">group_remove</span>
-              </div>
-            </div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white text-center mb-2">Salir del equipo</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 text-center mb-6">
-              Vas a salir de <span className="font-semibold text-slate-700 dark:text-slate-300">{equipo.equipo_nombre}</span>. Podés volver a inscribirte mientras las inscripciones sigan abiertas.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowConfirmSalir(false)}
-                disabled={desinscribiendo}
-                className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-bold transition-colors disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleDesinscribirse}
-                disabled={desinscribiendo}
-                className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {desinscribiendo ? (
-                  <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Saliendo...</>
-                ) : 'Salir'}
               </button>
             </div>
           </div>
