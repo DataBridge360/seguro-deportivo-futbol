@@ -25,6 +25,8 @@ export function setAuthCookie(user: User): void {
   // NOTA: el middleware (src/middleware.ts) hace JSON.parse(cookie.value) sin
   // decodeURIComponent, así que el valor va sin encodear para mantener
   // compatibilidad exacta con lo que el middleware espera leer.
+  // debe_cambiar_password viaja dentro del user para que el middleware
+  // (server) pueda decidir si redirigir a /completar-datos.
   const value = JSON.stringify({ state: { user } })
   document.cookie = `${COOKIE_NAME}=${value}; ${cookieAttributes(MAX_AGE_SECONDS)}`
 }

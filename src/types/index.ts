@@ -5,6 +5,7 @@ export interface User {
   email: string
   name: string
   role: UserRole
+  debe_cambiar_password?: boolean
 }
 
 export interface AuthResponse {

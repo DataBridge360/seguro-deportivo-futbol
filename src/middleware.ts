@@ -46,9 +46,36 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  const defaultRoutes: Record<string, string> = {
+    admin: '/dashboard',
+    productor: '/dashboard/productor/jugadores',
+    club: '/dashboard/club/mi-club',
+    jugador: '/dashboard',
+    cantina: '/dashboard/cantina/cupones',
+    developer: '/dashboard/productor/jugadores',
+  }
+
+  // Jugador con debe_cambiar_password=true: bloqueado en cualquier otra ruta
+  // autenticada hasta que complete sus datos.
+  const debeCompletarDatos = !!user && user.role === 'jugador' && user.debe_cambiar_password === true
+
+  if (pathname === '/completar-datos') {
+    if (!user) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+    if (!debeCompletarDatos) {
+      return NextResponse.redirect(new URL(defaultRoutes[user.role] || '/dashboard', request.url))
+    }
+    return NextResponse.next()
+  }
+
   if (pathname.startsWith('/dashboard')) {
     if (!user) {
       return NextResponse.redirect(new URL('/login', request.url))
+    }
+
+    if (debeCompletarDatos) {
+      return NextResponse.redirect(new URL('/completar-datos', request.url))
     }
 
     const userRole = user.role
@@ -63,14 +90,6 @@ export function middleware(request: NextRequest) {
     const hasAccess = allowedPatterns.some(pattern => pattern.test(pathname))
 
     if (!hasAccess) {
-      const defaultRoutes: Record<string, string> = {
-        admin: '/dashboard',
-        productor: '/dashboard/productor/jugadores',
-        club: '/dashboard/club/mi-club',
-        jugador: '/dashboard',
-        cantina: '/dashboard/cantina/cupones',
-        developer: '/dashboard/productor/jugadores',
-      }
       return NextResponse.redirect(new URL(defaultRoutes[userRole] || '/dashboard', request.url))
     }
   }

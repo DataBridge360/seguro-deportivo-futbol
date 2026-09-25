@@ -3,7 +3,7 @@
 import { useState, FormEvent, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { useAuthStore } from '@/stores/authStore'
-import { getDefaultRouteForRole } from '@/lib/navigation'
+import { getPostLoginRoute } from '@/lib/navigation'
 import { clearAuthCookie, setAuthCookie } from '@/lib/authCookie'
 import InstallAppButton from '@/components/ui/InstallAppButton'
 
@@ -35,7 +35,7 @@ export default function LoginPage() {
     // para evitar una redirección soft en carrera con handleSubmit.
     if (isAuthenticated && user) {
       if (!submittingRef.current) {
-        window.location.replace(getDefaultRouteForRole(user.role))
+        window.location.replace(getPostLoginRoute(user))
       }
       return
     }
@@ -63,7 +63,7 @@ export default function LoginPage() {
         // Navegación dura: el browser hace un request real a la ruta destino,
         // enviando la cookie recién escrita y sin reusar caché de RSC/redirects
         // del router de Next (a diferencia de router.replace, que es soft nav).
-        window.location.replace(getDefaultRouteForRole(user.role))
+        window.location.replace(getPostLoginRoute(user))
       }
     }
   }

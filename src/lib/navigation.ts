@@ -1,4 +1,4 @@
-import { NavItem, UserRole } from '@/types'
+import { NavItem, User, UserRole } from '@/types'
 
 export const navigationItems: NavItem[] = [
   // Dashboard (todos menos productor)
@@ -177,6 +177,15 @@ export const navigationItems: NavItem[] = [
 
 export function getNavigationForRole(role: UserRole): NavItem[] {
   return navigationItems.filter(item => item.roles.includes(role))
+}
+
+// Jugadores con debe_cambiar_password=true deben completar sus datos antes de
+// acceder al resto de la app.
+export function getPostLoginRoute(user: User): string {
+  if (user.role === 'jugador' && user.debe_cambiar_password) {
+    return '/completar-datos'
+  }
+  return getDefaultRouteForRole(user.role)
 }
 
 export function getDefaultRouteForRole(role: UserRole): string {

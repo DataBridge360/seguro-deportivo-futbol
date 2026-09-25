@@ -324,7 +324,15 @@ export async function loginWithUsuario(usuario: string, password: string) {
     method: 'POST',
     body: JSON.stringify({ usuario, password }),
   })
-  return res.data as { token: string; user: { id: string; email: string; name: string; role: string } }
+  const data = res.data as {
+    token: string
+    user: { id: string; email: string; name: string; role: string }
+    debe_cambiar_password?: boolean
+  }
+  return {
+    token: data.token,
+    user: { ...data.user, debe_cambiar_password: data.debe_cambiar_password ?? false },
+  }
 }
 
 export async function loginWithDNI(dni: string, password: string) {
@@ -332,7 +340,27 @@ export async function loginWithDNI(dni: string, password: string) {
     method: 'POST',
     body: JSON.stringify({ dni, password }),
   })
-  return res.data as { token: string; user: { id: string; email: string; name: string; role: string } }
+  const data = res.data as {
+    token: string
+    user: { id: string; email: string; name: string; role: string }
+    debe_cambiar_password?: boolean
+  }
+  return {
+    token: data.token,
+    user: { ...data.user, debe_cambiar_password: data.debe_cambiar_password ?? false },
+  }
+}
+
+export async function completarDatos(body: {
+  email?: string
+  password: string
+  password_confirmacion: string
+}): Promise<{ debe_cambiar_password: boolean; email: string }> {
+  const res = await apiFetch('/auth/completar-datos', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+  return res.data
 }
 
 export async function getProfile() {

@@ -32,6 +32,7 @@ interface AuthState {
   logout: () => void
   clearError: () => void
   setHasHydrated: (val: boolean) => void
+  markDatosCompletos: (email?: string | null) => void
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -124,7 +125,20 @@ export const useAuthStore = create<AuthState>()(
         set({ user: null, token: null, isAuthenticated: false, error: null })
       },
 
-      clearError: () => set({ error: null })
+      clearError: () => set({ error: null }),
+
+      markDatosCompletos: (email?: string | null) => {
+        set((state) => {
+          if (!state.user) return state
+          const user: User = {
+            ...state.user,
+            debe_cambiar_password: false,
+            ...(email ? { email } : {}),
+          }
+          setAuthCookie(user)
+          return { user }
+        })
+      }
     }),
     {
       name: 'auth-storage',

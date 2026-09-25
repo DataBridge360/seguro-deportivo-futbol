@@ -83,6 +83,12 @@ export default function DashboardLayout({
   }, [_hasHydrated, isAuthenticated])
 
   useEffect(() => {
+    if (_hasHydrated && isAuthenticated && user?.role === 'jugador' && user.debe_cambiar_password) {
+      window.location.replace('/completar-datos')
+    }
+  }, [_hasHydrated, isAuthenticated, user])
+
+  useEffect(() => {
     fetchUnreadCount()
     unreadIntervalRef.current = setInterval(fetchUnreadCount, 30000)
     const onRead = () => fetchUnreadCount()
@@ -94,6 +100,8 @@ export default function DashboardLayout({
   }, [fetchUnreadCount])
 
   if (!_hasHydrated || !user) return null
+
+  if (user.role === 'jugador' && user.debe_cambiar_password) return null
 
   const handleLogout = () => {
     document.cookie = 'auth-storage=; path=/; max-age=0'
