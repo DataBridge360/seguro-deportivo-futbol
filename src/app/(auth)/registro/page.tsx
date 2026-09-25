@@ -7,6 +7,7 @@ import { getDefaultRouteForRole } from '@/lib/navigation'
 import { clearAuthCookie, setAuthCookie } from '@/lib/authCookie'
 import { checkDniDisponible } from '@/lib/registroApi'
 import { buildAsistenciaWhatsappUrl } from '@/lib/constants'
+import { getPasswordIssues } from '@/lib/passwordRules'
 import DatePicker from '@/components/ui/DatePicker'
 import BallsBackground from '@/components/auth/BallsBackground'
 
@@ -301,12 +302,7 @@ export default function RegistroPage() {
   }
 
   // Live list of unmet password requirements, shown while typing.
-  const passwordIssues: string[] = []
-  if (password.length < 8) passwordIssues.push('Debe tener al menos 8 caracteres')
-  if (!/\p{L}/u.test(password)) passwordIssues.push('Debe contener al menos una letra')
-  if (!/\d/.test(password)) passwordIssues.push('Debe contener al menos un número')
-  // bcrypt limit; rare enough that the hint does not mention it.
-  if (password.length > 72) passwordIssues.push('La contraseña es demasiado larga')
+  const passwordIssues = getPasswordIssues(password)
 
   const validateStep4 = (): boolean => {
     const errors: Record<string, string> = {}

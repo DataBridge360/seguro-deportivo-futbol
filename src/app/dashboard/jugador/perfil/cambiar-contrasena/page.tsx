@@ -3,9 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { changePassword } from '@/lib/api'
+import { getPasswordIssues } from '@/lib/passwordRules'
 import NotificationModal from '@/components/ui/NotificationModal'
-
-const MIN_LENGTH = 8
 
 export default function CambiarContrasenaPage() {
   const router = useRouter()
@@ -22,6 +21,9 @@ export default function CambiarContrasenaPage() {
     open: false, title: '', message: '', type: 'success',
   })
 
+  // Live list of unmet password requirements for the new password, shown while typing.
+  const newPasswordIssues = getPasswordIssues(newPassword)
+
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {}
 
@@ -31,8 +33,8 @@ export default function CambiarContrasenaPage() {
 
     if (!newPassword) {
       newErrors.newPassword = 'Ingresa la nueva contraseña'
-    } else if (newPassword.length < MIN_LENGTH) {
-      newErrors.newPassword = `Debe tener al menos ${MIN_LENGTH} caracteres`
+    } else if (newPasswordIssues.length > 0) {
+      newErrors.newPassword = newPasswordIssues.join('. ')
     }
 
     if (!confirmPassword) {
@@ -84,7 +86,7 @@ export default function CambiarContrasenaPage() {
     }
   }
 
-  const isFormValid = currentPassword && newPassword.length >= MIN_LENGTH && confirmPassword === newPassword && currentPassword !== newPassword
+  const isFormValid = currentPassword && newPasswordIssues.length === 0 && confirmPassword === newPassword && currentPassword !== newPassword
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
@@ -146,7 +148,7 @@ export default function CambiarContrasenaPage() {
                   setNewPassword(e.target.value)
                   if (errors.newPassword) setErrors(prev => ({ ...prev, newPassword: '' }))
                 }}
-                placeholder="Minimo 8 caracteres"
+                placeholder="Mínimo 8 caracteres, con letra y número"
                 className={`w-full text-sm font-medium text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-900 border rounded-lg px-3 py-2.5 pr-10 focus:outline-none focus:border-primary placeholder:text-slate-400 dark:placeholder:text-slate-600 ${
                   errors.newPassword ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'
                 }`}
@@ -163,15 +165,21 @@ export default function CambiarContrasenaPage() {
             </div>
           </div>
           {errors.newPassword && <p className="text-red-400 text-xs mt-2 ml-10">{errors.newPassword}</p>}
-          {/* Indicador de longitud */}
-          {newPassword && !errors.newPassword && (
+          {/* Lista de requisitos pendientes */}
+          {newPassword.length > 0 && newPasswordIssues.length > 0 && (
+            <ul className="space-y-1 mt-2 ml-10" aria-live="polite">
+              {newPasswordIssues.map((issue) => (
+                <li key={issue} className="flex items-center gap-1.5 text-xs text-red-400">
+                  <span className="material-symbols-outlined text-sm">error</span>
+                  {issue}
+                </li>
+              ))}
+            </ul>
+          )}
+          {newPassword.length > 0 && newPasswordIssues.length === 0 && (
             <div className="flex items-center gap-2 mt-2 ml-10">
-              <span className={`material-symbols-outlined text-sm ${newPassword.length >= MIN_LENGTH ? 'text-green-500' : 'text-slate-400'}`}>
-                {newPassword.length >= MIN_LENGTH ? 'check_circle' : 'radio_button_unchecked'}
-              </span>
-              <p className={`text-xs ${newPassword.length >= MIN_LENGTH ? 'text-green-500' : 'text-slate-400'}`}>
-                {newPassword.length}/{MIN_LENGTH} caracteres
-              </p>
+              <span className="material-symbols-outlined text-sm text-green-500">check_circle</span>
+              <p className="text-xs text-green-500">Contraseña válida</p>
             </div>
           )}
         </div>

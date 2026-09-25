@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { useAuthStore } from '@/stores/authStore'
 import { getDefaultRouteForRole } from '@/lib/navigation'
 import { completarDatos } from '@/lib/api'
+import { getPasswordIssues } from '@/lib/passwordRules'
 import BallsBackground from '@/components/auth/BallsBackground'
 
 // ---------------------------------------------------------------------------
@@ -55,12 +56,7 @@ export default function CompletarDatosPage() {
   }, [user])
 
   // Live list of unmet password requirements, shown while typing.
-  const passwordIssues: string[] = []
-  if (password.length < 8) passwordIssues.push('Debe tener al menos 8 caracteres')
-  if (!/\p{L}/u.test(password)) passwordIssues.push('Debe contener al menos una letra')
-  if (!/\d/.test(password)) passwordIssues.push('Debe contener al menos un número')
-  // bcrypt limit; rare enough that the hint does not mention it.
-  if (password.length > 72) passwordIssues.push('La contraseña es demasiado larga')
+  const passwordIssues = getPasswordIssues(password)
 
   const validate = (): boolean => {
     let ok = true
