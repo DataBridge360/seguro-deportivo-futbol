@@ -47,8 +47,8 @@ export default function DatosPersonalesPage() {
         setTelefono(data.telefono || '')
         setEmail(data.email || '')
         setDireccion(data.direccion || '')
-      } catch (error) {
-        console.error('Error al cargar perfil:', error)
+      } catch {
+        // Profile fetch failed; the empty-state UI below handles it.
       } finally {
         setLoading(false)
       }

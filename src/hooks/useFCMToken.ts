@@ -45,8 +45,6 @@ export function useFCMToken() {
         return false;
       }
 
-      console.log('Solicitando token FCM con VAPID:', process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY?.substring(0, 20) + '...');
-
       const messaging = await getMessagingIfSupported();
       if (!messaging) {
         setError('Mensajeria no soportada en este navegador');
@@ -62,20 +60,14 @@ export function useFCMToken() {
       });
 
       if (fcmToken) {
-        console.log('Token FCM obtenido:', fcmToken.substring(0, 50) + '...');
         setToken(fcmToken);
-
-        console.log('Registrando token en backend...');
         await registerFCMToken(fcmToken);
-        console.log('Token registrado en backend exitosamente');
         return true;
       } else {
-        console.warn('No se pudo obtener el token FCM');
         setError('No se pudo obtener el token FCM');
         return false;
       }
     } catch (err: any) {
-      console.warn('Error solicitando permiso de notificaciones:', err);
       const message = String(err?.message ?? '');
       if (message.toLowerCase().includes('denied') || message.toLowerCase().includes('permission')) {
         setPermission(Notification.permission);

@@ -199,8 +199,8 @@ function JugadorDashboard() {
       // Cupones en paralelo pero sin romper si falla
       getMisCupones().then(setCupones).catch(() => {})
       getMisAnuncios().then(setAnuncios).catch(() => {})
-    } catch (error) {
-      console.error('Error al cargar perfil:', error)
+    } catch {
+      // Profile fetch failed; loading state below is cleared regardless.
     } finally {
       setLoading(false)
     }
