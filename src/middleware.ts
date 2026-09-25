@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const publicRoutes = ['/', '/login', '/login/staff']
+const publicRoutes = ['/', '/login', '/login/staff', '/registro']
 
 // Rutas compartidas para todos los roles autenticados
 const sharedRoutes = [/^\/dashboard\/notificaciones/]
@@ -32,7 +32,7 @@ export function middleware(request: NextRequest) {
   }
 
   if (publicRoutes.includes(pathname)) {
-    if (user && pathname.startsWith('/login')) {
+    if (user && (pathname.startsWith('/login') || pathname === '/registro')) {
       // Si viene de /dashboard, probablemente es un loop por token inválido
       // Limpiar cookie y permitir quedarse en login
       const referer = request.headers.get('referer') || ''

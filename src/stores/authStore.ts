@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import { User } from '@/types'
 import { loginWithUsuario, loginWithDNI } from '@/lib/api'
 import { clearAuthCookie, hasAuthCookie, setAuthCookie } from '@/lib/authCookie'
+import { registerJugador, RegisterJugadorPayload } from '@/lib/registroApi'
 
 function loginErrorMessage(err: unknown): string {
   if (err instanceof Error) {
@@ -27,6 +28,7 @@ interface AuthState {
   _hasHydrated: boolean
   login: (usuario: string, password: string) => Promise<boolean>
   loginDNI: (dni: string, password: string) => Promise<boolean>
+  register: (data: RegisterJugadorPayload) => Promise<boolean>
   logout: () => void
   clearError: () => void
   setHasHydrated: (val: boolean) => void
@@ -79,6 +81,30 @@ export const useAuthStore = create<AuthState>()(
           set({
             user: data.user as User,
             token: data.token,
+            isAuthenticated: true,
+            isLoading: false
+          })
+          return true
+        } catch (err) {
+          set({
+            error: loginErrorMessage(err),
+            isLoading: false
+          })
+          return false
+        }
+      },
+
+      register: async (data: RegisterJugadorPayload) => {
+        set({ isLoading: true, error: null })
+
+        try {
+          const result = await registerJugador(data)
+
+          localStorage.setItem('token', result.token)
+
+          set({
+            user: result.user as User,
+            token: result.token,
             isAuthenticated: true,
             isLoading: false
           })

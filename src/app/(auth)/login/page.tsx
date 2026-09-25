@@ -232,6 +232,18 @@ export default function LoginPage() {
                 </>
               )}
             </button>
+
+            {mode === 'dni' && (
+              <p className="text-center text-sm text-slate-500 dark:text-slate-400">
+                &iquest;No ten&eacute;s cuenta?{' '}
+                <a
+                  href="/registro"
+                  className="text-primary font-bold hover:underline"
+                >
+                  Registrate
+                </a>
+              </p>
+            )}
           </div>
         </form>
 
