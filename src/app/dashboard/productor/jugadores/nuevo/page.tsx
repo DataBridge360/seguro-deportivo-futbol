@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createJugador } from '@/lib/api'
+import { createJugador, findJugadorExistenteByDni, toggleJugadorPagado, type JugadorExistentePorDni } from '@/lib/api'
 import NotificationModal from '@/components/ui/NotificationModal'
 import DatePicker from '@/components/ui/DatePicker'
 
@@ -29,6 +29,10 @@ export default function NuevoJugadorPage() {
     message: '',
     type: 'success'
   })
+
+  const [existente, setExistente] = useState<Extract<JugadorExistentePorDni, { existe: true }> | null>(null)
+  const [confirmandoPago, setConfirmandoPago] = useState(false)
+  const [errorConfirmacion, setErrorConfirmacion] = useState('')
 
   const handleChange = (field: string, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -66,6 +70,20 @@ export default function NuevoJugadorPage() {
   const handleSubmit = async () => {
     if (!validate()) return
 
+    const dni = form.dni.trim()
+
+    if (/^\d{7,8}$/.test(dni)) {
+      try {
+        const resultado = await findJugadorExistenteByDni(dni)
+        if (resultado.existe) {
+          setExistente(resultado)
+          return
+        }
+      } catch {
+        // Si falla la búsqueda, seguimos con el alta normal
+      }
+    }
+
     try {
       setLoading(true)
 
@@ -86,14 +104,51 @@ export default function NuevoJugadorPage() {
         type: 'success'
       })
     } catch (error) {
+      // Carrera: el jugador pudo haberse autoregistrado justo antes del alta
+      const message = error instanceof Error ? error.message : 'Error desconocido'
+      if (message.includes('Ya existe un jugador con ese DNI')) {
+        try {
+          const resultado = await findJugadorExistenteByDni(dni)
+          if (resultado.existe) {
+            setExistente(resultado)
+            return
+          }
+        } catch {
+          // Si la re-búsqueda falla, mostramos el error original
+        }
+      }
+
       setNotification({
         open: true,
         title: 'Error al crear jugador',
-        message: error instanceof Error ? error.message : 'Error desconocido',
+        message,
         type: 'error'
       })
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleConfirmarPago = async () => {
+    if (!existente) return
+
+    try {
+      setConfirmandoPago(true)
+      setErrorConfirmacion('')
+
+      await toggleJugadorPagado(existente.id, true)
+
+      setExistente(null)
+      setNotification({
+        open: true,
+        title: 'Jugador marcado como pagado',
+        message: `${existente.apellido} ${existente.nombre} fue marcado como pagado correctamente.`,
+        type: 'success'
+      })
+    } catch (error) {
+      setErrorConfirmacion(error instanceof Error ? error.message : 'Error desconocido')
+    } finally {
+      setConfirmandoPago(false)
     }
   }
 
@@ -254,6 +309,81 @@ export default function NuevoJugadorPage() {
           )}
         </button>
       </div>
+
+      {/* Modal de DNI existente */}
+      {existente && (
+        <div
+          className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"
+          onClick={() => !confirmandoPago && setExistente(null)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dni-existente-title"
+            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-6 max-w-md w-full shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="dni-existente-title" className="text-lg font-bold text-slate-900 dark:text-white mb-3">
+              Este DNI ya está registrado
+            </h2>
+
+            {existente.pagado ? (
+              <>
+                <p className="text-sm text-slate-600 dark:text-slate-300 mb-1">
+                  {existente.apellido} {existente.nombre}
+                </p>
+                <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+                  Este jugador ya figura como pagado.
+                </p>
+                <div className="flex justify-end">
+                  <button
+                    onClick={() => router.push('/dashboard/productor/jugadores')}
+                    className="px-5 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Volver a jugadores
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-slate-600 dark:text-slate-300 mb-1">
+                  {existente.apellido} {existente.nombre}
+                </p>
+                <p className="text-sm text-slate-600 dark:text-slate-300 mb-1">
+                  Correo: {existente.email || 'Sin correo cargado'}
+                </p>
+                <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+                  Si es la misma persona, no se crea un jugador nuevo: se lo marca como pagado.
+                </p>
+                {errorConfirmacion && <p className="text-red-400 text-xs mb-3">{errorConfirmacion}</p>}
+                <div className="flex gap-3 justify-end">
+                  <button
+                    onClick={() => setExistente(null)}
+                    disabled={confirmandoPago}
+                    className="px-5 py-2.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-900 dark:text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleConfirmarPago}
+                    disabled={confirmandoPago}
+                    className="px-5 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {confirmandoPago ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Confirmando...
+                      </>
+                    ) : (
+                      'Confirmar y marcar pagado'
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Notificacion */}
       <NotificationModal

@@ -275,6 +275,15 @@ export async function createJugador(data: {
   return res.data
 }
 
+export type JugadorExistentePorDni =
+  | { existe: false }
+  | { existe: true; id: string; nombre: string; apellido: string; email: string | null; pagado: boolean }
+
+export async function findJugadorExistenteByDni(dni: string): Promise<JugadorExistentePorDni> {
+  const res = await apiFetch(`/jugadores/dni/${encodeURIComponent(dni)}/existente`)
+  return res.data
+}
+
 export async function getJugadorPerfil(): Promise<JugadorResponse> {
   const res = await apiFetch('/jugadores/mi-perfil')
   return res.data
