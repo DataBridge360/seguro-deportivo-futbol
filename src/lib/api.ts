@@ -372,6 +372,76 @@ export async function completarDatos(body: {
   return res.data
 }
 
+// Password recovery API Functions
+//
+// Deliberately not using apiFetch: these endpoints are public (no token) and
+// must keep working for logged-out users. Mirrors the pattern used by
+// registroApi.ts for other unauthenticated auth endpoints.
+
+function extractPublicAuthErrorMessage(res: Response, json: unknown): string {
+  if (res.status === 429) {
+    return 'Demasiados intentos. Esperá unos minutos y probá de nuevo.'
+  }
+
+  if (json && typeof json === 'object') {
+    const obj = json as Record<string, unknown>
+    const errorObj = obj.error as Record<string, unknown> | undefined
+    const nestedMessage = errorObj?.message
+    if (typeof nestedMessage === 'string' && nestedMessage) return nestedMessage
+
+    const message = obj.message
+    if (Array.isArray(message)) {
+      const joined = message.filter((m) => typeof m === 'string').join(' ')
+      if (joined) return joined
+    }
+    if (typeof message === 'string' && message) return message
+  }
+
+  return 'Ocurrió un error. Probá de nuevo.'
+}
+
+async function publicAuthFetch(path: string, body: unknown): Promise<any> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+    },
+    body: JSON.stringify(body),
+  })
+
+  const json = await res.json()
+
+  if (!res.ok) {
+    throw new Error(extractPublicAuthErrorMessage(res, json))
+  }
+
+  return json
+}
+
+export interface ConsultarRecuperacionResult {
+  tiene_correo: boolean
+  email_enmascarado?: string
+  asistencia_whatsapp: string
+}
+
+export async function consultarRecuperacion(dni: string): Promise<ConsultarRecuperacionResult> {
+  const res = await publicAuthFetch('/auth/recuperar/consultar', { dni })
+  return res.data
+}
+
+export async function enviarRecuperacion(dni: string): Promise<{ success: boolean; message: string }> {
+  return publicAuthFetch('/auth/recuperar/enviar', { dni })
+}
+
+export async function restablecerPassword(body: {
+  token: string
+  password: string
+  password_confirmacion: string
+}): Promise<{ success: boolean; message: string }> {
+  return publicAuthFetch('/auth/recuperar/restablecer', body)
+}
+
 export async function getProfile() {
   const res = await apiFetch('/auth/profile')
   return res.data

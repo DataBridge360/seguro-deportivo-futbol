@@ -179,6 +179,13 @@ export default function LoginPage() {
                   {showPassword ? 'visibility_off' : 'visibility'}
                 </button>
               </div>
+              {mode === 'dni' && (
+                <p className="text-right">
+                  <a href="/recuperar" className="text-sm text-primary font-semibold hover:underline">
+                    ¿Olvidaste tu contraseña?
+                  </a>
+                </p>
+              )}
             </div>
           </div>
 

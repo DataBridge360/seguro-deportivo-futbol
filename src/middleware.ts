@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const publicRoutes = ['/', '/login', '/login/staff', '/registro']
+const publicRoutes = ['/', '/login', '/login/staff', '/registro', '/recuperar', '/restablecer']
 
 // Rutas compartidas para todos los roles autenticados
 const sharedRoutes = [/^\/dashboard\/notificaciones/]
@@ -32,7 +32,10 @@ export function middleware(request: NextRequest) {
   }
 
   if (publicRoutes.includes(pathname)) {
-    if (user && (pathname.startsWith('/login') || pathname === '/registro')) {
+    // /restablecer must always work from an emailed link, even for a logged-in
+    // user (e.g. session on another device), so it is intentionally excluded
+    // from this redirect-away-when-authenticated behavior.
+    if (user && (pathname.startsWith('/login') || pathname === '/registro' || pathname === '/recuperar')) {
       // Si viene de /dashboard, probablemente es un loop por token inválido
       // Limpiar cookie y permitir quedarse en login
       const referer = request.headers.get('referer') || ''
