@@ -270,8 +270,8 @@ export default function LoginPage() {
       </div>
 
       {/* Install App Banner */}
-      <div className="relative z-10 w-full max-w-md mt-4">
-        <InstallAppButton />
+      <div className="relative z-10 w-full max-w-md mt-4 flex justify-center">
+        <InstallAppButton className="w-full flex items-center justify-center gap-3 h-14 rounded-2xl bg-white/90 dark:bg-slate-900/85 backdrop-blur-xl text-primary dark:text-sky-300 font-bold shadow-xl shadow-blue-950/30 ring-1 ring-white/60 dark:ring-slate-700/50 hover:bg-white dark:hover:bg-slate-900 hover:scale-[1.02] active:scale-95 transition-all" />
       </div>
 
       {/* Footer */}
