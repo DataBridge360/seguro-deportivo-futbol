@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { getPostLoginRoute } from '@/lib/navigation'
 import { clearAuthCookie, setAuthCookie } from '@/lib/authCookie'
 import InstallAppButton from '@/components/ui/InstallAppButton'
+import BallsBackground from '@/components/auth/BallsBackground'
 
 type LoginMode = 'usuario' | 'dni'
 
@@ -75,27 +76,33 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-50 dark:bg-background-dark soccer-bg">
-      {/* Main Container */}
-      <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-xl shadow-2xl ring-1 ring-slate-200/50 dark:ring-slate-700/50 overflow-hidden football-pattern animate-fade-in">
-        {/* Top Header with Logo */}
+    <div className="relative min-h-screen flex flex-col items-center justify-center p-4 overflow-hidden bg-gradient-to-br from-sky-400 via-primary to-blue-900 dark:from-slate-900 dark:via-blue-950 dark:to-slate-950">
+      <BallsBackground />
+      <div className="relative z-10 w-full max-w-md bg-white/90 dark:bg-slate-900/85 backdrop-blur-xl rounded-2xl shadow-2xl shadow-blue-950/40 ring-1 ring-white/60 dark:ring-slate-700/50 overflow-hidden football-pattern animate-slide-up">
+        {/* Header */}
         <div className="pt-8 pb-4 flex flex-col items-center px-6">
-          <div className="mb-4">
+          <div className="mb-3">
             <Image
               src="/logo.png"
               alt="Logo del Complejo Deportivo"
-              width={160}
-              height={160}
-              className="w-40 h-40 object-contain"
+              width={110}
+              height={110}
+              className="w-24 h-24 object-contain"
               priority
             />
           </div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white text-center leading-tight tracking-tight">
-            Complejo Deportivo <span className="block text-primary">Plaza Huincul</span>
+          <h1 className="text-lg font-bold text-slate-900 dark:text-white text-center leading-tight tracking-tight">
+            Complejo Deportivo <span className="text-primary">Plaza Huincul</span>
           </h1>
-          <p className="mt-1.5 text-slate-500 dark:text-slate-400 text-center text-xs font-medium">
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 text-center">
             Tu portal deportivo en Plaza Huincul
           </p>
+          {mode === 'usuario' && (
+            <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
+              <span className="material-symbols-outlined text-sm">manage_accounts</span>
+              Ingreso de staff
+            </span>
+          )}
         </div>
 
         {/* Login Form */}
@@ -117,7 +124,7 @@ export default function LoginPage() {
                     value={usuario}
                     onChange={(e) => setUsuario(e.target.value)}
                     className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-slate-400"
-                    placeholder="Ingres&aacute; tu usuario"
+                    placeholder="Ingresá tu usuario"
                     required
                     autoComplete="username"
                     autoCapitalize="none"
@@ -144,7 +151,7 @@ export default function LoginPage() {
                     value={dni}
                     onChange={(e) => setDni(e.target.value.replace(/\D/g, ''))}
                     className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-slate-400"
-                    placeholder="Ingres&aacute; tu DNI"
+                    placeholder="Ingresá tu DNI"
                     required
                     autoComplete="off"
                   />
@@ -155,7 +162,7 @@ export default function LoginPage() {
             {/* Password Field */}
             <div className="space-y-1.5">
               <label htmlFor="password" className="text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">
-                Contrase&ntilde;a
+                Contraseña
               </label>
               <div className="relative">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary/70 text-xl">
@@ -167,13 +174,14 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-11 pr-11 py-3 bg-slate-50 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all placeholder:text-slate-400"
-                  placeholder="&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;&#x2022;"
+                  placeholder="••••••••"
                   required
                   autoComplete="current-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                   className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 cursor-pointer hover:text-primary transition-colors text-xl"
                 >
                   {showPassword ? 'visibility_off' : 'visibility'}
@@ -216,39 +224,42 @@ export default function LoginPage() {
               )}
             </button>
 
-            <div className="relative flex py-2 items-center">
-              <div className="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
-              <span className="flex-shrink mx-4 text-slate-400 text-xs uppercase tracking-widest font-bold">o</span>
-              <div className="flex-grow border-t border-slate-200 dark:border-slate-700"></div>
-            </div>
-
-            <button
-              type="button"
-              onClick={toggleMode}
-              className="w-full bg-white dark:bg-slate-800 border-2 border-primary/30 hover:border-primary text-slate-700 dark:text-slate-200 font-bold py-3 rounded-lg transition-all flex items-center justify-center gap-2"
-            >
-              {mode === 'usuario' ? (
-                <>
-                  <span className="material-symbols-outlined text-primary">sports_soccer</span>
-                  Soy jugador &mdash; Ingresar con DNI
-                </>
-              ) : (
-                <>
-                  <span className="material-symbols-outlined text-primary">manage_accounts</span>
-                  Soy staff &mdash; Ingresar con usuario
-                </>
-              )}
-            </button>
-
             {mode === 'dni' && (
-              <p className="text-center text-sm text-slate-500 dark:text-slate-400">
-                &iquest;No ten&eacute;s cuenta?{' '}
+              <>
                 <a
                   href="/registro"
-                  className="text-primary font-bold hover:underline"
+                  className="w-full bg-white dark:bg-slate-800 border-2 border-primary/30 hover:border-primary text-slate-700 dark:text-slate-200 font-bold py-3 rounded-lg transition-all flex items-center justify-center gap-2"
                 >
-                  Registrate
+                  <span className="material-symbols-outlined text-primary">person_add</span>
+                  Crear cuenta nueva
                 </a>
+                <p className="text-center text-sm text-slate-500 dark:text-slate-400">
+                  ¿Primera vez? Registrate en 2 minutos.
+                </p>
+              </>
+            )}
+
+            {mode === 'dni' ? (
+              <p className="text-center pt-1">
+                <button
+                  type="button"
+                  onClick={toggleMode}
+                  className="inline-flex items-center gap-1 text-sm text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:underline transition-colors"
+                >
+                  <span className="material-symbols-outlined text-base">manage_accounts</span>
+                  ¿Sos staff?
+                </button>
+              </p>
+            ) : (
+              <p className="text-center pt-1">
+                <button
+                  type="button"
+                  onClick={toggleMode}
+                  className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline transition-colors"
+                >
+                  <span className="material-symbols-outlined text-base">sports_soccer</span>
+                  Volver al ingreso de jugadores
+                </button>
               </p>
             )}
           </div>
@@ -259,22 +270,15 @@ export default function LoginPage() {
       </div>
 
       {/* Install App Banner */}
-      <div className="w-full max-w-md mt-4">
+      <div className="relative z-10 w-full max-w-md mt-4">
         <InstallAppButton />
       </div>
 
       {/* Footer */}
-      <footer className="mt-6 text-center px-4">
-        <p className="text-slate-500 dark:text-slate-400 text-sm">
-          &iquest;Necesitas ayuda?{' '}
-          <a className="text-primary font-bold hover:underline cursor-pointer inline-flex items-center gap-1">
-            <span className="material-symbols-outlined text-sm">support_agent</span>
-            Contactar soporte
-          </a>
-        </p>
-        <div className="mt-6 opacity-60 flex items-center justify-center gap-1 text-xs uppercase tracking-tighter text-slate-400">
+      <footer className="relative z-10 mt-6 text-center px-4">
+        <div className="opacity-80 flex items-center justify-center gap-1 text-xs uppercase tracking-tighter text-white/80">
           <span className="material-symbols-outlined text-sm">location_on</span>
-          Plaza Huincul, Neuqu&eacute;n
+          Plaza Huincul, Neuquén
         </div>
       </footer>
 
