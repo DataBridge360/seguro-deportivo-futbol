@@ -1,11 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { usePWA } from '@/hooks/usePWA'
 import NotificationModal from './NotificationModal'
 
-export default function InstallAppButton({ className }: { className?: string }) {
-  const { isStandalone, isReady, canInstall, isIOS, promptInstall } = usePWA()
+interface InstallAppButtonProps {
+  className?: string
+  variant?: 'default' | 'banner'
+}
+
+export default function InstallAppButton({ className, variant = 'default' }: InstallAppButtonProps) {
+  const { isStandalone, isReady, canInstall, isIOS, isIOSSafari, isInAppBrowser, promptInstall } = usePWA()
   const [showIOSModal, setShowIOSModal] = useState(false)
   const [showModal, setShowModal] = useState(false)
 
@@ -23,59 +29,41 @@ export default function InstallAppButton({ className }: { className?: string }) 
 
   return (
     <>
-      <button
-        onClick={handleInstall}
-        className={className ?? 'w-full flex items-center justify-center gap-3 h-12 rounded-xl bg-primary/10 dark:bg-primary/20 text-primary font-bold border border-primary/20 hover:bg-primary/15 transition-all'}
-      >
-        <span className="material-symbols-outlined">download</span>
-        Descargar aplicación
-      </button>
+      {variant === 'banner' ? (
+        <button
+          onClick={handleInstall}
+          className={
+            className ??
+            'w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/90 dark:bg-slate-900/85 backdrop-blur-xl ring-1 ring-white/60 dark:ring-slate-700/50 shadow-xl shadow-blue-950/20 hover:bg-white dark:hover:bg-slate-900 active:scale-[0.98] transition-all'
+          }
+        >
+          <span className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 dark:bg-primary/20 text-primary flex-shrink-0">
+            <span className="material-symbols-outlined">download</span>
+          </span>
+          <span className="flex flex-col items-start text-left">
+            <span className="text-sm font-bold text-slate-900 dark:text-white">Descargá la app</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">Entrá más rápido desde tu celular</span>
+          </span>
+        </button>
+      ) : (
+        <button
+          onClick={handleInstall}
+          className={
+            className ??
+            'w-full flex items-center justify-center gap-3 h-12 rounded-xl bg-primary/10 dark:bg-primary/20 text-primary font-bold border border-primary/20 hover:bg-primary/15 transition-all'
+          }
+        >
+          <span className="material-symbols-outlined">download</span>
+          Descargar aplicación
+        </button>
+      )}
 
       {showIOSModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-[#1c2a35] rounded-2xl p-6 max-w-md w-full relative">
-            <button
-              onClick={() => setShowIOSModal(false)}
-              className="absolute top-4 right-4 text-[#617989] hover:text-[#111518] dark:hover:text-white"
-            >
-              <span className="material-symbols-outlined">close</span>
-            </button>
-            <h2 className="text-[#111518] dark:text-white text-xl font-bold mb-4">Instalar en iOS</h2>
-            <p className="text-[#617989] text-sm mb-4">Safari no permite instalación automática. Seguí estos pasos:</p>
-            <ol className="space-y-4">
-              <li className="flex items-start gap-3">
-                <span className="bg-primary text-white rounded-full w-7 h-7 flex items-center justify-center flex-shrink-0 text-sm font-bold">1</span>
-                <div>
-                  <p className="text-[#111518] dark:text-white">Tocá el botón <strong>Compartir</strong></p>
-                  <div className="bg-[#f6f7f8] dark:bg-[#0a0a0a] rounded-lg p-2 mt-2 inline-flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary">ios_share</span>
-                    <span className="text-sm text-[#617989]">Compartir</span>
-                  </div>
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="bg-primary text-white rounded-full w-7 h-7 flex items-center justify-center flex-shrink-0 text-sm font-bold">2</span>
-                <div>
-                  <p className="text-[#111518] dark:text-white">Deslizá y seleccioná <strong>&quot;Agregar a Inicio&quot;</strong></p>
-                  <div className="bg-[#f6f7f8] dark:bg-[#0a0a0a] rounded-lg p-2 mt-2 inline-flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[#617989]">add_box</span>
-                    <span className="text-sm text-[#617989]">Agregar a Inicio</span>
-                  </div>
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="bg-primary text-white rounded-full w-7 h-7 flex items-center justify-center flex-shrink-0 text-sm font-bold">3</span>
-                <p className="text-[#111518] dark:text-white">Tocá <strong>&quot;Agregar&quot;</strong> para confirmar</p>
-              </li>
-            </ol>
-            <button
-              onClick={() => setShowIOSModal(false)}
-              className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-12 rounded-xl shadow-lg shadow-primary/20 transition-all mt-6"
-            >
-              Entendido
-            </button>
-          </div>
-        </div>
+        <IOSInstallSheet
+          onClose={() => setShowIOSModal(false)}
+          isIOSSafari={isIOSSafari}
+          isInAppBrowser={isInAppBrowser}
+        />
       )}
 
       <NotificationModal
@@ -83,8 +71,162 @@ export default function InstallAppButton({ className }: { className?: string }) 
         onClose={() => setShowModal(false)}
         type="info"
         title="Cómo instalar"
-        message='Para instalar, abrí el menú del navegador y seleccioná "Instalar aplicación" o "Agregar a pantalla de inicio"'
+        message='Abrí el menú del navegador (⋮) y tocá "Instalar aplicación" o "Agregar a la pantalla principal".'
       />
     </>
+  )
+}
+
+function IOSInstallSheet({
+  onClose,
+  isIOSSafari,
+  isInAppBrowser
+}: {
+  onClose: () => void
+  isIOSSafari: boolean
+  isInAppBrowser: boolean
+}) {
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleEscape)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', handleEscape)
+      document.body.style.overflow = ''
+    }
+  }, [onClose])
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // Clipboard API can be unavailable (insecure context, missing permission, or
+      // unsupported browser). There is no safe fallback, so we just skip the feedback.
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ios-install-title"
+        className="bg-white dark:bg-[#1c2a35] rounded-t-2xl sm:rounded-2xl p-6 max-w-md w-full relative max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          aria-label="Cerrar"
+          className="absolute top-4 right-4 text-[#617989] hover:text-[#111518] dark:hover:text-white"
+        >
+          <span className="material-symbols-outlined">close</span>
+        </button>
+
+        <h2 id="ios-install-title" className="text-[#111518] dark:text-white text-xl font-bold mb-4 pr-8">
+          Instalá la app en tu iPhone
+        </h2>
+
+        {isInAppBrowser ? (
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+            <p className="text-amber-800 dark:text-amber-300 text-sm mb-3">
+              Estás dentro de otra app (WhatsApp, Instagram…). Abrí este link en Safari para poder instalarla.
+            </p>
+            <button
+              onClick={handleCopyLink}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold h-11 rounded-lg transition-all"
+            >
+              {copied ? '¡Link copiado!' : 'Copiar link'}
+            </button>
+          </div>
+        ) : (
+          <>
+            <ol className="space-y-4">
+              <li className="flex items-start gap-3">
+                <span className="bg-primary text-white rounded-full w-7 h-7 flex items-center justify-center flex-shrink-0 text-sm font-bold">
+                  1
+                </span>
+                <div>
+                  <p className="text-[#111518] dark:text-white">
+                    Tocá el botón <strong>Compartir</strong>
+                  </p>
+                  <p className="text-xs text-[#617989] mt-1">
+                    Está en la barra de abajo en Safari. Si no lo ves, tocá ••• (Más) y después Compartir.
+                  </p>
+                  <div className="bg-[#f6f7f8] dark:bg-[#0a0a0a] rounded-lg p-2 mt-2 inline-flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary">ios_share</span>
+                    <span className="text-sm text-[#617989]">Compartir</span>
+                  </div>
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="bg-primary text-white rounded-full w-7 h-7 flex items-center justify-center flex-shrink-0 text-sm font-bold">
+                  2
+                </span>
+                <div>
+                  <p className="text-[#111518] dark:text-white">
+                    Deslizá hacia abajo y tocá <strong>&quot;Agregar a pantalla de inicio&quot;</strong>
+                  </p>
+                  <div className="bg-[#f6f7f8] dark:bg-[#0a0a0a] rounded-lg p-2 mt-2 inline-flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[#617989]">add_box</span>
+                    <span className="text-sm text-[#617989]">Agregar a pantalla de inicio</span>
+                  </div>
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="bg-primary text-white rounded-full w-7 h-7 flex items-center justify-center flex-shrink-0 text-sm font-bold">
+                  3
+                </span>
+                <div>
+                  <p className="text-[#111518] dark:text-white">
+                    Activá <strong>&quot;Abrir como app web&quot;</strong> si aparece y tocá <strong>&quot;Agregar&quot;</strong>
+                  </p>
+                  <div className="bg-[#f6f7f8] dark:bg-[#0a0a0a] rounded-lg p-2 mt-2 inline-flex items-center gap-2">
+                    <span className="material-symbols-outlined text-primary">check_circle</span>
+                    <span className="text-sm text-[#617989]">Agregar</span>
+                  </div>
+                </div>
+              </li>
+              <li className="flex items-start gap-3">
+                <span className="bg-primary text-white rounded-full w-7 h-7 flex items-center justify-center flex-shrink-0 text-sm font-bold">
+                  4
+                </span>
+                <div className="flex items-center gap-2">
+                  <Image
+                    src="/logo.png"
+                    alt="Ícono de Club Plaza"
+                    width={28}
+                    height={28}
+                    className="w-7 h-7 object-contain rounded"
+                  />
+                  <p className="text-[#111518] dark:text-white">
+                    Listo: abrí Club Plaza desde el ícono en tu pantalla de inicio
+                  </p>
+                </div>
+              </li>
+            </ol>
+
+            {!isIOSSafari && (
+              <p className="text-xs text-[#617989] mt-4">Si no encontrás la opción, abrí esta página en Safari.</p>
+            )}
+          </>
+        )}
+
+        <button
+          onClick={onClose}
+          className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-12 rounded-xl shadow-lg shadow-primary/20 transition-all mt-6"
+        >
+          Entendido
+        </button>
+      </div>
+    </div>
   )
 }

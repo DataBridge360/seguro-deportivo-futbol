@@ -78,6 +78,12 @@ export default function LoginPage() {
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center p-4 overflow-hidden bg-gradient-to-br from-sky-400 via-primary to-blue-900 dark:from-slate-900 dark:via-blue-950 dark:to-slate-950">
       <BallsBackground />
+
+      {/* Install App Banner */}
+      <div className="relative z-10 w-full max-w-md mb-4">
+        <InstallAppButton variant="banner" />
+      </div>
+
       <div className="relative z-10 w-full max-w-md bg-white/90 dark:bg-slate-900/85 backdrop-blur-xl rounded-2xl shadow-2xl shadow-blue-950/40 ring-1 ring-white/60 dark:ring-slate-700/50 overflow-hidden football-pattern animate-slide-up">
         {/* Header */}
         <div className="pt-8 pb-4 flex flex-col items-center px-6">
@@ -267,11 +273,6 @@ export default function LoginPage() {
 
         {/* Decorative Grass Base */}
         <div className="h-2 w-full bg-primary grass-gradient"></div>
-      </div>
-
-      {/* Install App Banner */}
-      <div className="relative z-10 w-full max-w-md mt-4 flex justify-center">
-        <InstallAppButton className="w-full flex items-center justify-center gap-3 h-14 rounded-2xl bg-white/90 dark:bg-slate-900/85 backdrop-blur-xl text-primary dark:text-sky-300 font-bold shadow-xl shadow-blue-950/30 ring-1 ring-white/60 dark:ring-slate-700/50 hover:bg-white dark:hover:bg-slate-900 hover:scale-[1.02] active:scale-95 transition-all" />
       </div>
 
       {/* Footer */}

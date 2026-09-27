@@ -12,6 +12,8 @@ export function usePWA() {
   const [isStandalone, setIsStandalone] = useState(false)
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isIOS, setIsIOS] = useState(false)
+  const [isIOSSafari, setIsIOSSafari] = useState(false)
+  const [isInAppBrowser, setIsInAppBrowser] = useState(false)
   const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
@@ -27,8 +29,23 @@ export function usePWA() {
 
     checkStandalone()
 
-    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream
+    const ua = navigator.userAgent
+    // iPadOS 13+ reports as "Macintosh" in the UA string but exposes multi-touch,
+    // unlike a real Mac. Detect it via maxTouchPoints to avoid missing iPads.
+    const isIPadOS13Plus = /Macintosh/.test(ua) && navigator.maxTouchPoints > 1
+    const isIOSDevice = (/iPad|iPhone|iPod/.test(ua) || isIPadOS13Plus) && !(window as any).MSStream
     setIsIOS(isIOSDevice)
+
+    // Any other iOS browser (Chrome, Firefox, Edge) uses Safari's WebKit engine
+    // under the hood but appends its own token, which we use to exclude it here.
+    const isOtherIOSBrowser = /CriOS|FxiOS|EdgiOS/.test(ua)
+    setIsIOSSafari(isIOSDevice && !isOtherIOSBrowser)
+
+    // In-app browsers (social apps' embedded WebViews) block the install prompt
+    // and often hide Safari's share sheet, so we detect them to guide users out.
+    const inAppMarkers = /Instagram|FBAN|FBAV|WhatsApp|Line|TikTok/i.test(ua)
+    const isIOSWebView = isIOSDevice && /\bwv\b/.test(ua)
+    setIsInAppBrowser(inAppMarkers || isIOSWebView)
 
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault()
@@ -74,6 +91,8 @@ export function usePWA() {
     isStandalone,
     canInstall: !!installPrompt,
     isIOS,
+    isIOSSafari,
+    isInAppBrowser,
     isReady,
     promptInstall
   }
