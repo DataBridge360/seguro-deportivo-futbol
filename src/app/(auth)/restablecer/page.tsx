@@ -13,7 +13,9 @@ import BallsBackground from '@/components/auth/BallsBackground'
 // estático de esta ruta en Next 16.
 // ---------------------------------------------------------------------------
 
-const INVALID_OR_EXPIRED_REGEX = /no es válido o ya venci[oó]/i
+// Matches the backend's invalid, expired and already-used link messages,
+// which all end with "Pedí uno nuevo".
+const INVALID_OR_EXPIRED_REGEX = /ped[ií] uno nuevo/i
 
 type Step = 'form' | 'success'
 
