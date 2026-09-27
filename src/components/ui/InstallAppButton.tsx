@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Image from 'next/image'
 import { usePWA } from '@/hooks/usePWA'
 import NotificationModal from './NotificationModal'
@@ -58,21 +59,29 @@ export default function InstallAppButton({ className, variant = 'default' }: Ins
         </button>
       )}
 
-      {showIOSModal && (
-        <IOSInstallSheet
-          onClose={() => setShowIOSModal(false)}
-          isIOSSafari={isIOSSafari}
-          isInAppBrowser={isInAppBrowser}
-        />
-      )}
+      {/* Modals are portaled to <body> so a parent stacking context (e.g. the
+          login banner wrapper with z-10) cannot paint the login card over them.
+          Safe to touch document here: isReady is only true on the client. */}
+      {showIOSModal &&
+        createPortal(
+          <IOSInstallSheet
+            onClose={() => setShowIOSModal(false)}
+            isIOSSafari={isIOSSafari}
+            isInAppBrowser={isInAppBrowser}
+          />,
+          document.body
+        )}
 
-      <NotificationModal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        type="info"
-        title="Cómo instalar"
-        message='Abrí el menú del navegador (⋮) y tocá "Instalar aplicación" o "Agregar a la pantalla principal".'
-      />
+      {createPortal(
+        <NotificationModal
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
+          type="info"
+          title="Cómo instalar"
+          message='Abrí el menú del navegador (⋮) y tocá "Instalar aplicación" o "Agregar a la pantalla principal".'
+        />,
+        document.body
+      )}
     </>
   )
 }
