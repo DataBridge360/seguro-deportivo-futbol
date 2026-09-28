@@ -181,7 +181,7 @@ export default function WalletCard({
       ref={cardRef}
       role="group"
       aria-label="Credencial digital"
-      className="relative overflow-visible text-white w-full min-h-[240px] sm:min-h-[230px] rounded-[24px] ring-1 ring-white/15 select-none"
+      className="relative overflow-visible text-white w-full min-h-[200px] sm:min-h-[196px] rounded-[24px] ring-1 ring-white/15 select-none"
       style={{
         // Dragging on the card only tilts it; the browser must not scroll the
         // page (pan-y let it scroll and cancel the gesture mid-drag).
@@ -276,14 +276,14 @@ export default function WalletCard({
       />
 
       {/* Card content */}
-      <div className="relative z-10 h-full p-4 sm:p-5 flex flex-col gap-4">
+      <div className="relative z-10 h-full px-4 py-3.5 sm:px-5 sm:py-4 flex flex-col gap-3">
         {/* Header - caption, name and QR button */}
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[10px] sm:text-xs uppercase tracking-widest text-white/60 font-semibold">
               Credencial digital
             </p>
-            <h1 className="mt-0.5 text-[26px] sm:text-3xl font-bold leading-tight tracking-tight line-clamp-2 break-words">
+            <h1 className="mt-0.5 text-2xl sm:text-[28px] font-bold leading-tight tracking-tight line-clamp-2 break-words">
               {name}
             </h1>
           </div>
@@ -297,7 +297,7 @@ export default function WalletCard({
         </div>
 
         {/* Data, appearing one after another */}
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
           <div
             className="motion-reduce:animate-none animate-card-item"
             style={{ animationDelay: `${DATA_ITEM_DELAY_MS * 0}ms` }}
@@ -313,7 +313,7 @@ export default function WalletCard({
             <p className="text-base sm:text-lg font-semibold tabular-nums">{birthDate}</p>
           </div>
           {/* Insurance validity on the left, payment status pill on the right */}
-          <div className="col-span-2 pt-3 border-t border-white/15 flex items-end justify-between gap-3">
+          <div className="col-span-2 pt-2 border-t border-white/15 flex items-end justify-between gap-3">
           <div
             className="min-w-0 motion-reduce:animate-none animate-card-item"
             style={{ animationDelay: `${DATA_ITEM_DELAY_MS * 2}ms` }}
