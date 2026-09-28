@@ -14,7 +14,9 @@ export interface WalletCardProps {
 }
 
 const MAX_TILT_DEG = 12
-const ACTIVE_SCALE = 1.02
+// No scale-up while tilting: a scaled full-width card overflows the viewport
+// horizontally and makes the whole page slide sideways on phones.
+const ACTIVE_SCALE = 1
 const RESET_TRANSITION = 'transform 500ms cubic-bezier(0.22, 1, 0.36, 1)'
 const GLARE_TRANSITION = 'opacity 500ms cubic-bezier(0.22, 1, 0.36, 1)'
 
@@ -67,8 +69,9 @@ export default function WalletCard({
     if (!point || !card) return
 
     const rect = card.getBoundingClientRect()
-    const px = (point.x - rect.left) / rect.width // 0..1
-    const py = (point.y - rect.top) / rect.height // 0..1
+    // Clamped: with pointer capture the finger can leave the card while dragging.
+    const px = Math.min(1, Math.max(0, (point.x - rect.left) / rect.width))
+    const py = Math.min(1, Math.max(0, (point.y - rect.top) / rect.height))
 
     const rotateY = (px - 0.5) * 2 * MAX_TILT_DEG
     const rotateX = -(py - 0.5) * 2 * MAX_TILT_DEG
@@ -126,6 +129,8 @@ export default function WalletCard({
     const card = cardRef.current
     if (card) {
       card.style.transition = 'none'
+      // Keep receiving moves while the finger drags, even outside the card.
+      card.setPointerCapture(e.pointerId)
     }
     scheduleFrame(e.clientX, e.clientY)
   }
@@ -145,10 +150,13 @@ export default function WalletCard({
       ref={cardRef}
       role="group"
       aria-label="Credencial digital"
-      className="relative overflow-visible text-white w-full aspect-[1.586/1] min-h-[210px] sm:min-h-[220px] rounded-[24px] border border-white/10"
+      className="relative overflow-visible text-white w-full aspect-[1.586/1] min-h-[210px] sm:min-h-[220px] rounded-[24px] border border-white/10 select-none"
       style={{
-        touchAction: 'pan-y',
-        transformStyle: 'preserve-3d',
+        // Dragging on the card only tilts it; the browser must not scroll the
+        // page (pan-y let it scroll and cancel the gesture mid-drag).
+        touchAction: 'none',
+        WebkitTouchCallout: 'none',
+        willChange: 'transform',
         boxShadow: '0 20px 40px -12px rgba(3, 105, 161, 0.55), 0 8px 16px -8px rgba(0,0,0,0.35)',
       }}
       onPointerDown={handlePointerDown}
@@ -161,7 +169,6 @@ export default function WalletCard({
         className="absolute inset-0 rounded-[24px] overflow-hidden"
         style={{
           background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.9) 0%, rgba(3, 105, 161, 0.95) 100%)',
-          backdropFilter: 'blur(12px)',
         }}
       >
         {/* Inner highlight */}
@@ -208,13 +215,9 @@ export default function WalletCard({
 
       {/* Card content */}
       <div className="relative h-full p-4 sm:p-5 flex flex-col justify-between gap-2">
-        {/* Top section - chip accent + Name */}
+        {/* Top section - Name */}
         <div className="flex justify-between items-start relative z-10 gap-3">
           <div className="min-w-0">
-            <div
-              className="mb-1.5 h-4 w-6 rounded-[3px] bg-gradient-to-br from-white/40 to-white/10 border border-white/30"
-              aria-hidden="true"
-            />
             <h1 className="text-[26px] sm:text-3xl font-bold leading-tight tracking-tight line-clamp-2 break-words">
               {name}
             </h1>
