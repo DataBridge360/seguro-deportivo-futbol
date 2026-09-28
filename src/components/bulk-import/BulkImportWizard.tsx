@@ -218,7 +218,7 @@ export default function BulkImportWizard({ isOpen, onClose, onImportComplete }: 
       {/* Overlay */}
       <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={handleAttemptClose}>
         <div
-          className="bg-white dark:bg-[#111827] w-full max-w-xl rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]"
+          className="bg-white dark:bg-slate-800 w-full max-w-xl rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -243,7 +243,7 @@ export default function BulkImportWizard({ isOpen, onClose, onImportComplete }: 
               }`} />
               {STEPS.map((step, idx) => (
                 <div key={idx} className="relative z-10 flex flex-col items-center gap-2">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ring-4 ring-white dark:ring-[#111827] transition-colors ${
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ring-4 ring-white dark:ring-slate-800 transition-colors ${
                     idx < currentStep
                       ? 'bg-green-500 text-white'
                       : idx === currentStep

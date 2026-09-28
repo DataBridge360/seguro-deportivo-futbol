@@ -129,7 +129,7 @@ function IOSInstallSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="ios-install-title"
-        className="bg-white dark:bg-[#1c2a35] rounded-t-2xl sm:rounded-2xl p-6 max-w-md w-full relative max-h-[90vh] overflow-y-auto"
+        className="bg-white dark:bg-slate-800 rounded-t-2xl sm:rounded-2xl p-6 max-w-md w-full relative max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -170,7 +170,7 @@ function IOSInstallSheet({
                   <p className="text-xs text-[#617989] mt-1">
                     Está en la barra de abajo en Safari. Si no lo ves, tocá ••• (Más) y después Compartir.
                   </p>
-                  <div className="bg-[#f6f7f8] dark:bg-[#0a0a0a] rounded-lg p-2 mt-2 inline-flex items-center gap-2">
+                  <div className="bg-[#f6f7f8] dark:bg-slate-900 rounded-lg p-2 mt-2 inline-flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary">ios_share</span>
                     <span className="text-sm text-[#617989]">Compartir</span>
                   </div>
@@ -184,7 +184,7 @@ function IOSInstallSheet({
                   <p className="text-[#111518] dark:text-white">
                     Deslizá hacia abajo y tocá <strong>&quot;Agregar a pantalla de inicio&quot;</strong>
                   </p>
-                  <div className="bg-[#f6f7f8] dark:bg-[#0a0a0a] rounded-lg p-2 mt-2 inline-flex items-center gap-2">
+                  <div className="bg-[#f6f7f8] dark:bg-slate-900 rounded-lg p-2 mt-2 inline-flex items-center gap-2">
                     <span className="material-symbols-outlined text-[#617989]">add_box</span>
                     <span className="text-sm text-[#617989]">Agregar a pantalla de inicio</span>
                   </div>
@@ -198,7 +198,7 @@ function IOSInstallSheet({
                   <p className="text-[#111518] dark:text-white">
                     Activá <strong>&quot;Abrir como app web&quot;</strong> si aparece y tocá <strong>&quot;Agregar&quot;</strong>
                   </p>
-                  <div className="bg-[#f6f7f8] dark:bg-[#0a0a0a] rounded-lg p-2 mt-2 inline-flex items-center gap-2">
+                  <div className="bg-[#f6f7f8] dark:bg-slate-900 rounded-lg p-2 mt-2 inline-flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary">check_circle</span>
                     <span className="text-sm text-[#617989]">Agregar</span>
                   </div>

@@ -5,7 +5,7 @@ import { useThemeStore } from '@/stores/themeStore'
 
 const THEME_COLORS = {
   light: '#f6f7f8',
-  dark: '#0a0a0a',
+  dark: '#0f172a',
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {

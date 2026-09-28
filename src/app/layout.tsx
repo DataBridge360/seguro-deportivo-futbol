@@ -18,7 +18,10 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#0a0a0a',
+  // Static fallback shown before the inline script below runs; the script
+  // immediately overwrites this with colors.light or colors.dark based on
+  // the stored theme, so light mode's steady-state color is unaffected.
+  themeColor: '#0f172a',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -44,7 +47,7 @@ export default function RootLayout({
                 try {
                   var theme = JSON.parse(localStorage.getItem('theme-storage'))?.state?.theme || 'light';
                   document.documentElement.classList.add(theme);
-                  var colors = { light: '#f6f7f8', dark: '#0a0a0a' };
+                  var colors = { light: '#f6f7f8', dark: '#0f172a' };
                   var meta = document.querySelector('meta[name="theme-color"]');
                   if (meta) meta.setAttribute('content', colors[theme] || colors.light);
                 } catch (e) {

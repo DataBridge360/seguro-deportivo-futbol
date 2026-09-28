@@ -116,7 +116,7 @@ export default function HomePage() {
       {/* iOS Modal */}
       {showIOSModal && (
         <div className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-[#1c2a35] rounded-2xl p-6 max-w-md w-full relative animate-slide-up">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-md w-full relative animate-slide-up">
             <button
               onClick={() => setShowIOSModal(false)}
               className="absolute top-4 right-4 text-[#617989] hover:text-[#111518] dark:hover:text-white"
@@ -134,7 +134,7 @@ export default function HomePage() {
                 <span className="bg-primary text-white rounded-full w-7 h-7 flex items-center justify-center flex-shrink-0 text-sm font-bold">1</span>
                 <div>
                   <p className="text-[#111518] dark:text-white">Tocá el botón <strong>Compartir</strong></p>
-                  <div className="bg-[#f6f7f8] dark:bg-[#0a0a0a] rounded-lg p-2 mt-2 inline-flex items-center gap-2">
+                  <div className="bg-[#f6f7f8] dark:bg-slate-900 rounded-lg p-2 mt-2 inline-flex items-center gap-2">
                     <span className="material-symbols-outlined text-primary">ios_share</span>
                     <span className="text-sm text-[#617989]">Compartir</span>
                   </div>
@@ -144,7 +144,7 @@ export default function HomePage() {
                 <span className="bg-primary text-white rounded-full w-7 h-7 flex items-center justify-center flex-shrink-0 text-sm font-bold">2</span>
                 <div>
                   <p className="text-[#111518] dark:text-white">Deslizá y seleccioná <strong>&quot;Agregar a Inicio&quot;</strong></p>
-                  <div className="bg-[#f6f7f8] dark:bg-[#0a0a0a] rounded-lg p-2 mt-2 inline-flex items-center gap-2">
+                  <div className="bg-[#f6f7f8] dark:bg-slate-900 rounded-lg p-2 mt-2 inline-flex items-center gap-2">
                     <span className="material-symbols-outlined text-[#617989]">add_box</span>
                     <span className="text-sm text-[#617989]">Agregar a Inicio</span>
                   </div>

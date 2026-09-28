@@ -12,7 +12,7 @@ const config: Config = {
       colors: {
         primary: '#1392ec',
         'background-light': '#f6f7f8',
-        'background-dark': '#0a0a0a',
+        'background-dark': '#0f172a',
         slate: {
           50: 'rgb(var(--c-slate-50) / <alpha-value>)',
           100: 'rgb(var(--c-slate-100) / <alpha-value>)',
