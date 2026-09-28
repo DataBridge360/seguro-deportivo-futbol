@@ -147,8 +147,15 @@ export default function DatosPersonalesPage() {
 
     try {
       setSaving(true)
-      const updated = await updateJugadorPerfil({ telefono, email, direccion })
+      const updated = await updateJugadorPerfil({
+        telefono: telefono.trim(),
+        email: email.trim(),
+        direccion: direccion.trim(),
+      })
       setPerfil(updated)
+      setTelefono(updated.telefono || '')
+      setEmail(updated.email || '')
+      setDireccion(updated.direccion || '')
       setHasChanges(false)
       setEditing(false)
       setNotification({
@@ -412,6 +419,11 @@ export default function DatosPersonalesPage() {
                     />
                   </div>
                   {errors.email && <p className="text-red-400 text-xs mt-2 ml-10">{errors.email}</p>}
+                  {!errors.email && email.trim() === '' && (
+                    <p className="text-amber-600 dark:text-amber-400 text-xs mt-2 ml-10">
+                      Sin correo no vas a poder recuperar tu contraseña.
+                    </p>
+                  )}
                 </div>
 
                 {/* Direccion */}
