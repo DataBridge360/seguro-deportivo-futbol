@@ -471,17 +471,17 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
                 {inscripcion?.equipo_nombre || 'Equipo'}
               </h1>
               {inscripcion?.inhabilitado_por_deuda && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300 text-[10px] font-semibold">
-                  <span className="material-symbols-outlined text-xs">lock</span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300 text-sm font-semibold">
+                  <span className="material-symbols-outlined text-base">lock</span>
                   Deuda pendiente
                 </span>
               )}
             </div>
             {inscripcion && (
-              <p className="text-sm text-slate-500 dark:text-slate-400">{inscripcion.categoria_nombre}</p>
+              <p className="text-base text-slate-500 dark:text-slate-400">{inscripcion.categoria_nombre}</p>
             )}
             {inscripcion?.inhabilitado_motivo && (
-              <p className="text-xs text-red-600 dark:text-red-300 mt-1">{inscripcion.inhabilitado_motivo}</p>
+              <p className="text-sm text-red-600 dark:text-red-300 mt-1">{inscripcion.inhabilitado_motivo}</p>
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -522,20 +522,20 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
                 </span>
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-900 dark:text-white">Estado de pago del equipo</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-base font-semibold text-slate-900 dark:text-white">Estado de pago del equipo</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
                   {inscripcion.inhabilitado_por_deuda
                     ? 'Inhabilitado por deuda pendiente'
                     : 'Habilitado para jugadores'}
                 </p>
                 {inscripcion.inhabilitado_motivo && (
-                  <p className="text-xs text-red-600 dark:text-red-300 mt-1">{inscripcion.inhabilitado_motivo}</p>
+                  <p className="text-sm text-red-600 dark:text-red-300 mt-1">{inscripcion.inhabilitado_motivo}</p>
                 )}
               </div>
             </div>
             <button
               onClick={handleOpenInhabilitar}
-              className={`shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+              className={`shrink-0 inline-flex items-center gap-1.5 px-4 py-3 rounded-lg text-base font-semibold transition-colors ${
                 inscripcion.inhabilitado_por_deuda
                   ? 'bg-green-600 hover:bg-green-700 text-white'
                   : 'bg-red-500 hover:bg-red-600 text-white'
@@ -558,13 +558,13 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
               <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-xl">star</span>
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-900 dark:text-white">Delegados</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">{delegados.length} asignado{delegados.length !== 1 ? 's' : ''} · pueden gestionar el plantel</p>
+              <p className="text-base font-semibold text-slate-900 dark:text-white">Delegados</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{delegados.length} asignado{delegados.length !== 1 ? 's' : ''} · pueden gestionar el plantel</p>
             </div>
           </div>
           <button
             onClick={handleOpenModalDelegados}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 hover:bg-amber-200 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 text-amber-700 dark:text-amber-400 rounded-lg text-sm font-medium transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-amber-100 hover:bg-amber-200 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 text-amber-700 dark:text-amber-400 rounded-lg text-base font-medium transition-colors"
           >
             <span className="material-symbols-outlined text-lg">person_add</span>
             Asignar
@@ -575,7 +575,7 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
           {delegados.length === 0 ? (
             <div className="text-center py-6">
               <span className="material-symbols-outlined text-3xl text-slate-300 dark:text-slate-600">star_border</span>
-              <p className="mt-1.5 text-slate-500 dark:text-slate-400 text-sm">Sin delegados asignados</p>
+              <p className="mt-1.5 text-slate-500 dark:text-slate-400 text-base">Sin delegados asignados</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -586,8 +586,8 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
                       <span className="material-symbols-outlined text-sm text-amber-700 dark:text-amber-400">person</span>
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{d.apellido}, {d.nombre}</p>
-                      {d.dni && <p className="text-xs text-slate-500 dark:text-slate-400">DNI: {d.dni}</p>}
+                      <p className="text-base font-semibold text-slate-900 dark:text-white">{d.apellido}, {d.nombre}</p>
+                      {d.dni && <p className="text-sm text-slate-500 dark:text-slate-400">DNI: {d.dni}</p>}
                     </div>
                   </div>
                   <button
@@ -616,8 +616,8 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
               <span className="material-symbols-outlined text-primary text-xl">group</span>
             </div>
             <div>
-              <p className="text-sm font-semibold text-slate-900 dark:text-white">Jugadores</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">{jugadores.length} jugador{jugadores.length !== 1 ? 'es' : ''}</p>
+              <p className="text-base font-semibold text-slate-900 dark:text-white">Jugadores</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{jugadores.length} jugador{jugadores.length !== 1 ? 'es' : ''}</p>
             </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
@@ -625,7 +625,7 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
               <button
                 onClick={handleDescargarPDF}
                 disabled={generandoPDF}
-                className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-3 bg-primary hover:bg-primary/90 text-white rounded-lg text-base font-medium transition-colors disabled:opacity-50"
               >
                 {generandoPDF ? (
                   <div className="w-[18px] h-[18px] border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -638,7 +638,7 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
             {jugadoresSinPago.length > 0 && (user?.role === 'productor' || user?.role === 'developer') && (
               <button
                 onClick={() => setShowModalLimpiar(true)}
-                className="w-full sm:w-auto justify-center flex items-center gap-1.5 px-3 py-2 bg-red-100 hover:bg-red-200 dark:bg-red-500/20 dark:hover:bg-red-500/30 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium transition-colors"
+                className="w-full sm:w-auto justify-center flex items-center gap-1.5 px-4 py-3 bg-red-100 hover:bg-red-200 dark:bg-red-500/20 dark:hover:bg-red-500/30 text-red-600 dark:text-red-400 rounded-lg text-base font-medium transition-colors"
                 title="Quitar jugadores sin seguro pagado"
               >
                 <span className="material-symbols-outlined text-lg">shield_with_heart</span>
@@ -647,7 +647,7 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
             )}
             <button
               onClick={handleOpenAgregar}
-              className="w-full sm:w-auto justify-center flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-white rounded-lg text-sm font-medium transition-colors"
+              className="w-full sm:w-auto justify-center flex items-center gap-1.5 px-4 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-white rounded-lg text-base font-medium transition-colors"
             >
               <span className="material-symbols-outlined text-lg">person_add</span>
               Agregar jugadores
@@ -659,10 +659,10 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
           {jugadores.length === 0 ? (
             <div className="text-center py-10">
               <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600">group</span>
-              <p className="mt-2 text-slate-500 dark:text-slate-400 text-sm">No hay jugadores en este equipo</p>
+              <p className="mt-2 text-slate-500 dark:text-slate-400 text-base">No hay jugadores en este equipo</p>
               <button
                 onClick={handleOpenAgregar}
-                className="mt-3 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-1.5"
+                className="mt-3 px-4 py-3 bg-primary hover:bg-primary/90 text-white rounded-lg text-base font-medium transition-colors inline-flex items-center gap-1.5"
               >
                 <span className="material-symbols-outlined text-lg">person_add</span>
                 Agregar jugadores
@@ -673,34 +673,34 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
             {/* Roster search */}
             <div className="mb-3">
               <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none">search</span>
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl pointer-events-none">search</span>
                 <input
                   type="text"
                   value={rosterQuery}
                   onChange={(e) => setRosterQuery(e.target.value)}
                   placeholder="Buscar por nombre o DNI"
                   aria-label="Buscar jugadores por nombre o DNI"
-                  className="w-full pl-9 pr-10 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                  className="w-full pl-11 pr-11 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-base text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
                 />
                 {rosterQuery && (
                   <button
                     onClick={() => setRosterQuery('')}
                     aria-label="Limpiar búsqueda"
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg"
                   >
-                    <span className="material-symbols-outlined text-base">close</span>
+                    <span className="material-symbols-outlined text-xl">close</span>
                   </button>
                 )}
               </div>
               {isFilteringRoster && (
-                <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+                <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
                   {jugadoresFiltrados.length} de {jugadores.length} jugadores
                 </p>
               )}
             </div>
 
             {jugadoresFiltrados.length === 0 ? (
-              <p className="text-center text-sm text-slate-500 dark:text-slate-400 py-8">
+              <p className="text-center text-base text-slate-500 dark:text-slate-400 py-8">
                 Sin resultados para &quot;{rosterQuery.trim()}&quot;
               </p>
             ) : (
@@ -716,40 +716,37 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5 flex-wrap">
+                      <p className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-1.5 flex-wrap">
                         <span className="break-words min-w-0">{jugador.nombre_completo}</span>
                         {jugador.capitan && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 rounded text-[10px] font-bold">(C)</span>
+                          <span className="inline-flex items-center px-2.5 py-1 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 rounded-full text-sm font-semibold">(C)</span>
                         )}
                         {isDelegado(jugador) && (
-                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-primary/10 text-primary rounded text-[10px] font-bold uppercase tracking-wide">
-                            <span className="material-symbols-outlined text-xs">star</span>
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary/10 text-primary rounded-full text-sm font-semibold">
+                            <span className="material-symbols-outlined text-base">star</span>
                             Delegado
                           </span>
                         )}
                         {jugador.pagado === false && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 rounded text-[10px] font-bold uppercase tracking-wide">
-                            <span className="material-symbols-outlined text-xs">warning</span>
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 rounded-full text-sm font-semibold">
+                            <span className="material-symbols-outlined text-base">warning</span>
                             Sin seguro
                           </span>
                         )}
                       </p>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
                         {jugador.dni && (
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                          <p className="text-sm text-slate-500 dark:text-slate-400">
                             <span className="font-medium text-slate-600 dark:text-slate-300">DNI:</span> {formatDni(jugador.dni)}
                           </p>
                         )}
                         {jugador.fecha_nacimiento && (
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                          <p className="text-sm text-slate-500 dark:text-slate-400">
                             <span className="font-medium text-slate-600 dark:text-slate-300">Nac:</span> {formatDateOnly(jugador.fecha_nacimiento)}
                           </p>
                         )}
                         {jugador.posicion && (
-                          <p className="text-xs text-slate-500 dark:text-slate-400">{jugador.posicion}</p>
-                        )}
-                        {jugador.numero_camiseta != null && (
-                          <p className="text-xs text-slate-500 dark:text-slate-400">#{jugador.numero_camiseta}</p>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">{jugador.posicion}</p>
                         )}
                       </div>
                     </div>
@@ -757,7 +754,7 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
                   <button
                     onClick={() => setShowConfirmQuitar(jugador)}
                     aria-label={`Quitar a ${jugador.nombre_completo}`}
-                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors shrink-0 ml-2"
+                    className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors shrink-0 ml-2"
                   >
                     <span className="material-symbols-outlined text-xl">close</span>
                   </button>
@@ -777,18 +774,18 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4 z-50" onClick={() => !asignandoDelegado && setShowModalDelegados(false)}>
           <div className="bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-white/10 rounded-t-3xl sm:rounded-2xl max-w-md w-full shadow-2xl flex flex-col max-h-[85dvh]" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 pt-5 shrink-0">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">Asignar delegado</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Los delegados pueden agregar jugadores al equipo</p>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">Asignar delegado</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">Los delegados pueden agregar jugadores al equipo</p>
 
             <div className="relative mb-3">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
               <input
                 type="text"
                 value={busquedaDelegado}
                 onChange={(e) => setBusquedaDelegado(e.target.value)}
                 placeholder="Buscar por nombre, apellido o DNI..."
                 autoFocus
-                className="w-full pl-10 pr-9 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:border-primary"
+                className="w-full pl-11 pr-11 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white text-base placeholder:text-slate-400 focus:outline-none focus:border-primary"
               />
               {buscandoDelegado && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -797,25 +794,25 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
               )}
             </div>
             {busquedaDelegado.length > 0 && busquedaDelegado.length < 3 && (
-              <p className="mb-2 text-xs text-slate-400">Ingresá al menos 3 caracteres para buscar</p>
+              <p className="mb-2 text-sm text-slate-500">Ingresá al menos 3 caracteres para buscar</p>
             )}
             </div>
 
             <div className="flex-1 min-h-0 overflow-y-auto space-y-1 px-4 pb-2">
               {resultadosDelegado.length === 0 ? (
-                <p className="text-center text-xs text-slate-400 py-6">
+                <p className="text-center text-base text-slate-500 py-6">
                   {busquedaDelegado.length >= 3 && !buscandoDelegado ? 'Sin resultados' : 'Escribí un nombre, apellido o DNI para buscar'}
                 </p>
               ) : resultadosDelegado.map((j) => (
                 <div key={j.id} className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900/50">
                   <div>
-                    <p className="text-xs font-medium text-slate-900 dark:text-white">{j.apellido}, {j.nombre}</p>
-                    {j.dni && <p className="text-[10px] text-slate-500">DNI: {j.dni}</p>}
+                    <p className="text-base font-medium text-slate-900 dark:text-white">{j.apellido}, {j.nombre}</p>
+                    {j.dni && <p className="text-sm text-slate-500">DNI: {j.dni}</p>}
                   </div>
                   <button
                     onClick={() => handleAsignarDelegado(j.id)}
                     disabled={asignandoDelegado}
-                    className="px-3 py-1 bg-amber-100 hover:bg-amber-200 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 text-amber-700 dark:text-amber-400 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                    className="px-4 py-2 bg-amber-100 hover:bg-amber-200 dark:bg-amber-500/20 dark:hover:bg-amber-500/30 text-amber-700 dark:text-amber-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                   >
                     Asignar
                   </button>
@@ -824,7 +821,7 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
             </div>
 
             <div className="px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-slate-200 dark:border-slate-700 shrink-0">
-              <button onClick={() => setShowModalDelegados(false)} className="w-full px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors">Cerrar</button>
+              <button onClick={() => setShowModalDelegados(false)} className="w-full px-4 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-base font-medium transition-colors">Cerrar</button>
             </div>
           </div>
         </div>
@@ -837,34 +834,34 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
 
             {/* Header */}
             <div className="px-5 pt-5 pb-3 shrink-0">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Agregar jugadores</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">a {inscripcion?.equipo_nombre}</p>
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white">Agregar jugadores</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400">a {inscripcion?.equipo_nombre}</p>
             </div>
 
             {/* Search */}
             <div className="px-5 pb-3 shrink-0">
               <div className="relative">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
                 <input
                   type="text"
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
                   placeholder="Buscar por nombre, apellido o DNI..."
                   autoFocus
-                  className="w-full pl-9 pr-9 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                  className="w-full pl-11 pr-11 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-base text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
                 />
                 {buscando ? (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
                     <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                   </div>
                 ) : busqueda ? (
-                  <button onClick={() => { setBusqueda(''); setResultadosBusqueda([]) }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-lg">
-                    <span className="material-symbols-outlined text-base">close</span>
+                  <button onClick={() => { setBusqueda(''); setResultadosBusqueda([]) }} className="absolute right-1 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-slate-600 rounded-lg">
+                    <span className="material-symbols-outlined text-xl">close</span>
                   </button>
                 ) : null}
               </div>
               {busqueda.length > 0 && busqueda.length < 3 && (
-                <p className="mt-1.5 text-xs text-slate-400">Ingresá al menos 3 caracteres para buscar</p>
+                <p className="mt-1.5 text-sm text-slate-500">Ingresá al menos 3 caracteres para buscar</p>
               )}
             </div>
 
@@ -874,7 +871,7 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
               {/* Resultados */}
               {resultadosBusqueda.length > 0 && (
                 <div>
-                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                  <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
                     Resultados ({resultadosBusqueda.length})
                   </p>
                   <div className="flex flex-col gap-1">
@@ -890,10 +887,10 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
                               <span className="material-symbols-outlined text-sm text-emerald-600 dark:text-emerald-400">check_circle</span>
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">{j.apellido}, {j.nombre}</p>
-                              <p className="text-xs text-emerald-600 dark:text-emerald-400">DNI: {j.dni}</p>
+                              <p className="text-base font-semibold text-emerald-800 dark:text-emerald-300">{j.apellido}, {j.nombre}</p>
+                              <p className="text-sm text-emerald-600 dark:text-emerald-400">DNI: {j.dni}</p>
                             </div>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 shrink-0 whitespace-nowrap">
+                            <span className="text-sm font-semibold px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 shrink-0 whitespace-nowrap">
                               Ya en el equipo
                             </span>
                           </div>
@@ -909,9 +906,9 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
                               <span className="material-symbols-outlined text-sm text-red-400">group</span>
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{j.apellido}, {j.nombre}</p>
-                              <p className="text-xs text-red-500 dark:text-red-400 flex items-center gap-1">
-                                <span className="material-symbols-outlined text-xs">shield</span>
+                              <p className="text-base font-semibold text-slate-500 dark:text-slate-400">{j.apellido}, {j.nombre}</p>
+                              <p className="text-sm text-red-500 dark:text-red-400 flex items-center gap-1">
+                                <span className="material-symbols-outlined text-base">shield</span>
                                 Jugando en {j.equipo_en_torneo}
                               </p>
                             </div>
@@ -929,9 +926,9 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
                               <span className="material-symbols-outlined text-sm text-red-400">person</span>
                             </div>
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{j.apellido}, {j.nombre}</p>
-                              <p className="text-xs text-red-500 dark:text-red-400 flex items-center gap-1">
-                                <span className="material-symbols-outlined text-xs">warning</span>
+                              <p className="text-base font-semibold text-slate-500 dark:text-slate-400">{j.apellido}, {j.nombre}</p>
+                              <p className="text-sm text-red-500 dark:text-red-400 flex items-center gap-1">
+                                <span className="material-symbols-outlined text-base">warning</span>
                                 Seguro no pagado
                               </p>
                             </div>
@@ -952,8 +949,8 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
                             <span className="material-symbols-outlined text-sm text-slate-500">person</span>
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-semibold text-slate-900 dark:text-white">{j.apellido}, {j.nombre}</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">DNI: {j.dni}</p>
+                            <p className="text-base font-semibold text-slate-900 dark:text-white">{j.apellido}, {j.nombre}</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">DNI: {j.dni}</p>
                           </div>
                           <span className="material-symbols-outlined text-primary text-lg shrink-0">add_circle</span>
                         </button>
@@ -965,25 +962,25 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
 
               {/* Estado vacío */}
               {busqueda.length >= 3 && !buscando && resultadosBusqueda.length === 0 && jugadoresSeleccionados.length === 0 && (
-                <p className="text-center text-xs text-slate-400 py-6">Sin resultados para &quot;{busqueda}&quot;</p>
+                <p className="text-center text-base text-slate-500 py-6">Sin resultados para &quot;{busqueda}&quot;</p>
               )}
               {busqueda.length === 0 && jugadoresSeleccionados.length === 0 && (
-                <p className="text-center text-xs text-slate-400 py-6">Escribí un nombre, apellido o DNI para buscar</p>
+                <p className="text-center text-base text-slate-500 py-6">Escribí un nombre, apellido o DNI para buscar</p>
               )}
             </div>
 
             {/* Selected bar (outside the scroll area) */}
             {jugadoresSeleccionados.length > 0 && (
               <div className="shrink-0 px-5 pt-2 pb-2 border-t border-slate-200 dark:border-slate-700">
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
                   {jugadoresSeleccionados.length} seleccionado{jugadoresSeleccionados.length !== 1 ? 's' : ''}
                 </p>
                 <div className="flex flex-nowrap gap-1.5 overflow-x-auto pb-1">
                   {jugadoresSeleccionados.map(j => (
-                    <span key={j.id} className="shrink-0 flex items-center gap-1 px-2.5 py-1 bg-primary/10 text-primary rounded-lg text-xs font-medium whitespace-nowrap">
+                    <span key={j.id} className="shrink-0 flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-sm font-medium whitespace-nowrap">
                       {j.apellido}, {j.nombre}
-                      <button onClick={() => setJugadoresSeleccionados(prev => prev.filter(s => s.id !== j.id))} aria-label={`Quitar a ${j.apellido}, ${j.nombre}`} className="ml-0.5 hover:text-primary/60">
-                        <span className="material-symbols-outlined text-sm">close</span>
+                      <button onClick={() => setJugadoresSeleccionados(prev => prev.filter(s => s.id !== j.id))} aria-label={`Quitar a ${j.apellido}, ${j.nombre}`} className="ml-0.5 p-1 hover:text-primary/60">
+                        <span className="material-symbols-outlined text-base">close</span>
                       </button>
                     </span>
                   ))}
@@ -993,12 +990,12 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
 
             {/* Footer */}
             <div className="px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-slate-200 dark:border-slate-700 shrink-0">
-              {errors.jugador_id && <p className="text-red-400 text-xs mb-2">{errors.jugador_id}</p>}
+              {errors.jugador_id && <p className="text-red-400 text-sm mb-2">{errors.jugador_id}</p>}
               <div className="flex gap-2">
-                <button onClick={() => setShowModalAgregar(false)} disabled={submitting} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">
+                <button onClick={() => setShowModalAgregar(false)} disabled={submitting} className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-base font-medium transition-colors disabled:opacity-50">
                   Cancelar
                 </button>
-                <button onClick={handleAgregarJugadores} disabled={submitting || jugadoresSeleccionados.length === 0} className="flex-[1.5] px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                <button onClick={handleAgregarJugadores} disabled={submitting || jugadoresSeleccionados.length === 0} className="flex-[1.5] px-4 py-3 bg-primary hover:bg-primary/90 text-white rounded-lg text-base font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                   {submitting ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Agregando...</>) : `Agregar${jugadoresSeleccionados.length > 0 ? ` ${jugadoresSeleccionados.length}` : ''}`}
                 </button>
               </div>
@@ -1015,14 +1012,14 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
               <div className="w-9 h-9 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center">
                 <span className="material-symbols-outlined text-red-500 text-lg">person_remove</span>
               </div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Quitar jugador</h3>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Quitar jugador</h3>
             </div>
-            <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+            <p className="text-base text-slate-600 dark:text-slate-300 mb-4">
               ¿Quitar a <strong>&quot;{showConfirmQuitar.nombre_completo}&quot;</strong> del equipo?
             </p>
             <div className="flex gap-2">
-              <button onClick={() => setShowConfirmQuitar(null)} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors">Cancelar</button>
-              <button onClick={handleQuitarJugador} className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors">Quitar</button>
+              <button onClick={() => setShowConfirmQuitar(null)} className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-base font-medium transition-colors">Cancelar</button>
+              <button onClick={handleQuitarJugador} className="flex-1 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg text-base font-medium transition-colors">Quitar</button>
             </div>
           </div>
         </div>
@@ -1038,46 +1035,46 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
                   {inscripcion.inhabilitado_por_deuda ? 'lock_open' : 'lock'}
                 </span>
               </div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
                 {inscripcion.inhabilitado_por_deuda ? 'Habilitar equipo' : 'Inhabilitar por deuda'}
               </h3>
             </div>
-            <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+            <p className="text-base text-slate-600 dark:text-slate-300 mb-4">
               {inscripcion.inhabilitado_por_deuda
                 ? <>Vas a habilitar <strong>&quot;{inscripcion.equipo_nombre}&quot;</strong> en {inscripcion.categoria_nombre}.</>
                 : <>Vas a inhabilitar <strong>&quot;{inscripcion.equipo_nombre}&quot;</strong> en {inscripcion.categoria_nombre}. Los jugadores verán el aviso de falta de pago.</>}
             </p>
             {!inscripcion.inhabilitado_por_deuda && (
               <div className="mb-3">
-                <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1">Motivo opcional</label>
+                <label className="block text-slate-600 dark:text-slate-300 text-base font-medium mb-1">Motivo opcional</label>
                 <textarea
                   value={motivoInhabilitacion}
                   onChange={(e) => setMotivoInhabilitacion(e.target.value)}
                   rows={3}
                   maxLength={240}
                   placeholder="Ej: Falta regularizar la cuota del torneo"
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:border-primary resize-none"
+                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white text-base placeholder:text-slate-400 focus:outline-none focus:border-primary resize-none"
                 />
               </div>
             )}
             <div className="mb-4">
-              <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1">Contraseña</label>
+              <label className="block text-slate-600 dark:text-slate-300 text-base font-medium mb-1">Contraseña</label>
               <input
                 type="password"
                 value={passwordInhabilitacion}
                 onChange={(e) => { setPasswordInhabilitacion(e.target.value); setInhabilitacionError('') }}
                 placeholder="Ingresá tu contraseña"
-                className={`w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm placeholder:text-slate-400 focus:outline-none focus:border-primary ${inhabilitacionError ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'}`}
+                className={`w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-base placeholder:text-slate-400 focus:outline-none focus:border-primary ${inhabilitacionError ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'}`}
                 onKeyDown={(e) => { if (e.key === 'Enter') handleActualizarInhabilitacion() }}
               />
-              {inhabilitacionError && <p className="text-red-400 text-xs mt-1">{inhabilitacionError}</p>}
+              {inhabilitacionError && <p className="text-red-400 text-sm mt-1">{inhabilitacionError}</p>}
             </div>
             <div className="flex gap-2">
-              <button onClick={() => setShowModalInhabilitar(false)} disabled={submitting} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">Cancelar</button>
+              <button onClick={() => setShowModalInhabilitar(false)} disabled={submitting} className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-base font-medium transition-colors disabled:opacity-50">Cancelar</button>
               <button
                 onClick={handleActualizarInhabilitacion}
                 disabled={submitting}
-                className={`flex-1 px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${inscripcion.inhabilitado_por_deuda ? 'bg-green-600 hover:bg-green-700' : 'bg-red-500 hover:bg-red-600'}`}
+                className={`flex-1 px-4 py-3 text-white rounded-lg text-base font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${inscripcion.inhabilitado_por_deuda ? 'bg-green-600 hover:bg-green-700' : 'bg-red-500 hover:bg-red-600'}`}
               >
                 {submitting ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Guardando...</> : inscripcion.inhabilitado_por_deuda ? 'Habilitar' : 'Inhabilitar'}
               </button>
@@ -1094,14 +1091,14 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
               <div className="w-9 h-9 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center">
                 <span className="material-symbols-outlined text-red-500 text-lg">warning</span>
               </div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Desinscribir equipo</h3>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Desinscribir equipo</h3>
             </div>
-            <p className="text-sm text-slate-600 dark:text-slate-300 mb-4">
+            <p className="text-base text-slate-600 dark:text-slate-300 mb-4">
               ¿Desinscribir a <strong>&quot;{inscripcion?.equipo_nombre}&quot;</strong> del torneo?
             </p>
             <div className="flex gap-2">
-              <button onClick={() => setShowConfirmDesinscribir(false)} disabled={desinscribiendo} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">Cancelar</button>
-              <button onClick={handleDesinscribirEquipo} disabled={desinscribiendo} className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+              <button onClick={() => setShowConfirmDesinscribir(false)} disabled={desinscribiendo} className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-base font-medium transition-colors disabled:opacity-50">Cancelar</button>
+              <button onClick={handleDesinscribirEquipo} disabled={desinscribiendo} className="flex-1 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg text-base font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                 {desinscribiendo ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Desinscribiendo...</>) : 'Desinscribir'}
               </button>
             </div>
@@ -1117,9 +1114,9 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
               <div className="w-9 h-9 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center shrink-0">
                 <span className="material-symbols-outlined text-red-500 text-lg">shield_with_heart</span>
               </div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Quitar jugadores sin seguro</h3>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">Quitar jugadores sin seguro</h3>
             </div>
-            <p className="text-sm text-slate-600 dark:text-slate-300 mb-3">
+            <p className="text-base text-slate-600 dark:text-slate-300 mb-3">
               Se quitarán del equipo los siguientes jugadores cuyo seguro no está pagado:
             </p>
             <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg p-3 mb-4 max-h-40 overflow-y-auto space-y-1.5">
@@ -1127,13 +1124,13 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
                 <div key={j.id} className="flex items-center gap-2 text-sm">
                   <span className="material-symbols-outlined text-red-400 text-base">person_remove</span>
                   <span className="font-medium text-slate-900 dark:text-white">{j.nombre_completo}</span>
-                  {j.dni && <span className="text-slate-400 font-mono text-xs">DNI {j.dni}</span>}
+                  {j.dni && <span className="text-slate-500 font-mono text-sm">DNI {j.dni}</span>}
                 </div>
               ))}
             </div>
             <div className="flex gap-2">
-              <button onClick={() => setShowModalLimpiar(false)} disabled={limpiando} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">Cancelar</button>
-              <button onClick={handleLimpiarSinSeguro} disabled={limpiando} className="flex-1 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+              <button onClick={() => setShowModalLimpiar(false)} disabled={limpiando} className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-base font-medium transition-colors disabled:opacity-50">Cancelar</button>
+              <button onClick={handleLimpiarSinSeguro} disabled={limpiando} className="flex-1 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg text-base font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
                 {limpiando ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Quitando...</>) : 'Confirmar'}
               </button>
             </div>

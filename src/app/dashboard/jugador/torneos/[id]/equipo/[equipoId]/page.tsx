@@ -347,7 +347,7 @@ export default function JugadorEquipoDetailPage() {
           <p className="text-sm text-slate-500 dark:text-slate-400 mb-5">
             {equipo.inhabilitado_motivo || DEFAULT_DEUDA_MESSAGE}
           </p>
-          <button onClick={handleRegularizarPago} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold transition-colors">
+          <button onClick={handleRegularizarPago} className="inline-flex items-center justify-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg text-base font-semibold transition-colors">
             <span className="material-symbols-outlined text-lg">chat</span>
             Regularizar por WhatsApp
           </button>
@@ -368,7 +368,7 @@ export default function JugadorEquipoDetailPage() {
     return false
   })
   const cardClass = 'bg-white dark:bg-slate-800 rounded-2xl ring-1 ring-slate-200/70 dark:ring-white/10'
-  const secondaryBtn = 'px-4 py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl text-sm font-bold transition-colors disabled:opacity-50'
+  const secondaryBtn = 'px-4 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-xl text-base font-bold transition-colors disabled:opacity-50'
 
   const handleConfirmarAgregar = async () => {
     if (jugadoresSeleccionados.length === 0) return
@@ -413,21 +413,21 @@ export default function JugadorEquipoDetailPage() {
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold text-slate-900 dark:text-white break-words">{equipo.equipo_nombre}</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{equipo.categoria_nombre}</p>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 break-words">{torneo.nombre}</p>
+            <p className="text-base text-slate-500 dark:text-slate-400 mt-0.5">{equipo.categoria_nombre}</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 mt-1 break-words">{torneo.nombre}</p>
             <div className="flex items-center gap-1.5 flex-wrap mt-2">
               {esMiEquipo && (
-                <span className="px-2.5 py-0.5 text-[10px] font-semibold rounded-full bg-primary/10 text-primary whitespace-nowrap">Mi equipo</span>
+                <span className="px-2.5 py-1 text-sm font-semibold rounded-full bg-primary/10 text-primary whitespace-nowrap">Mi equipo</span>
               )}
               {esDelegado && (
-                <span className="px-2.5 py-0.5 text-[10px] font-semibold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400 whitespace-nowrap">Delegado</span>
+                <span className="px-2.5 py-1 text-sm font-semibold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400 whitespace-nowrap">Delegado</span>
               )}
-              <span className="px-2.5 py-0.5 text-[10px] font-semibold rounded-full bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 whitespace-nowrap">
+              <span className="px-2.5 py-1 text-sm font-semibold rounded-full bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300 whitespace-nowrap">
                 {equipo.jugadores.length} jugador{equipo.jugadores.length !== 1 ? 'es' : ''}
               </span>
             </div>
-            <div className={`flex items-center gap-1.5 text-xs mt-2 ${abierto ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'}`}>
-              <span className="material-symbols-outlined text-sm">{abierto ? 'check_circle' : 'block'}</span>
+            <div className={`flex items-center gap-1.5 text-sm mt-2 ${abierto ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'}`}>
+              <span className="material-symbols-outlined text-lg">{abierto ? 'check_circle' : 'block'}</span>
               <span>
                 {abierto
                   ? `Inscripciones abiertas${torneo.inscripcion_fin ? ` hasta ${formatDateOnly(torneo.inscripcion_fin)}` : ''}`
@@ -443,12 +443,12 @@ export default function JugadorEquipoDetailPage() {
             <button
               onClick={handleDescargarPDF}
               disabled={generandoPDF}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-3 bg-primary hover:bg-primary/90 text-white rounded-xl text-base font-bold transition-colors disabled:opacity-50"
             >
               {generandoPDF ? (
                 <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Generando...</>
               ) : (
-                <><span className="material-symbols-outlined text-lg">download</span>Descargar planilla</>
+                <><span className="material-symbols-outlined text-xl">download</span>Descargar planilla</>
               )}
             </button>
           )}
@@ -456,9 +456,9 @@ export default function JugadorEquipoDetailPage() {
           {esDelegado && abierto && (
             <button
               onClick={() => setShowModalAgregar(true)}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 border border-primary text-primary hover:bg-primary/10 rounded-xl text-sm font-bold transition-colors"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-3 border border-primary text-primary hover:bg-primary/10 rounded-xl text-base font-bold transition-colors"
             >
-              <span className="material-symbols-outlined text-lg">group_add</span>
+              <span className="material-symbols-outlined text-xl">group_add</span>
               Agregar jugadores
             </button>
           )}
@@ -466,16 +466,16 @@ export default function JugadorEquipoDetailPage() {
           {puedeSalir && (
             <button
               onClick={() => setShowConfirmSalir(true)}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 border border-red-500 text-red-600 hover:bg-red-50 dark:border-red-400 dark:text-red-400 dark:hover:bg-red-500/10 rounded-xl text-sm font-bold transition-colors"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-3 border border-red-500 text-red-600 hover:bg-red-50 dark:border-red-400 dark:text-red-400 dark:hover:bg-red-500/10 rounded-xl text-base font-bold transition-colors"
             >
-              <span className="material-symbols-outlined text-lg">logout</span>
+              <span className="material-symbols-outlined text-xl">logout</span>
               Salir del equipo
             </button>
           )}
 
           {!esDelegado && abierto && !esMiEquipo && (
-            <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-900 rounded-xl px-3 py-2">
-              <span className="material-symbols-outlined text-sm">info</span>
+            <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 rounded-xl px-3 py-2">
+              <span className="material-symbols-outlined text-lg">info</span>
               Pedile a tu delegado que te agregue a un equipo.
             </div>
           )}
@@ -486,14 +486,14 @@ export default function JugadorEquipoDetailPage() {
       {equipo.delegados && equipo.delegados.length > 0 && (
         <div className="bg-amber-50 dark:bg-amber-500/10 rounded-2xl ring-1 ring-amber-200/70 dark:ring-amber-500/20 p-4">
           <div className="flex items-center gap-2 mb-2">
-            <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
-            <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+            <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
+            <p className="text-sm font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
               Delegado{equipo.delegados.length !== 1 ? 's' : ''}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             {equipo.delegados.map((d, idx) => (
-              <span key={d.jugador_id ?? `${d.nombre}-${d.apellido}-${idx}`} className="px-2.5 py-1 bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 rounded-lg text-xs font-medium">
+              <span key={d.jugador_id ?? `${d.nombre}-${d.apellido}-${idx}`} className="px-2.5 py-1 bg-amber-100 dark:bg-amber-500/20 text-amber-800 dark:text-amber-300 rounded-lg text-sm font-medium">
                 {d.apellido}, {d.nombre}
               </span>
             ))}
@@ -503,7 +503,7 @@ export default function JugadorEquipoDetailPage() {
 
       {/* Player list */}
       <div>
-        <h2 className="text-sm font-bold text-[#617989] dark:text-slate-400 uppercase tracking-wider mb-3">
+        <h2 className="text-base font-bold text-[#617989] dark:text-slate-400 uppercase tracking-wider mb-3">
           Jugadores ({equipo.jugadores.length})
         </h2>
 
@@ -515,21 +515,21 @@ export default function JugadorEquipoDetailPage() {
         ) : (
           <>
             <div className="relative mb-3">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none">search</span>
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl pointer-events-none">search</span>
               <input
                 type="text"
                 value={busquedaRoster}
                 onChange={(e) => setBusquedaRoster(e.target.value)}
                 placeholder={esDelegado ? 'Buscar por nombre o DNI' : 'Buscar por nombre'}
-                className="w-full pl-9 pr-10 py-2.5 bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-white/10 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-shadow"
+                className="w-full pl-11 pr-11 h-11 bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-white/10 rounded-xl text-base text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-shadow"
               />
               {busquedaRoster && (
                 <button
                   onClick={() => setBusquedaRoster('')}
                   aria-label="Limpiar búsqueda"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg transition-colors"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg transition-colors"
                 >
-                  <span className="material-symbols-outlined text-lg">close</span>
+                  <span className="material-symbols-outlined text-xl">close</span>
                 </button>
               )}
             </div>
@@ -537,7 +537,7 @@ export default function JugadorEquipoDetailPage() {
             {jugadoresFiltrados.length === 0 ? (
               <div className={`text-center py-8 px-4 ${cardClass}`}>
                 <span className="material-symbols-outlined text-3xl text-slate-300 dark:text-slate-600 block mb-1">search_off</span>
-                <p className="text-sm text-slate-500 dark:text-slate-400 break-words">Sin resultados para &quot;{busquedaRoster}&quot;</p>
+                <p className="text-base text-slate-500 dark:text-slate-400 break-words">Sin resultados para &quot;{busquedaRoster}&quot;</p>
               </div>
             ) : (
               <div className="flex flex-col gap-2">
@@ -547,33 +547,30 @@ export default function JugadorEquipoDetailPage() {
                   const inicial = (jugador.apellido || jugador.nombre || '?').charAt(0).toUpperCase()
                   return (
                     <div key={jugador.id} className={`flex items-center gap-3 p-3 ${cardClass}`}>
-                      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 text-sm font-bold">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 text-base font-bold">
                         {inicial}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <p className="text-sm font-semibold text-slate-900 dark:text-white truncate min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                          <p className="text-base font-semibold text-slate-900 dark:text-white truncate min-w-0">
                             {jugador.apellido}, {jugador.nombre}
                           </p>
                           {jugador.capitan && (
-                            <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400 shrink-0">C</span>
+                            <span className="px-2.5 py-1 text-sm font-semibold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400 shrink-0">C</span>
                           )}
                           {esDelegadoDeEste && (
-                            <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded-full bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 shrink-0">DEL</span>
+                            <span className="px-2.5 py-1 text-sm font-semibold rounded-full bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 shrink-0">DEL</span>
                           )}
                           {esYo && (
-                            <span className="px-1.5 py-0.5 text-[9px] font-semibold rounded-full bg-primary/10 text-primary shrink-0">Yo</span>
+                            <span className="px-2.5 py-1 text-sm font-semibold rounded-full bg-primary/10 text-primary shrink-0">Yo</span>
                           )}
                         </div>
-                        <div className="flex items-center gap-x-3 gap-y-0.5 mt-0.5 flex-wrap text-xs text-slate-500 dark:text-slate-400">
+                        <div className="flex items-center gap-x-3 gap-y-0.5 mt-0.5 flex-wrap text-sm text-slate-500 dark:text-slate-400">
                           {jugador.dni && (
                             <span className="font-mono">DNI {formatDni(jugador.dni)}</span>
                           )}
                           {jugador.fecha_nacimiento && (
                             <span>Nac. {formatDateOnly(jugador.fecha_nacimiento)}</span>
-                          )}
-                          {jugador.numero_camiseta != null && (
-                            <span>#{jugador.numero_camiseta}</span>
                           )}
                           {jugador.posicion && (
                             <span>{jugador.posicion}</span>
@@ -591,12 +588,12 @@ export default function JugadorEquipoDetailPage() {
                           }}
                           disabled={quitandoId === jugador.id}
                           aria-label={`Quitar a ${jugador.apellido}, ${jugador.nombre}`}
-                          className="p-1.5 text-slate-300 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400 rounded-lg transition-colors disabled:opacity-50 shrink-0"
+                          className="p-2.5 text-slate-300 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400 rounded-lg transition-colors disabled:opacity-50 shrink-0"
                         >
                           {quitandoId === jugador.id ? (
                             <div className="w-4 h-4 border-2 border-slate-300 border-t-transparent rounded-full animate-spin" />
                           ) : (
-                            <span className="material-symbols-outlined text-lg">close</span>
+                            <span className="material-symbols-outlined text-xl">close</span>
                           )}
                         </button>
                       )}
@@ -624,7 +621,7 @@ export default function JugadorEquipoDetailPage() {
               >
                 {/* Header */}
                 <div className="px-5 pt-5 pb-3 shrink-0">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Agregar jugadores</h3>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">Agregar jugadores</h3>
                   <p className="text-sm text-slate-500 dark:text-slate-400">
                     Buscá por DNI y seleccioná los jugadores para{' '}
                     <span className="font-semibold text-slate-700 dark:text-slate-300">{equipo.equipo_nombre}</span>
@@ -634,14 +631,14 @@ export default function JugadorEquipoDetailPage() {
                 {/* Search bar */}
                 <div className="px-5 pb-3 shrink-0">
                   <div className="relative">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
                     <input
                       type="text"
                       value={dniInput}
                       onChange={(e) => setDniInput(e.target.value)}
                       placeholder="Buscar por nombre o DNI..."
                       autoFocus
-                      className="w-full pl-9 pr-9 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                      className="w-full pl-11 pr-11 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-base text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
                     />
                     {buscando ? (
                       <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -651,14 +648,14 @@ export default function JugadorEquipoDetailPage() {
                       <button
                         onClick={() => { setDniInput(''); setResultadosBusqueda([]) }}
                         aria-label="Limpiar búsqueda"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
                       >
-                        <span className="material-symbols-outlined text-base">close</span>
+                        <span className="material-symbols-outlined text-xl">close</span>
                       </button>
                     ) : null}
                   </div>
                   {dniInput.length > 0 && dniInput.length < 3 && (
-                    <p className="mt-1.5 text-xs text-slate-400 dark:text-slate-500">Ingresá al menos 3 caracteres para buscar</p>
+                    <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-500">Ingresá al menos 3 caracteres para buscar</p>
                   )}
                 </div>
 
@@ -667,7 +664,7 @@ export default function JugadorEquipoDetailPage() {
                   {resultadosBusqueda.length > 0 && (
                     <div>
                       {dniInput && (
-                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
+                        <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
                           Resultados ({resultadosBusqueda.length})
                         </p>
                       )}
@@ -685,12 +682,12 @@ export default function JugadorEquipoDetailPage() {
                                   <span className="material-symbols-outlined text-white text-sm" style={{ fontVariationSettings: "'wght' 700" }}>check</span>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300 truncate">
+                                  <p className="text-base font-semibold text-emerald-800 dark:text-emerald-300 truncate">
                                     {j.apellido}, {j.nombre}
                                   </p>
-                                  <p className="text-xs font-mono text-emerald-600 dark:text-emerald-400">{j.dni}</p>
+                                  <p className="text-sm font-mono text-emerald-600 dark:text-emerald-400">{j.dni}</p>
                                 </div>
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 shrink-0 whitespace-nowrap">
+                                <span className="text-sm font-bold px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 shrink-0 whitespace-nowrap">
                                   Ya en el equipo
                                 </span>
                               </div>
@@ -706,11 +703,11 @@ export default function JugadorEquipoDetailPage() {
                                   <span className="material-symbols-outlined text-red-500 text-sm">block</span>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 truncate">
+                                  <p className="text-base font-semibold text-slate-500 dark:text-slate-400 truncate">
                                     {j.apellido}, {j.nombre}
                                   </p>
-                                  <p className="text-xs text-red-500 dark:text-red-400 flex items-center gap-1">
-                                    <span className="material-symbols-outlined text-xs">shield</span>
+                                  <p className="text-sm text-red-500 dark:text-red-400 flex items-center gap-1">
+                                    <span className="material-symbols-outlined text-base">shield</span>
                                     Jugando en {j.equipo_en_torneo}
                                   </p>
                                 </div>
@@ -741,10 +738,10 @@ export default function JugadorEquipoDetailPage() {
                                 )}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">
+                                <p className="text-base font-semibold text-slate-900 dark:text-white truncate">
                                   {j.apellido}, {j.nombre}
                                 </p>
-                                <p className="text-xs font-mono text-slate-500 dark:text-slate-400">{j.dni}</p>
+                                <p className="text-sm font-mono text-slate-500 dark:text-slate-400">{j.dni}</p>
                               </div>
                             </button>
                           )
@@ -756,14 +753,14 @@ export default function JugadorEquipoDetailPage() {
                   {dniInput.length >= 3 && !buscando && resultadosBusqueda.length === 0 && (
                     <div className="text-center py-6">
                       <span className="material-symbols-outlined text-3xl text-slate-300 dark:text-slate-600 block mb-1">search_off</span>
-                      <p className="text-sm text-slate-400 dark:text-slate-500">No se encontraron jugadores</p>
+                      <p className="text-base text-slate-500 dark:text-slate-400">No se encontraron jugadores</p>
                     </div>
                   )}
 
                   {!dniInput && (
                     <div className="text-center py-6 text-slate-400 dark:text-slate-500">
                       <span className="material-symbols-outlined text-3xl block mb-1">manage_search</span>
-                      <p className="text-sm">Buscá por nombre o DNI</p>
+                      <p className="text-base">Buscá por nombre o DNI</p>
                     </div>
                   )}
                 </div>
@@ -771,21 +768,21 @@ export default function JugadorEquipoDetailPage() {
                 {/* Selected bar (outside the scroll area) */}
                 {jugadoresSeleccionados.length > 0 && (
                   <div className="shrink-0 flex items-center gap-2 px-5 py-2 border-t border-slate-100 dark:border-slate-700 overflow-x-auto">
-                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0">
+                    <span className="text-sm font-semibold text-slate-500 dark:text-slate-400 whitespace-nowrap shrink-0">
                       {jugadoresSeleccionados.length} seleccionado{jugadoresSeleccionados.length !== 1 ? 's' : ''}
                     </span>
                     {jugadoresSeleccionados.map(j => (
                       <span
                         key={j.id}
-                        className="flex items-center gap-1 px-2.5 py-1 bg-primary/10 text-primary rounded-lg text-xs font-medium whitespace-nowrap shrink-0"
+                        className="flex items-center gap-1 px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-sm font-medium whitespace-nowrap shrink-0"
                       >
                         {j.apellido}, {j.nombre}
                         <button
                           onClick={() => setJugadoresSeleccionados(prev => prev.filter(s => s.id !== j.id))}
                           aria-label={`Quitar a ${j.apellido}, ${j.nombre} de la selección`}
-                          className="ml-0.5 hover:text-primary/60 transition-colors"
+                          className="ml-0.5 p-1 hover:text-primary/60 transition-colors"
                         >
-                          <span className="material-symbols-outlined text-sm">close</span>
+                          <span className="material-symbols-outlined text-base">close</span>
                         </button>
                       </span>
                     ))}
@@ -804,7 +801,7 @@ export default function JugadorEquipoDetailPage() {
                   <button
                     onClick={handleConfirmarAgregar}
                     disabled={agregando || jugadoresSeleccionados.length === 0}
-                    className="flex-1 px-4 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-3 bg-primary hover:bg-primary/90 text-white rounded-xl text-base font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {agregando ? (
                       <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Agregando...</>
@@ -847,7 +844,7 @@ export default function JugadorEquipoDetailPage() {
                   <button
                     onClick={handleQuitarJugador}
                     disabled={!!quitandoId}
-                    className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-base font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {quitandoId ? (
                       <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Quitando...</>
@@ -890,7 +887,7 @@ export default function JugadorEquipoDetailPage() {
                   <button
                     onClick={handleSalirEquipo}
                     disabled={saliendo}
-                    className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-base font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     {saliendo ? (
                       <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Saliendo...</>

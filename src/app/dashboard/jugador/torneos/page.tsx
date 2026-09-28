@@ -230,7 +230,7 @@ export default function JugadorTorneosPage() {
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
           <div className="flex items-start justify-between gap-3 mb-2">
             <h1 className="text-xl font-bold text-slate-900 dark:text-white">{selectedTorneo.nombre}</h1>
-            <span className={`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getBadgeClasses(calcularEstado(selectedTorneo))}`}>
+            <span className={`px-2.5 py-1 text-sm font-semibold rounded-full whitespace-nowrap ${getBadgeClasses(calcularEstado(selectedTorneo))}`}>
               {getEstadoLabel(calcularEstado(selectedTorneo))}
             </span>
           </div>
@@ -241,8 +241,8 @@ export default function JugadorTorneosPage() {
           {selectedTorneo.descripcion && (
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{selectedTorneo.descripcion}</p>
           )}
-          <div className={`flex items-center gap-2 text-xs mt-2 ${abierto ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'}`}>
-            <span className="material-symbols-outlined text-sm">{abierto ? 'check_circle' : 'block'}</span>
+          <div className={`flex items-center gap-2 text-sm mt-2 ${abierto ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'}`}>
+            <span className="material-symbols-outlined text-lg">{abierto ? 'check_circle' : 'block'}</span>
             <span>
               {abierto
                 ? `Inscripciones abiertas${selectedTorneo.inscripcion_fin ? ` hasta ${formatDate(selectedTorneo.inscripcion_fin)}` : ''}`
@@ -284,8 +284,8 @@ export default function JugadorTorneosPage() {
                 <div className="size-16 rounded-full bg-slate-100 dark:bg-slate-900 flex items-center justify-center mx-auto mb-3">
                   <span className="material-symbols-outlined text-3xl text-slate-400 dark:text-slate-500">groups</span>
                 </div>
-                <p className="text-slate-900 dark:text-white text-sm font-semibold">Todavía no estás en un equipo de este torneo</p>
-                <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">Pedile al delegado de tu equipo que te agregue.</p>
+                <p className="text-slate-900 dark:text-white text-base font-semibold">Todavía no estás en un equipo de este torneo</p>
+                <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Pedile al delegado de tu equipo que te agregue.</p>
               </div>
             ) : (
               <div className="flex flex-col gap-3">
@@ -305,22 +305,21 @@ export default function JugadorTorneosPage() {
                           {(equipo.equipo_nombre || '?').trim().charAt(0).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-lg font-bold text-slate-900 dark:text-white truncate">{equipo.equipo_nombre}</p>
+                          <p className="text-xl font-bold text-slate-900 dark:text-white truncate">{equipo.equipo_nombre}</p>
                           <p className="text-sm text-slate-600 dark:text-slate-300 truncate">
                             {equipo.categoria_nombre} · {equipo.jugadores.length} jugador{equipo.jugadores.length !== 1 ? 'es' : ''}
-                            {inscripcion?.numero_camiseta != null && ` · #${inscripcion.numero_camiseta}`}
                             {inscripcion?.posicion && ` · ${inscripcion.posicion}`}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5 flex-wrap mt-3">
-                        <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-primary/10 text-primary">Mi equipo</span>
+                        <span className="px-2.5 py-1 text-sm font-semibold rounded-full bg-primary/10 text-primary">Mi equipo</span>
                         {esDelegado && (
-                          <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">Delegado</span>
+                          <span className="px-2.5 py-1 text-sm font-semibold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">Delegado</span>
                         )}
                         {equipo.inhabilitado_por_deuda && (
-                          <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300 inline-flex items-center gap-1">
-                            <span className="material-symbols-outlined text-xs">lock</span>
+                          <span className="px-2.5 py-1 text-sm font-semibold rounded-full bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300 inline-flex items-center gap-1">
+                            <span className="material-symbols-outlined text-base">lock</span>
                             Falta de pago
                           </span>
                         )}
@@ -343,21 +342,21 @@ export default function JugadorTorneosPage() {
             {/* Search */}
             {!loadingEquipos && equiposTorneo.length > 0 && (
               <div className="relative mb-3">
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
                 <input
                   type="text"
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
                   placeholder="Buscar equipo..."
-                  className="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-white/10 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-shadow"
+                  className="w-full pl-11 pr-11 h-11 bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-white/10 rounded-xl text-base text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-shadow"
                 />
                 {busqueda && (
                   <button
                     onClick={() => setBusqueda('')}
                     aria-label="Limpiar búsqueda"
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
                   >
-                    <span className="material-symbols-outlined text-slate-400 text-lg block">close</span>
+                    <span className="material-symbols-outlined text-slate-400 text-xl block">close</span>
                   </button>
                 )}
               </div>
@@ -371,7 +370,7 @@ export default function JugadorTorneosPage() {
                     <button
                       key={chip.nombre}
                       onClick={() => setCategoriaTab(chip.nombre)}
-                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors whitespace-nowrap ${
+                      className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors whitespace-nowrap ${
                         categoriaTab === chip.nombre
                           ? 'bg-primary text-white shadow-sm'
                           : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -397,7 +396,7 @@ export default function JugadorTorneosPage() {
               <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-2xl ring-1 ring-slate-200/70 dark:ring-white/10">
                 <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2 block">search_off</span>
                 <p className="text-sm text-slate-500 dark:text-slate-400">Sin resultados</p>
-                <button onClick={() => { setCategoriaTab('todos'); setBusqueda('') }} className="mt-2 text-xs text-primary hover:underline">
+                <button onClick={() => { setCategoriaTab('todos'); setBusqueda('') }} className="mt-2 text-sm py-2 px-3 text-primary hover:underline">
                   Limpiar filtros
                 </button>
               </div>
@@ -418,23 +417,23 @@ export default function JugadorTorneosPage() {
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="size-10 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 flex items-center justify-center shrink-0 text-sm font-bold">
+                        <div className="size-10 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 flex items-center justify-center shrink-0 text-base font-bold">
                           {(equipo.equipo_nombre || '?').trim().charAt(0).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{equipo.equipo_nombre}</p>
+                          <div className="flex items-center gap-x-2 gap-y-1 flex-wrap min-w-0">
+                            <p className="text-base font-bold text-slate-900 dark:text-white truncate">{equipo.equipo_nombre}</p>
                             {esMiEquipo && (
-                              <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-primary/10 text-primary whitespace-nowrap shrink-0">Mi equipo</span>
+                              <span className="px-2.5 py-1 text-sm font-semibold rounded-full bg-primary/10 text-primary whitespace-nowrap shrink-0">Mi equipo</span>
                             )}
                             {equipo.inhabilitado_por_deuda && (
-                              <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300 whitespace-nowrap shrink-0 inline-flex items-center gap-1">
-                                <span className="material-symbols-outlined text-xs">lock</span>
+                              <span className="px-2.5 py-1 text-sm font-semibold rounded-full bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300 whitespace-nowrap shrink-0 inline-flex items-center gap-1">
+                                <span className="material-symbols-outlined text-base">lock</span>
                                 Falta de pago
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                          <p className="text-sm text-slate-500 dark:text-slate-400 truncate">
                             {equipo.categoria_nombre} · {equipo.jugadores.length} jugador{equipo.jugadores.length !== 1 ? 'es' : ''}
                           </p>
                         </div>
@@ -469,11 +468,11 @@ export default function JugadorTorneosPage() {
                 {equipoBloqueado.inhabilitado_motivo || DEFAULT_DEUDA_MESSAGE}
               </p>
               <div className="flex flex-col gap-2">
-                <button onClick={() => handleRegularizarPago(equipoBloqueado)} className="w-full px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold transition-colors flex items-center justify-center gap-2">
+                <button onClick={() => handleRegularizarPago(equipoBloqueado)} className="w-full px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg text-base font-semibold transition-colors flex items-center justify-center gap-2">
                   <span className="material-symbols-outlined text-lg">chat</span>
                   Regularizar por WhatsApp
                 </button>
-                <button onClick={() => setEquipoBloqueado(null)} className="w-full px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors">
+                <button onClick={() => setEquipoBloqueado(null)} className="w-full px-4 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-base font-medium transition-colors">
                   Cerrar
                 </button>
               </div>
@@ -513,11 +512,11 @@ export default function JugadorTorneosPage() {
               >
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">{torneo.nombre}</h3>
-                  <span className={`px-2.5 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getBadgeClasses(estado)}`}>
+                  <span className={`px-2.5 py-1 text-sm font-semibold rounded-full whitespace-nowrap ${getBadgeClasses(estado)}`}>
                     {getEstadoLabel(estado)}
                   </span>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-2">
+                <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mb-2">
                   <span className="material-symbols-outlined text-base">calendar_today</span>
                   <span>{formatDate(torneo.fecha_inicio)} - {formatDate(torneo.fecha_fin)}</span>
                 </div>
@@ -526,17 +525,17 @@ export default function JugadorTorneosPage() {
                   <div className="flex flex-col gap-1 mb-2">
                     {torneoInscripciones.map(insc => (
                       <div key={insc.id} className="flex items-center gap-2 bg-primary/5 dark:bg-primary/10 rounded-lg px-2.5 py-1.5">
-                        <span className="material-symbols-outlined text-sm text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>shield</span>
-                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex-1 truncate">{insc.equipo_nombre}</span>
-                        <span className="text-xs text-slate-500 dark:text-slate-400 shrink-0">{insc.categoria_nombre}</span>
+                        <span className="material-symbols-outlined text-base text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>shield</span>
+                        <span className="text-sm font-semibold text-slate-800 dark:text-slate-200 flex-1 truncate">{insc.equipo_nombre}</span>
+                        <span className="text-sm text-slate-500 dark:text-slate-400 shrink-0">{insc.categoria_nombre}</span>
                       </div>
                     ))}
                   </div>
                 )}
 
                 <div className="flex items-center justify-between">
-                  <div className={`flex items-center gap-1.5 text-xs ${abierto ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'}`}>
-                    <span className="material-symbols-outlined text-sm">{abierto ? 'check_circle' : 'block'}</span>
+                  <div className={`flex items-center gap-1.5 text-sm ${abierto ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                    <span className="material-symbols-outlined text-base">{abierto ? 'check_circle' : 'block'}</span>
                     <span>{abierto ? 'Inscripciones abiertas' : 'Inscripciones cerradas'}</span>
                   </div>
                   <span className="material-symbols-outlined text-slate-400 text-lg">chevron_right</span>
