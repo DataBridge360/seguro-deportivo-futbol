@@ -626,7 +626,7 @@ export default function JugadorEquipoDetailPage() {
                       type="text"
                       value={dniInput}
                       onChange={(e) => setDniInput(e.target.value)}
-                      placeholder="Buscar por nombre o DNI..."
+                      placeholder="Buscar por nombre, apellido o DNI..."
                       autoFocus
                       className="w-full pl-11 pr-11 h-11 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-base text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
                     />
@@ -704,6 +704,27 @@ export default function JugadorEquipoDetailPage() {
                               </div>
                             )
                           }
+                          if (j.pagado === false) {
+                            return (
+                              <div
+                                key={j.id}
+                                className="flex items-center gap-3 p-3 rounded-xl border bg-amber-50 dark:bg-amber-500/5 border-amber-200 dark:border-amber-500/20 cursor-not-allowed"
+                              >
+                                <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 border-2 border-amber-300 bg-amber-100">
+                                  <span className="material-symbols-outlined text-amber-600 text-sm">block</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-base font-semibold text-slate-500 dark:text-slate-400 truncate">
+                                    {j.apellido}, {j.nombre}
+                                  </p>
+                                  <p className="text-sm text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                                    <span className="material-symbols-outlined text-base">health_and_safety</span>
+                                    Seguro no pagado
+                                  </p>
+                                </div>
+                              </div>
+                            )
+                          }
                           return (
                             <button
                               key={j.id}
@@ -750,7 +771,7 @@ export default function JugadorEquipoDetailPage() {
                   {!dniInput && (
                     <div className="text-center py-6 text-slate-400 dark:text-slate-500">
                       <span className="material-symbols-outlined text-3xl block mb-1">manage_search</span>
-                      <p className="text-base">Buscá por nombre o DNI</p>
+                      <p className="text-base">Buscá por nombre, apellido o DNI</p>
                     </div>
                   )}
                 </div>
