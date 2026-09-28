@@ -117,14 +117,13 @@ export default function DashboardLayout({
         <header className="hidden md:block sticky top-0 z-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
             <div
-              className="flex justify-between items-center h-16 px-6 rounded-2xl text-white ring-1 ring-white/15 shadow-lg"
+              className="flex justify-between items-center h-16 px-6 rounded-2xl bg-white/85 dark:bg-slate-900/75 backdrop-blur-xl text-slate-900 dark:text-white ring-1 ring-slate-200/80 dark:ring-white/10 shadow-lg"
               style={{
-                background: 'linear-gradient(135deg, #0b1f4d 0%, #0c3a7a 55%, #1392ec 100%)',
-                boxShadow: '0 16px 32px -12px rgba(19, 146, 236, 0.45)',
+                boxShadow: '0 16px 32px -12px rgba(19, 146, 236, 0.22)',
               }}
             >
               <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center rounded-full bg-white p-0.5 ring-2 ring-white/40 shadow">
+                <div className="flex items-center justify-center rounded-full bg-white p-0.5 ring-2 ring-primary/25 shadow">
                   <Image
                     src="/logo.png"
                     alt="Logo del Club"
@@ -134,8 +133,8 @@ export default function DashboardLayout({
                   />
                 </div>
                 <div className="leading-tight">
-                  <h1 className="text-base font-bold tracking-tight text-white">Complejo Deportivo</h1>
-                  <p className="text-[10px] text-sky-200 font-bold uppercase tracking-wide">Plaza Huincul</p>
+                  <h1 className="text-base font-bold tracking-tight text-slate-900 dark:text-white">Complejo Deportivo</h1>
+                  <p className="text-[10px] text-primary dark:text-sky-300 font-bold uppercase tracking-wide">Plaza Huincul</p>
                 </div>
               </div>
 
@@ -149,8 +148,8 @@ export default function DashboardLayout({
                       key={item.href}
                       href={item.href}
                       className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${isActive
-                        ? 'bg-white/15 text-white font-semibold shadow-sm'
-                        : 'text-white/80 hover:text-white hover:bg-white/10'
+                        ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-sky-300 font-semibold'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-primary hover:bg-primary/5 dark:hover:bg-white/10'
                         }`}
                     >
                       <span
@@ -168,11 +167,11 @@ export default function DashboardLayout({
               <Link
                 href="/dashboard/notificaciones"
                 aria-label={unreadCount > 0 ? `Notificaciones, ${unreadCount} sin leer` : 'Notificaciones'}
-                className="flex size-10 items-center justify-center rounded-xl bg-white/15 text-white hover:bg-white/25 transition-colors relative"
+                className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary hover:bg-primary/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 transition-colors relative"
               >
                 <span className="material-symbols-outlined text-[20px]">notifications</span>
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white ring-2 ring-[#0c3a7a]">
+                  <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white ring-2 ring-white dark:ring-slate-900">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
@@ -197,10 +196,9 @@ export default function DashboardLayout({
         {/* Mobile Header - hidden on desktop */}
         <div className="md:hidden sticky top-0 z-50 p-3 sm:p-4 pb-2 max-w-[480px] mx-auto">
           <div
-            className="flex items-center justify-between px-3 py-2.5 rounded-2xl text-white ring-1 ring-white/15 shadow-lg"
+            className="flex items-center justify-between px-3 py-2.5 rounded-2xl bg-white/85 dark:bg-slate-900/75 backdrop-blur-xl text-slate-900 dark:text-white ring-1 ring-slate-200/80 dark:ring-white/10 shadow-lg"
             style={{
-              background: 'linear-gradient(135deg, #0b1f4d 0%, #0c3a7a 55%, #1392ec 100%)',
-              boxShadow: '0 12px 24px -10px rgba(19, 146, 236, 0.45)',
+              boxShadow: '0 12px 24px -10px rgba(19, 146, 236, 0.22)',
             }}
           >
             {pathname !== '/dashboard' ? (
@@ -208,13 +206,13 @@ export default function DashboardLayout({
                 <div className="flex size-10 shrink-0 items-center">
                   <button
                     onClick={() => router.push(backRoute)}
-                    className="flex size-10 cursor-pointer items-center justify-center rounded-xl bg-white/15 text-white transition-colors hover:bg-white/25"
+                    className="flex size-10 cursor-pointer items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors hover:bg-primary/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/20"
                   >
                     <span className="material-symbols-outlined text-[20px]">arrow_back</span>
                   </button>
                 </div>
                 <div className="flex items-center gap-2 flex-1 justify-center min-w-0">
-                  <div className="flex shrink-0 items-center justify-center rounded-full bg-white p-0.5 ring-2 ring-white/40 shadow">
+                  <div className="flex shrink-0 items-center justify-center rounded-full bg-white p-0.5 ring-2 ring-primary/25 shadow">
                     <Image
                       src="/logo.png"
                       alt="Logo del Club"
@@ -224,14 +222,14 @@ export default function DashboardLayout({
                     />
                   </div>
                   <div className="leading-tight min-w-0">
-                    <h1 className="text-sm font-bold text-white truncate">Complejo Deportivo</h1>
-                    <p className="text-[9px] text-sky-200 font-bold uppercase tracking-wide">Plaza Huincul</p>
+                    <h1 className="text-sm font-bold text-slate-900 dark:text-white truncate">Complejo Deportivo</h1>
+                    <p className="text-[9px] text-primary dark:text-sky-300 font-bold uppercase tracking-wide">Plaza Huincul</p>
                   </div>
                 </div>
               </>
             ) : (
               <div className="flex items-center gap-2 flex-1 min-w-0">
-                <div className="flex shrink-0 items-center justify-center rounded-full bg-white p-0.5 ring-2 ring-white/40 shadow">
+                <div className="flex shrink-0 items-center justify-center rounded-full bg-white p-0.5 ring-2 ring-primary/25 shadow">
                   <Image
                     src="/logo.png"
                     alt="Logo del Club"
@@ -241,8 +239,8 @@ export default function DashboardLayout({
                   />
                 </div>
                 <div className="leading-tight min-w-0">
-                  <h1 className="text-sm font-bold text-white truncate">Complejo Deportivo</h1>
-                  <p className="text-[9px] text-sky-200 font-bold uppercase tracking-wide">Plaza Huincul</p>
+                  <h1 className="text-sm font-bold text-slate-900 dark:text-white truncate">Complejo Deportivo</h1>
+                  <p className="text-[9px] text-primary dark:text-sky-300 font-bold uppercase tracking-wide">Plaza Huincul</p>
                 </div>
               </div>
             )}
@@ -250,11 +248,11 @@ export default function DashboardLayout({
               <Link
                 href="/dashboard/notificaciones"
                 aria-label={unreadCount > 0 ? `Notificaciones, ${unreadCount} sin leer` : 'Notificaciones'}
-                className="flex size-10 cursor-pointer items-center justify-center rounded-xl bg-white/15 text-white transition-colors hover:bg-white/25 relative"
+                className="flex size-10 cursor-pointer items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors hover:bg-primary/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 relative"
               >
                 <span className="material-symbols-outlined text-[20px]">notifications</span>
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white ring-2 ring-[#0c3a7a]">
+                  <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white ring-2 ring-white dark:ring-slate-900">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </span>
                 )}
