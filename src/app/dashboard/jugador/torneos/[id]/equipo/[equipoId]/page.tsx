@@ -555,9 +555,6 @@ export default function JugadorEquipoDetailPage() {
                           <p className="text-base font-semibold text-slate-900 dark:text-white truncate min-w-0">
                             {jugador.apellido}, {jugador.nombre}
                           </p>
-                          {jugador.capitan && (
-                            <span className="px-2.5 py-1 text-sm font-semibold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400 shrink-0">C</span>
-                          )}
                           {esDelegadoDeEste && (
                             <span className="px-2.5 py-1 text-sm font-semibold rounded-full bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 shrink-0">DEL</span>
                           )}

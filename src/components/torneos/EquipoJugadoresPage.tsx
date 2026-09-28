@@ -718,9 +718,6 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
                     <div className="min-w-0 flex-1">
                       <p className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-1.5 flex-wrap">
                         <span className="break-words min-w-0">{jugador.nombre_completo}</span>
-                        {jugador.capitan && (
-                          <span className="inline-flex items-center px-2.5 py-1 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 rounded-full text-sm font-semibold">(C)</span>
-                        )}
                         {isDelegado(jugador) && (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary/10 text-primary rounded-full text-sm font-semibold">
                             <span className="material-symbols-outlined text-base">star</span>
