@@ -14,15 +14,10 @@ import type { DelegadoEquipo, JugadorBusqueda } from '@/lib/api'
 import type { Inscripcion, JugadorEquipoTorneo } from '@/types/club'
 import NotificationModal from '@/components/ui/NotificationModal'
 import { useAuthStore } from '@/stores/authStore'
-import { formatDateOnly } from '@/lib/utils'
+import { formatDateOnly, matchesSearch, normalizeSearch } from '@/lib/utils'
 
 interface Props {
   basePath: string
-}
-
-// Lowercase + strip diacritics so search is case- and accent-insensitive.
-function normalizeText(value: string | null | undefined): string {
-  return (value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
 }
 
 // Digits only (drops dots, spaces, etc.) for DNI comparison.
@@ -105,12 +100,11 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
     delegadoJugadorIds.has(j.jugador_id) || (!!digitsOnly(j.dni) && delegadoDnis.has(digitsOnly(j.dni)))
 
   const jugadoresFiltrados = useMemo(() => {
-    const q = normalizeText(rosterQuery)
+    const q = normalizeSearch(rosterQuery)
     if (!q) return jugadores
     const qDigits = digitsOnly(rosterQuery)
     return jugadores.filter(j => {
-      const haystack = normalizeText(`${j.nombre_completo} ${j.apellido ?? ''} ${j.nombre ?? ''} ${j.apellido ?? ''}, ${j.nombre ?? ''}`)
-      if (haystack.includes(q)) return true
+      if (matchesSearch([j.nombre_completo, j.apellido, j.nombre], rosterQuery)) return true
       return qDigits.length > 0 && digitsOnly(j.dni).includes(qDigits)
     })
   }, [jugadores, rosterQuery])
@@ -768,8 +762,8 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
 
       {/* Modal asignar delegado */}
       {showModalDelegados && renderPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4 z-50" onClick={() => !asignandoDelegado && setShowModalDelegados(false)}>
-          <div className="bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-white/10 rounded-t-3xl sm:rounded-2xl max-w-md w-full shadow-2xl flex flex-col max-h-[85dvh]" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => !asignandoDelegado && setShowModalDelegados(false)}>
+          <div className="bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-white/10 rounded-2xl max-w-md w-full shadow-2xl flex flex-col max-h-[85dvh]" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 pt-5 shrink-0">
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">Asignar delegado</h3>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">Los delegados pueden agregar jugadores al equipo</p>
@@ -826,8 +820,8 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
 
       {/* Modal agregar jugadores */}
       {showModalAgregar && renderPortal(
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4 z-50" onClick={() => !submitting && setShowModalAgregar(false)}>
-          <div className="bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-white/10 rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[85dvh]" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => !submitting && setShowModalAgregar(false)}>
+          <div className="bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-white/10 rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[85dvh]" onClick={(e) => e.stopPropagation()}>
 
             {/* Header */}
             <div className="px-5 pt-5 pb-3 shrink-0">

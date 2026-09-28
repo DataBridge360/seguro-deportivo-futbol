@@ -347,11 +347,11 @@ export default function CuponesPage() {
 
       {/* Detail Modal */}
       {selected && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { setSelected(null); setTranslateY(0) }} />
           <div
             ref={sheetRef}
-            className="relative bg-white dark:bg-slate-800 rounded-t-3xl sm:rounded-2xl w-full max-w-sm shadow-xl max-h-[90vh] overflow-y-auto"
+            className="relative bg-white dark:bg-slate-800 rounded-2xl w-full max-w-sm shadow-xl max-h-[90vh] overflow-y-auto"
             style={{ transform: `translateY(${translateY}px)`, transition: snapping ? 'transform 0.25s ease' : 'none' }}
           >
             {/* Drag handle mobile */}

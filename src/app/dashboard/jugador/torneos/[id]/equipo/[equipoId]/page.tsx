@@ -13,15 +13,10 @@ import type { JugadorTorneo, JugadorInscripcion } from '@/lib/api'
 import type { EquipoTorneoConVisibilidad } from '@/types/torneos-visibilidad'
 import NotificationModal from '@/components/ui/NotificationModal'
 import { useAuthStore } from '@/stores/authStore'
-import { formatDateOnly } from '@/lib/utils'
+import { formatDateOnly, matchesSearch } from '@/lib/utils'
 
 const WHATSAPP_NUMBER = '542996130664'
 const DEFAULT_DEUDA_MESSAGE = 'Este equipo está inhabilitado por falta de pago. Regularizá la deuda para volver a acceder.'
-
-// Lowercase + strip diacritics so search is case- and accent-insensitive.
-function normalizeText(value: string): string {
-  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
-}
 
 // 12345678 -> 12.345.678
 function formatDni(dni: string): string {
@@ -357,13 +352,11 @@ export default function JugadorEquipoDetailPage() {
   }
 
   const puedeSalir = abierto && equipo.jugadores.some(j => j.id === jugadorId)
-  const busquedaNorm = normalizeText(busquedaRoster)
+  const busquedaNorm = busquedaRoster.trim()
   const busquedaDigitos = busquedaRoster.replace(/\D/g, '')
   const jugadoresFiltrados = equipo.jugadores.filter(j => {
     if (!busquedaNorm) return true
-    const apellidoNombre = normalizeText(`${j.apellido || ''} ${j.nombre || ''}`)
-    const nombreApellido = normalizeText(`${j.nombre || ''} ${j.apellido || ''}`)
-    if (apellidoNombre.includes(busquedaNorm) || nombreApellido.includes(busquedaNorm)) return true
+    if (matchesSearch([j.apellido, j.nombre], busquedaNorm)) return true
     if (esDelegado && busquedaDigitos) return (j.dni ?? '').replace(/\D/g, '').includes(busquedaDigitos)
     return false
   })
@@ -609,11 +602,11 @@ export default function JugadorEquipoDetailPage() {
           {/* Modal agregar jugadores (checklist - delegado) */}
           {showModalAgregar && (
             <div
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4 z-50"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
               onClick={() => !agregando && cerrarModalAgregar()}
             >
               <div
-                className="bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-white/10 rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md shadow-2xl flex flex-col max-h-[85dvh]"
+                className="bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-white/10 rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[85dvh]"
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Header */}
@@ -855,11 +848,11 @@ export default function JugadorEquipoDetailPage() {
           {/* Modal salir del equipo */}
           {showConfirmSalir && (
             <div
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4 z-50"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
               onClick={() => !saliendo && setShowConfirmSalir(false)}
             >
               <div
-                className="bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-white/10 rounded-t-3xl sm:rounded-2xl px-6 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] w-full sm:max-w-sm shadow-2xl"
+                className="bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex justify-center mb-4">

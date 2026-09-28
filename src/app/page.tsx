@@ -115,8 +115,8 @@ export default function HomePage() {
 
       {/* iOS Modal */}
       {showIOSModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-md w-full relative animate-slide-up">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-md w-full relative animate-fade-in">
             <button
               onClick={() => setShowIOSModal(false)}
               className="absolute top-4 right-4 text-[#617989] hover:text-[#111518] dark:hover:text-white"
