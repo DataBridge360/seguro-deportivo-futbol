@@ -2,6 +2,7 @@
 
 import { Users, CheckCircle, AlertCircle, FileSpreadsheet } from 'lucide-react'
 import type { PreviewResponse } from '@/types/bulk-import'
+import { formatDateOnly } from '@/lib/utils'
 
 interface PreviewSectionProps {
   preview: PreviewResponse
@@ -20,11 +21,6 @@ export default function PreviewSection({
   onFullImport,
   isLoading
 }: PreviewSectionProps) {
-  const formatDate = (isoDate: string): string => {
-    const date = new Date(isoDate)
-    return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-  }
-
   const hasErrors = preview.errors.length > 0
   const canImport = preview.new_players.length > 0 || (preview.existing_players.length > 0 && overwriteExisting)
 
@@ -197,7 +193,7 @@ export default function PreviewSection({
                       {player.nombre_completo}
                     </td>
                     <td className="px-4 py-3 text-slate-600 dark:text-slate-300 hidden md:table-cell">
-                      {formatDate(player.fecha_nacimiento)}
+                      {formatDateOnly(player.fecha_nacimiento)}
                     </td>
                   </tr>
                 ))}

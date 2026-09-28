@@ -4,14 +4,9 @@ import { useState, useEffect, useRef } from 'react'
 import { getJugadores, getEquipos, type JugadorResponse } from '@/lib/api'
 import { type Equipo } from '@/types/club'
 import NotificationModal from '@/components/ui/NotificationModal'
+import { formatDateOnly } from '@/lib/utils'
 
 const PAGE_SIZE = 50
-
-function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return '-'
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
 
 export default function ClubJugadoresPage() {
   const [jugadores, setJugadores] = useState<JugadorResponse[]>([])
@@ -246,7 +241,7 @@ export default function ClubJugadoresPage() {
                           {jugador.nombre_completo}
                         </p>
                         <p className="text-slate-500 dark:text-slate-400 text-xs md:hidden">
-                          {formatDate(jugador.fecha_nacimiento)}
+                          {formatDateOnly(jugador.fecha_nacimiento)}
                         </p>
                       </div>
                     </td>
@@ -254,7 +249,7 @@ export default function ClubJugadoresPage() {
                       {jugador.dni}
                     </td>
                     <td className="px-4 py-3 text-slate-600 dark:text-slate-300 hidden md:table-cell">
-                      {formatDate(jugador.fecha_nacimiento)}
+                      {formatDateOnly(jugador.fecha_nacimiento)}
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell">
                       {jugador.equipos_torneo && jugador.equipos_torneo.length > 0 ? (

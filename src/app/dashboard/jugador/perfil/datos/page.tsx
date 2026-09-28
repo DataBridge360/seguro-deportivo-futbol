@@ -4,14 +4,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { getJugadorPerfil, updateJugadorPerfil } from '@/lib/api'
 import type { JugadorResponse } from '@/lib/api'
 import NotificationModal from '@/components/ui/NotificationModal'
+import { formatDateOnly } from '@/lib/utils'
 
 const WHATSAPP_NUMBER = '542996130664'
-
-function formatDate(dateStr: string | null | undefined) {
-  if (!dateStr) return '-'
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
 
 function formatDNI(dni: string) {
   return dni.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
@@ -269,7 +264,7 @@ export default function DatosPersonalesPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[11px] text-[#617989] dark:text-slate-400 uppercase font-bold tracking-wider">Fecha de nacimiento</p>
-                <p className="text-sm font-medium text-slate-900 dark:text-white mt-0.5">{formatDate(perfil.fecha_nacimiento)}</p>
+                <p className="text-sm font-medium text-slate-900 dark:text-white mt-0.5">{formatDateOnly(perfil.fecha_nacimiento)}</p>
               </div>
             </div>
 
