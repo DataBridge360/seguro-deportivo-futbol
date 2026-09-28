@@ -76,7 +76,6 @@ function JugadorDashboard() {
   const [anuncios, setAnuncios] = useState<AnuncioResponse[]>([])
   const [memberData, setMemberData] = useState({
     name: user?.name || 'Usuario',
-    club: '',
     dni: '',
     birthDate: '',
     insuranceStart: '',
@@ -103,12 +102,10 @@ function JugadorDashboard() {
         return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
       }
 
-      const clubNombre = perfil.clubes?.[0]?.nombre || ''
 
       setDniRaw(perfil.dni)
       setMemberData({
         name: perfil.nombre_completo || user?.name || 'Usuario',
-        club: clubNombre,
         dni: perfil.dni.replace(/\B(?=(\d{3})+(?!\d))/g, '.'),
         birthDate: formatDate(perfil.fecha_nacimiento),
         insuranceStart: poliza ? formatDate(poliza.fecha_inicio) : '-',
@@ -152,21 +149,6 @@ function JugadorDashboard() {
       <QRModal isOpen={showQR} onClose={() => setShowQR(false)} dni={dniRaw} />
 
       <div className="space-y-6">
-        {/* Header - Saludo */}
-        <div className="flex items-center gap-3">
-          <div className="size-11 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center ring-2 ring-primary/20">
-            <span className="material-symbols-outlined text-slate-500 dark:text-slate-400 text-xl">person</span>
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-slate-900 dark:text-white">
-              Hola {memberData.name.split(' ')[0]}!
-            </h1>
-            {memberData.club && (
-              <p className="text-xs text-slate-500 dark:text-slate-400">{memberData.club}</p>
-            )}
-          </div>
-        </div>
-
         {/* Credencial Digital - Wallet card */}
         <WalletCard
           name={memberData.name}
