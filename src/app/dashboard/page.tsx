@@ -7,6 +7,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { getMisAnuncios, getMisCupones, AnuncioResponse, CuponResponse } from '@/lib/api'
+import WalletCard from '@/components/jugador/WalletCard'
 
 const couponTextColor = {
   amber: 'text-amber-600 dark:text-amber-400',
@@ -44,87 +45,6 @@ function QRModal({ isOpen, onClose, dni }: { isOpen: boolean; onClose: () => voi
           >
             Cerrar
           </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Tarjeta de credencial original
-function CredentialCard({ memberData, onShowQR }: {
-  memberData: any;
-  onShowQR: () => void;
-}) {
-  return (
-    <div
-      className="relative overflow-hidden text-white w-full aspect-[1.7/1] rounded-[24px] shadow-2xl border border-white/10"
-      style={{
-        background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.9) 0%, rgba(3, 105, 161, 0.95) 100%)',
-        backdropFilter: 'blur(12px)',
-      }}
-    >
-      {/* Background club logo */}
-      <div className="absolute pointer-events-none right-[-30px] bottom-[-30px]">
-        <Image
-          src="/logo.png"
-          alt=""
-          width={360}
-          height={360}
-          className="opacity-[0.12] rotate-12"
-          style={{ filter: 'brightness(2) grayscale(0.3)' }}
-        />
-      </div>
-
-      {/* Card content */}
-      <div className="relative h-full p-5 flex flex-col justify-between">
-        {/* Top section - Name */}
-        <div className="flex justify-between items-start relative z-10">
-          <div>
-            <h1 className="text-2xl font-bold leading-tight tracking-tight">
-              {memberData.name}
-            </h1>
-            <p className="text-xs opacity-90 mt-0.5">{memberData.club}</p>
-          </div>
-        </div>
-
-        {/* QR Button */}
-        <div className="flex justify-end relative z-10">
-          <button
-            onClick={onShowQR}
-            className="flex items-center gap-2 bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-lg font-bold border border-white/30 hover:bg-white/30 transition-all text-[10px]"
-          >
-            <span className="material-symbols-outlined text-lg">qr_code_2</span>
-            VER QR
-          </button>
-        </div>
-
-        {/* DNI and Birth date */}
-        <div className="grid grid-cols-2 gap-4 relative z-10">
-          <div>
-            <p className="text-[8px] opacity-60 uppercase font-bold tracking-wider">DNI</p>
-            <p className="text-xs font-semibold">{memberData.dni}</p>
-          </div>
-          <div>
-            <p className="text-[8px] opacity-60 uppercase font-bold tracking-wider">Nacimiento</p>
-            <p className="text-xs font-semibold">{memberData.birthDate}</p>
-          </div>
-        </div>
-
-        {/* Separator and insurance validity */}
-        <div className="pt-2 border-t border-white/20 flex items-center justify-between relative z-10">
-          <div>
-            <p className="text-[8px] opacity-60 uppercase font-bold tracking-wider">Vigencia del Seguro</p>
-            <p className="text-xs font-semibold">{memberData.insuranceStart} - {memberData.insuranceEnd}</p>
-          </div>
-          {memberData.status === 'activo' ? (
-            <span className="bg-green-500/20 backdrop-blur-md border border-green-400/30 text-green-300 text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider font-bold">
-              PAGADO
-            </span>
-          ) : (
-            <span className="bg-red-500/20 backdrop-blur-md border border-red-400/30 text-red-300 text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider font-bold">
-              NO PAGADO
-            </span>
-          )}
         </div>
       </div>
     </div>
@@ -247,8 +167,16 @@ function JugadorDashboard() {
           </div>
         </div>
 
-        {/* Credencial Digital - Tarjeta original */}
-        <CredentialCard memberData={memberData} onShowQR={() => setShowQR(true)} />
+        {/* Credencial Digital - Wallet card */}
+        <WalletCard
+          name={memberData.name}
+          dni={memberData.dni}
+          birthDate={memberData.birthDate}
+          insuranceStart={memberData.insuranceStart}
+          insuranceEnd={memberData.insuranceEnd}
+          status={memberData.status}
+          onShowQR={() => setShowQR(true)}
+        />
 
         {/* Acciones Rapidas - Horizontal scroll estilo Carrefour */}
         <div className="flex gap-3 overflow-x-auto pt-3 pb-1 scrollbar-hide">
