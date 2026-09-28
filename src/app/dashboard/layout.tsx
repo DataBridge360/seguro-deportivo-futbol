@@ -16,8 +16,13 @@ const jugadorNavItems = [
   { href: '/dashboard', icon: 'home', label: 'Inicio' },
   { href: '/dashboard/jugador/cupones', icon: 'confirmation_number', label: 'Cupones' },
   { href: '/dashboard/jugador/torneos', icon: 'emoji_events', label: 'Torneos' },
+  { href: '/dashboard/jugador/puntos', icon: 'stars', label: 'Puntos' },
   { href: '/dashboard/jugador/perfil', icon: 'person', label: 'Perfil' },
 ]
+
+function isNavItemActive(pathname: string, href: string): boolean {
+  return pathname === href || (href !== '/dashboard' && pathname.startsWith(href))
+}
 
 
 // Función para obtener la ruta de "volver" basada en el pathname actual
@@ -26,6 +31,7 @@ function getBackRoute(pathname: string): string {
   const mainRoutes = [
     '/dashboard/jugador/cupones',
     '/dashboard/jugador/torneos',
+    '/dashboard/jugador/puntos',
     '/dashboard/jugador/perfil',
     '/dashboard/jugador/documentos',
   ]
@@ -67,6 +73,7 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const backRoute = getBackRoute(pathname)
+  const activeNavIndex = jugadorNavItems.findIndex((item) => isNavItemActive(pathname, item.href))
   const [unreadCount, setUnreadCount] = useState(0)
   const unreadIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -141,13 +148,12 @@ export default function DashboardLayout({
               {/* Module Navigation - Desktop */}
               <nav className="flex items-center gap-1 p-1">
                 {jugadorNavItems.map((item) => {
-                  const isActive = pathname === item.href ||
-                    (item.href !== '/dashboard' && pathname.startsWith(item.href))
+                  const isActive = isNavItemActive(pathname, item.href)
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${isActive
+                      className={`flex items-center gap-2 px-3 lg:px-4 py-2 rounded-xl transition-all ${isActive
                         ? 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-sky-300 font-semibold'
                         : 'text-slate-600 dark:text-slate-300 hover:text-primary hover:bg-primary/5 dark:hover:bg-white/10'
                         }`}
@@ -267,29 +273,45 @@ export default function DashboardLayout({
         </main>
 
         {/* Bottom Navigation - mobile only */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 p-3 pb-6 max-w-[480px] mx-auto">
-          <nav className="flex gap-1 rounded-2xl bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-lg shadow-black/10 px-2 py-2">
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] max-w-[480px] mx-auto pointer-events-none">
+          <nav
+            aria-label="Navegación principal"
+            className="pointer-events-auto relative flex rounded-[26px] bg-white/85 dark:bg-slate-900/80 backdrop-blur-xl ring-1 ring-slate-200/80 dark:ring-white/10 p-1.5"
+            style={{ boxShadow: '0 16px 32px -12px rgba(19, 146, 236, 0.28)' }}
+          >
+            {activeNavIndex >= 0 && (
+              <span
+                aria-hidden="true"
+                className="absolute inset-y-1.5 left-1.5 pointer-events-none"
+                style={{ width: `calc((100% - 0.75rem) / ${jugadorNavItems.length})` }}
+              >
+                <span
+                  className="block h-full w-full rounded-[20px] bg-primary/10 dark:bg-primary/20 transition-transform duration-300 ease-out"
+                  style={{ transform: `translateX(${activeNavIndex * 100}%)` }}
+                />
+              </span>
+            )}
             {jugadorNavItems.map((item) => {
-              const isActive = pathname === item.href ||
-                (item.href !== '/dashboard' && pathname.startsWith(item.href))
+              const isActive = isNavItemActive(pathname, item.href)
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex flex-1 flex-col items-center justify-center gap-1 py-2 rounded-xl transition-all ${isActive
-                    ? 'text-primary bg-white/70 dark:bg-white/15 shadow-sm'
-                    : 'text-slate-500 dark:text-slate-400 hover:bg-white/40 dark:hover:bg-white/10'
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`relative z-10 flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 rounded-[20px] transition-all duration-200 active:scale-95 ${isActive
+                    ? 'text-primary dark:text-sky-300'
+                    : 'text-slate-500 dark:text-slate-400'
                     }`}
                 >
                   <span
-                    className="material-symbols-outlined text-[22px]"
+                    className={`material-symbols-outlined text-[24px] transition-transform duration-300 ${isActive ? '-translate-y-0.5' : ''}`}
                     style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
                   >
                     {item.icon}
                   </span>
-                  <p className={`text-[9px] leading-normal tracking-wide ${isActive ? 'font-bold' : 'font-medium'}`}>
+                  <span className={`max-w-full truncate px-0.5 text-[10px] leading-tight transition-colors duration-200 ${isActive ? 'font-bold' : 'font-medium'}`}>
                     {item.label}
-                  </p>
+                  </span>
                 </Link>
               )
             })}
