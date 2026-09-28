@@ -21,6 +21,9 @@ function getCouponTextColor(cupon: CuponResponse) {
   return couponTextColor[cupon.color || 'amber'] || couponTextColor.amber
 }
 
+const WHATSAPP_SEGURO_URL =
+  'https://wa.me/542996130664?text=Hola%2C%20quiero%20solicitar%20un%20seguro%20deportivo'
+
 // Modal QR
 function QRModal({ isOpen, onClose, dni }: { isOpen: boolean; onClose: () => void; dni: string }) {
   if (!isOpen) return null
@@ -137,11 +140,19 @@ function JugadorDashboard() {
     )
   }
 
-  const quickActions = [
-    { icon: 'confirmation_number', label: 'Mis Cupones', href: '/dashboard/jugador/cupones', highlighted: true },
-    { icon: 'emoji_events', label: 'Torneos', href: '/dashboard/jugador/torneos', highlighted: false },
-    { icon: 'qr_code_2', label: 'Mi QR', href: '#', highlighted: false, action: () => setShowQR(true) },
-    { icon: 'person', label: 'Mi Perfil', href: '/dashboard/jugador/perfil', highlighted: false },
+  const quickActions: {
+    icon: string
+    label: string
+    tint: string
+    href?: string
+    external?: boolean
+    badge?: string
+    onClick?: () => void
+  }[] = [
+    { icon: 'qr_code_2', label: 'Mi QR', tint: 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-sky-300', onClick: () => setShowQR(true) },
+    { icon: 'confirmation_number', label: 'Cupones', tint: 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400', href: '/dashboard/jugador/cupones' },
+    { icon: 'health_and_safety', label: 'Pedir seguro', tint: 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400', href: WHATSAPP_SEGURO_URL, external: true },
+    { icon: 'stars', label: 'Puntos', tint: 'bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300', href: '/dashboard/jugador/puntos', badge: 'Pronto' },
   ]
 
   return (
@@ -160,42 +171,43 @@ function JugadorDashboard() {
           onShowQR={() => setShowQR(true)}
         />
 
-        {/* Acciones Rapidas - Horizontal scroll estilo Carrefour */}
-        <div className="flex gap-3 overflow-x-auto pt-3 pb-1 scrollbar-hide">
-          {quickActions.map((action, idx) => {
+        {/* Quick actions */}
+        <div className="grid grid-cols-4 gap-2">
+          {quickActions.map((action) => {
+            const tileClass =
+              'relative flex min-w-0 flex-col items-center gap-2 rounded-2xl bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-white/10 px-1 py-3 shadow-sm transition-transform active:scale-95'
             const content = (
-              <div key={idx} className="flex flex-col items-center gap-1.5 min-w-[72px]">
-                <div
-                  className={`relative size-[60px] rounded-2xl flex items-center justify-center transition-all active:scale-95 shadow-sm ${
-                    action.highlighted
-                      ? 'bg-white dark:bg-slate-800 border-2 border-primary/40 shadow-primary/10 shadow-md'
-                      : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700'
-                  }`}
-                >
-                  {action.highlighted && (
-                    <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-[7px] font-bold px-2 py-[3px] rounded-full whitespace-nowrap leading-none">
-                      Destacado
-                    </span>
-                  )}
-                  <span className={`material-symbols-outlined text-[26px] ${action.highlighted ? 'text-primary' : 'text-primary'}`}>
-                    {action.icon}
+              <>
+                {action.badge && (
+                  <span className="absolute -top-1.5 right-1 rounded-full bg-violet-500 px-1.5 py-[2px] text-[8px] font-bold leading-none text-white">
+                    {action.badge}
                   </span>
-                </div>
-                <span className="text-[10px] font-medium text-slate-600 dark:text-slate-300 text-center leading-tight max-w-[72px]">
+                )}
+                <span className={`flex size-11 items-center justify-center rounded-full ${action.tint}`}>
+                  <span className="material-symbols-outlined text-[24px]">{action.icon}</span>
+                </span>
+                <span className="w-full truncate text-center text-xs font-semibold text-slate-700 dark:text-slate-200">
                   {action.label}
                 </span>
-              </div>
+              </>
             )
 
-            if (action.action) {
+            if (action.onClick) {
               return (
-                <button key={idx} onClick={action.action} className="shrink-0">
+                <button key={action.label} type="button" onClick={action.onClick} className={tileClass}>
                   {content}
                 </button>
               )
             }
+            if (action.external) {
+              return (
+                <a key={action.label} href={action.href} target="_blank" rel="noopener noreferrer" className={tileClass}>
+                  {content}
+                </a>
+              )
+            }
             return (
-              <Link key={idx} href={action.href} className="shrink-0">
+              <Link key={action.label} href={action.href ?? '#'} className={tileClass}>
                 {content}
               </Link>
             )
@@ -224,7 +236,7 @@ function JugadorDashboard() {
 
         {/* Solicitar Seguro */}
         <a
-          href="https://wa.me/542996130664?text=Hola%2C%20quiero%20solicitar%20un%20seguro%20deportivo"
+          href={WHATSAPP_SEGURO_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-3 bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm hover:border-primary/30 transition-colors active:scale-[0.99]"
