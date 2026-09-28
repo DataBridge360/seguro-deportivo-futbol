@@ -42,9 +42,17 @@ const config: Config = {
           '0%': { opacity: '0', transform: 'translateY(8px)' },
           '100%': { opacity: '1', transform: 'translateY(0)' },
         },
+        'card-shine': {
+          '0%': { transform: 'translateX(-150%)', opacity: '0' },
+          '3%': { opacity: '1' },
+          '16%': { opacity: '1' },
+          '18%': { transform: 'translateX(150%)', opacity: '0' },
+          '100%': { transform: 'translateX(150%)', opacity: '0' },
+        },
       },
       animation: {
         'card-item': 'fade-up 400ms cubic-bezier(0.22, 1, 0.36, 1) both',
+        'card-shine': 'card-shine 6s ease-in-out 1.5s infinite',
       },
     },
   },

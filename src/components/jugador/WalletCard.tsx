@@ -44,6 +44,7 @@ export default function WalletCard({
   const cardRef = useRef<HTMLDivElement>(null)
   const glareRef = useRef<HTMLDivElement>(null)
   const sheenRef = useRef<HTMLDivElement>(null)
+  const shineRef = useRef<HTMLDivElement>(null)
   const borderGlowRef = useRef<HTMLDivElement>(null)
   const rafRef = useRef<number | null>(null)
   const latestPointRef = useRef<{ x: number; y: number } | null>(null)
@@ -139,6 +140,11 @@ export default function WalletCard({
       borderGlow.style.background = 'radial-gradient(circle at 50% 0%, rgba(255,255,255,0.7), rgba(125,211,252,0.35) 45%, rgba(255,255,255,0.05) 75%)'
       borderGlow.style.opacity = BORDER_GLOW_REST_OPACITY
     }
+    // Let the idle shine sweep run again now that the pointer let go.
+    const shine = shineRef.current
+    if (shine) {
+      shine.style.opacity = ''
+    }
   }
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -151,6 +157,11 @@ export default function WalletCard({
       card.style.transition = 'none'
       // Keep receiving moves while the finger drags, even outside the card.
       card.setPointerCapture(e.pointerId)
+    }
+    // Idle shine only makes sense while the card is still; hide it during the drag.
+    const shine = shineRef.current
+    if (shine) {
+      shine.style.opacity = '0'
     }
     scheduleFrame(e.clientX, e.clientY)
   }
@@ -234,6 +245,17 @@ export default function WalletCard({
           aria-hidden
           className="absolute inset-0 pointer-events-none"
           style={{ opacity: 0 }}
+        />
+
+        {/* Idle shine: a light band sweeping across the still card every so often */}
+        <div
+          ref={shineRef}
+          aria-hidden
+          className="absolute inset-0 pointer-events-none motion-reduce:hidden animate-card-shine"
+          style={{
+            backgroundImage:
+              'linear-gradient(115deg, transparent 40%, rgba(255,255,255,0.35) 50%, transparent 60%)',
+          }}
         />
       </div>
 
