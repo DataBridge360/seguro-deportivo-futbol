@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useSyncExternalStore } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter, useParams } from 'next/navigation'
 import {
   getEquiposInscritos, getJugadoresEquipoTorneo,
@@ -13,16 +14,30 @@ import type { DelegadoEquipo, JugadorBusqueda } from '@/lib/api'
 import type { Inscripcion, JugadorEquipoTorneo } from '@/types/club'
 import NotificationModal from '@/components/ui/NotificationModal'
 import { useAuthStore } from '@/stores/authStore'
+import { formatDateOnly } from '@/lib/utils'
 
 interface Props {
   basePath: string
 }
 
-function formatFecha(fecha: string | null | undefined): string {
-  if (!fecha) return '-'
-  const [y, m, d] = fecha.split('-')
-  return `${d}/${m}/${y}`
+// Lowercase + strip diacritics so search is case- and accent-insensitive.
+function normalizeText(value: string | null | undefined): string {
+  return (value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
 }
+
+// Digits only (drops dots, spaces, etc.) for DNI comparison.
+function digitsOnly(value: string | null | undefined): string {
+  return (value ?? '').replace(/\D/g, '')
+}
+
+// 12345678 -> 12.345.678
+function formatDni(dni: string | null | undefined): string {
+  const digits = digitsOnly(dni)
+  if (!digits) return dni ?? ''
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+}
+
+const subscribeNoop = () => () => {}
 
 export default function EquipoJugadoresPage({ basePath }: Props) {
   const router = useRouter()
@@ -74,6 +89,35 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
 
   // PDF
   const [generandoPDF, setGenerandoPDF] = useState(false)
+
+  // Roster search (client-side, this team only)
+  const [rosterQuery, setRosterQuery] = useState('')
+
+  // True only on the client; guards portals against SSR/hydration mismatch
+  const mounted = useSyncExternalStore(subscribeNoop, () => true, () => false)
+
+  const delegadoJugadorIds = useMemo(() => new Set(delegados.map(d => d.jugador_id)), [delegados])
+  const delegadoDnis = useMemo(
+    () => new Set(delegados.map(d => digitsOnly(d.dni)).filter(Boolean)),
+    [delegados],
+  )
+  const isDelegado = (j: JugadorEquipoTorneo) =>
+    delegadoJugadorIds.has(j.jugador_id) || (!!digitsOnly(j.dni) && delegadoDnis.has(digitsOnly(j.dni)))
+
+  const jugadoresFiltrados = useMemo(() => {
+    const q = normalizeText(rosterQuery)
+    if (!q) return jugadores
+    const qDigits = digitsOnly(rosterQuery)
+    return jugadores.filter(j => {
+      const haystack = normalizeText(`${j.nombre_completo} ${j.apellido ?? ''} ${j.nombre ?? ''} ${j.apellido ?? ''}, ${j.nombre ?? ''}`)
+      if (haystack.includes(q)) return true
+      return qDigits.length > 0 && digitsOnly(j.dni).includes(qDigits)
+    })
+  }, [jugadores, rosterQuery])
+
+  const isFilteringRoster = rosterQuery.trim().length > 0
+
+  const renderPortal = (node: React.ReactNode) => (mounted ? createPortal(node, document.body) : null)
 
   const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({
     open: false, title: '', message: '', type: 'info'
@@ -441,25 +485,12 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            {jugadores.length > 0 && (
-              <button
-                onClick={handleDescargarPDF}
-                disabled={generandoPDF}
-                className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50"
-                title="Descargar planilla"
-              >
-                {generandoPDF ? (
-                  <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <span className="material-symbols-outlined text-xl text-slate-600 dark:text-slate-300">picture_as_pdf</span>
-                )}
-              </button>
-            )}
             {inscripcion && (
               <button
                 onClick={() => setShowConfirmDesinscribir(true)}
                 className="p-2 bg-slate-100 hover:bg-red-50 dark:bg-slate-800 dark:hover:bg-red-500/10 rounded-lg transition-colors"
                 title="Desinscribir equipo"
+                aria-label="Desinscribir equipo"
               >
                 <span className="material-symbols-outlined text-xl text-slate-400 hover:text-red-500">delete</span>
               </button>
@@ -578,8 +609,8 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
       </div>
 
       {/* ── Jugadores ── */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl ring-1 ring-slate-200/70 dark:ring-white/10 overflow-hidden">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
               <span className="material-symbols-outlined text-primary text-xl">group</span>
@@ -589,11 +620,25 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
               <p className="text-xs text-slate-500 dark:text-slate-400">{jugadores.length} jugador{jugadores.length !== 1 ? 'es' : ''}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            {jugadores.length > 0 && (
+              <button
+                onClick={handleDescargarPDF}
+                disabled={generandoPDF}
+                className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                {generandoPDF ? (
+                  <div className="w-[18px] h-[18px] border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <span className="material-symbols-outlined text-lg">download</span>
+                )}
+                Descargar planilla
+              </button>
+            )}
             {jugadoresSinPago.length > 0 && (user?.role === 'productor' || user?.role === 'developer') && (
               <button
                 onClick={() => setShowModalLimpiar(true)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-red-100 hover:bg-red-200 dark:bg-red-500/20 dark:hover:bg-red-500/30 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium transition-colors"
+                className="w-full sm:w-auto justify-center flex items-center gap-1.5 px-3 py-2 bg-red-100 hover:bg-red-200 dark:bg-red-500/20 dark:hover:bg-red-500/30 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium transition-colors"
                 title="Quitar jugadores sin seguro pagado"
               >
                 <span className="material-symbols-outlined text-lg">shield_with_heart</span>
@@ -602,10 +647,10 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
             )}
             <button
               onClick={handleOpenAgregar}
-              className="flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors"
+              className="w-full sm:w-auto justify-center flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-white rounded-lg text-sm font-medium transition-colors"
             >
               <span className="material-symbols-outlined text-lg">person_add</span>
-              Agregar
+              Agregar jugadores
             </button>
           </div>
         </div>
@@ -624,9 +669,44 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
               </button>
             </div>
           ) : (
+            <>
+            {/* Roster search */}
+            <div className="mb-3">
+              <div className="relative">
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none">search</span>
+                <input
+                  type="text"
+                  value={rosterQuery}
+                  onChange={(e) => setRosterQuery(e.target.value)}
+                  placeholder="Buscar por nombre o DNI"
+                  aria-label="Buscar jugadores por nombre o DNI"
+                  className="w-full pl-9 pr-10 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                />
+                {rosterQuery && (
+                  <button
+                    onClick={() => setRosterQuery('')}
+                    aria-label="Limpiar búsqueda"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg"
+                  >
+                    <span className="material-symbols-outlined text-base">close</span>
+                  </button>
+                )}
+              </div>
+              {isFilteringRoster && (
+                <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+                  {jugadoresFiltrados.length} de {jugadores.length} jugadores
+                </p>
+              )}
+            </div>
+
+            {jugadoresFiltrados.length === 0 ? (
+              <p className="text-center text-sm text-slate-500 dark:text-slate-400 py-8">
+                Sin resultados para &quot;{rosterQuery.trim()}&quot;
+              </p>
+            ) : (
             <div className="space-y-2">
-              {jugadores.map((jugador) => (
-                <div key={jugador.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+              {jugadoresFiltrados.map((jugador) => (
+                <div key={jugador.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-xl ring-1 ring-slate-200/70 dark:ring-white/10">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     {jugador.foto_url ? (
                       <img src={jugador.foto_url} alt={jugador.nombre_completo} className="w-10 h-10 rounded-full object-cover shrink-0" />
@@ -636,9 +716,17 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
-                        {jugador.nombre_completo}
-                        {jugador.capitan && <span className="text-amber-500 font-bold">(C)</span>}
+                      <p className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1.5 flex-wrap">
+                        <span className="break-words min-w-0">{jugador.nombre_completo}</span>
+                        {jugador.capitan && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 rounded text-[10px] font-bold">(C)</span>
+                        )}
+                        {isDelegado(jugador) && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-primary/10 text-primary rounded text-[10px] font-bold uppercase tracking-wide">
+                            <span className="material-symbols-outlined text-xs">star</span>
+                            Delegado
+                          </span>
+                        )}
                         {jugador.pagado === false && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 rounded text-[10px] font-bold uppercase tracking-wide">
                             <span className="material-symbols-outlined text-xs">warning</span>
@@ -649,12 +737,12 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
                         {jugador.dni && (
                           <p className="text-xs text-slate-500 dark:text-slate-400">
-                            <span className="font-medium text-slate-600 dark:text-slate-300">DNI:</span> {jugador.dni}
+                            <span className="font-medium text-slate-600 dark:text-slate-300">DNI:</span> {formatDni(jugador.dni)}
                           </p>
                         )}
                         {jugador.fecha_nacimiento && (
                           <p className="text-xs text-slate-500 dark:text-slate-400">
-                            <span className="font-medium text-slate-600 dark:text-slate-300">Nac:</span> {formatFecha(jugador.fecha_nacimiento)}
+                            <span className="font-medium text-slate-600 dark:text-slate-300">Nac:</span> {formatDateOnly(jugador.fecha_nacimiento)}
                           </p>
                         )}
                         {jugador.posicion && (
@@ -668,6 +756,7 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
                   </div>
                   <button
                     onClick={() => setShowConfirmQuitar(jugador)}
+                    aria-label={`Quitar a ${jugador.nombre_completo}`}
                     className="p-2 text-slate-400 hover:text-red-500 hover:bg-white dark:hover:bg-slate-800 rounded-lg transition-colors shrink-0 ml-2"
                   >
                     <span className="material-symbols-outlined text-xl">close</span>
@@ -675,6 +764,8 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
                 </div>
               ))}
             </div>
+            )}
+            </>
           )}
         </div>
       </div>
@@ -682,9 +773,10 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
       {/* ═══════ MODALS ═══════ */}
 
       {/* Modal asignar delegado */}
-      {showModalDelegados && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => !asignandoDelegado && setShowModalDelegados(false)}>
-          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-5 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      {showModalDelegados && renderPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4 z-50" onClick={() => !asignandoDelegado && setShowModalDelegados(false)}>
+          <div className="bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-white/10 rounded-t-3xl sm:rounded-2xl max-w-md w-full shadow-2xl flex flex-col max-h-[85dvh]" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 pt-5 shrink-0">
             <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">Asignar delegado</h3>
             <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">Los delegados pueden agregar jugadores al equipo</p>
 
@@ -707,8 +799,9 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
             {busquedaDelegado.length > 0 && busquedaDelegado.length < 3 && (
               <p className="mb-2 text-xs text-slate-400">Ingresá al menos 3 caracteres para buscar</p>
             )}
+            </div>
 
-            <div className="space-y-1 max-h-64 overflow-y-auto mb-3">
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-1 px-4 pb-2">
               {resultadosDelegado.length === 0 ? (
                 <p className="text-center text-xs text-slate-400 py-6">
                   {busquedaDelegado.length >= 3 && !buscandoDelegado ? 'Sin resultados' : 'Escribí un nombre, apellido o DNI para buscar'}
@@ -730,15 +823,17 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
               ))}
             </div>
 
-            <button onClick={() => setShowModalDelegados(false)} className="w-full px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors">Cerrar</button>
+            <div className="px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-slate-200 dark:border-slate-700 shrink-0">
+              <button onClick={() => setShowModalDelegados(false)} className="w-full px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors">Cerrar</button>
+            </div>
           </div>
         </div>
       )}
 
       {/* Modal agregar jugadores */}
-      {showModalAgregar && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => !submitting && setShowModalAgregar(false)}>
-          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl w-full max-w-md flex flex-col max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+      {showModalAgregar && renderPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4 z-50" onClick={() => !submitting && setShowModalAgregar(false)}>
+          <div className="bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-white/10 rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[85dvh]" onClick={(e) => e.stopPropagation()}>
 
             {/* Header */}
             <div className="px-5 pt-5 pb-3 shrink-0">
@@ -775,25 +870,6 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
 
             {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto px-5 pb-2 min-h-0 space-y-3">
-
-              {/* Chips de seleccionados */}
-              {jugadoresSeleccionados.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">
-                    Seleccionados ({jugadoresSeleccionados.length})
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {jugadoresSeleccionados.map(j => (
-                      <span key={j.id} className="flex items-center gap-1 px-2.5 py-1 bg-primary/10 text-primary rounded-lg text-xs font-medium">
-                        {j.apellido}, {j.nombre}
-                        <button onClick={() => setJugadoresSeleccionados(prev => prev.filter(s => s.id !== j.id))} className="ml-0.5 hover:text-primary/60">
-                          <span className="material-symbols-outlined text-sm">close</span>
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* Resultados */}
               {resultadosBusqueda.length > 0 && (
@@ -896,15 +972,34 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
               )}
             </div>
 
+            {/* Selected bar (outside the scroll area) */}
+            {jugadoresSeleccionados.length > 0 && (
+              <div className="shrink-0 px-5 pt-2 pb-2 border-t border-slate-200 dark:border-slate-700">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                  {jugadoresSeleccionados.length} seleccionado{jugadoresSeleccionados.length !== 1 ? 's' : ''}
+                </p>
+                <div className="flex flex-nowrap gap-1.5 overflow-x-auto pb-1">
+                  {jugadoresSeleccionados.map(j => (
+                    <span key={j.id} className="shrink-0 flex items-center gap-1 px-2.5 py-1 bg-primary/10 text-primary rounded-lg text-xs font-medium whitespace-nowrap">
+                      {j.apellido}, {j.nombre}
+                      <button onClick={() => setJugadoresSeleccionados(prev => prev.filter(s => s.id !== j.id))} aria-label={`Quitar a ${j.apellido}, ${j.nombre}`} className="ml-0.5 hover:text-primary/60">
+                        <span className="material-symbols-outlined text-sm">close</span>
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Footer */}
-            <div className="px-5 py-4 border-t border-slate-200 dark:border-slate-700 shrink-0">
+            <div className="px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-slate-200 dark:border-slate-700 shrink-0">
               {errors.jugador_id && <p className="text-red-400 text-xs mb-2">{errors.jugador_id}</p>}
               <div className="flex gap-2">
                 <button onClick={() => setShowModalAgregar(false)} disabled={submitting} className="flex-1 px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">
                   Cancelar
                 </button>
                 <button onClick={handleAgregarJugadores} disabled={submitting || jugadoresSeleccionados.length === 0} className="flex-[1.5] px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-                  {submitting ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Agregando...</>) : `Agregar${jugadoresSeleccionados.length > 0 ? ` (${jugadoresSeleccionados.length})` : ''}`}
+                  {submitting ? (<><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Agregando...</>) : `Agregar${jugadoresSeleccionados.length > 0 ? ` ${jugadoresSeleccionados.length}` : ''}`}
                 </button>
               </div>
             </div>
