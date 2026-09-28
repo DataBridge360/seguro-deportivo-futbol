@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { consultarRecuperacion, enviarRecuperacion, type ConsultarRecuperacionResult } from '@/lib/api'
 import BallsBackground from '@/components/auth/BallsBackground'
+import { buildAsistenciaWhatsappUrl } from '@/lib/constants'
 
 // ---------------------------------------------------------------------------
 // Recuperación de contraseña: paso 1 pide el DNI, paso 2 muestra si el
@@ -16,11 +17,6 @@ const DNI_REGEX = /^\d{7,8}$/
 
 function limpiarDni(value: string): string {
   return value.replace(/[.\s]/g, '').replace(/\D/g, '')
-}
-
-function buildAsistenciaWhatsappUrl(numero: string, dni: string): string {
-  const texto = `Hola, necesito ayuda para recuperar mi contraseña de Club Plaza. Mi DNI es ${dni}`
-  return `https://wa.me/${numero}?text=${encodeURIComponent(texto)}`
 }
 
 type Step = 'dni' | 'result' | 'sent'
@@ -213,7 +209,9 @@ export default function RecuperarPage() {
                     acceso.
                   </p>
                   <a
-                    href={buildAsistenciaWhatsappUrl(resultado.asistencia_whatsapp, dni)}
+                    href={buildAsistenciaWhatsappUrl(
+                      `Hola, necesito ayuda para recuperar mi contraseña de Club Plaza. Mi DNI es ${dni}`,
+                    )}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg shadow-lg transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"

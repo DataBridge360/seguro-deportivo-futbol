@@ -1,4 +1,6 @@
-// Número de WhatsApp de asistencia para el registro público de jugadores.
+// Número de WhatsApp de asistencia (login, registro, recuperación de contraseña
+// y perfil del jugador). Intencionalmente hardcodeado: NO se lee de ninguna
+// variable de entorno, para que no quede configurable por entorno.
 // NO confundir con el WhatsApp de seguro deportivo (542996130664) usado en otras
 // pantallas del dashboard: son contactos distintos.
 export const ASISTENCIA_WHATSAPP = '542994119493'

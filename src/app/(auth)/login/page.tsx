@@ -7,6 +7,7 @@ import { getPostLoginRoute } from '@/lib/navigation'
 import { clearAuthCookie, setAuthCookie } from '@/lib/authCookie'
 import InstallAppButton from '@/components/ui/InstallAppButton'
 import BallsBackground from '@/components/auth/BallsBackground'
+import { buildAsistenciaWhatsappUrl } from '@/lib/constants'
 
 type LoginMode = 'usuario' | 'dni'
 
@@ -276,7 +277,16 @@ export default function LoginPage() {
       </div>
 
       {/* Footer */}
-      <footer className="relative z-10 mt-6 text-center px-4">
+      <footer className="relative z-10 mt-6 text-center px-4 space-y-3">
+        <a
+          href={buildAsistenciaWhatsappUrl('Hola, necesito ayuda para ingresar a Club Plaza')}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center gap-1 text-xs text-white/70 hover:text-white hover:underline transition-colors"
+        >
+          <span className="material-symbols-outlined text-sm">support_agent</span>
+          ¿Necesitás ayuda? Escribinos por WhatsApp
+        </a>
         <div className="opacity-80 flex items-center justify-center gap-1 text-xs uppercase tracking-tighter text-white/80">
           <span className="material-symbols-outlined text-sm">location_on</span>
           Plaza Huincul, Neuquén

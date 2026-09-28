@@ -6,9 +6,7 @@ import Link from 'next/link'
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
 import InstallAppButton from '@/components/ui/InstallAppButton'
-
-const WHATSAPP_NUMBER = '542996130664'
-const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`
+import { buildAsistenciaWhatsappUrl } from '@/lib/constants'
 
 export default function JugadorPerfilPage() {
   const { user, logout } = useAuthStore()
@@ -24,7 +22,7 @@ export default function JugadorPerfilPage() {
     { icon: 'person', label: 'Datos personales', href: '/dashboard/jugador/perfil/datos' },
     // { icon: 'folder', label: 'Documentos personales', href: '/dashboard/jugador/documentos' },
     { icon: 'lock', label: 'Cambiar contraseña', href: '/dashboard/jugador/perfil/cambiar-contrasena' },
-    { icon: 'help', label: 'Ayuda y soporte', href: WHATSAPP_URL, external: true },
+    { icon: 'help', label: 'Ayuda y soporte', href: buildAsistenciaWhatsappUrl(), external: true },
   ]
 
   return (
