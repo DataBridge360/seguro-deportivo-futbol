@@ -252,29 +252,24 @@ export default function JugadorTorneosPage() {
         </div>
 
         {/* Tabs: Mi equipo / Todos los equipos */}
-        <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
-          <button
-            onClick={() => setTorneoTab('mi-equipo')}
-            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
-              torneoTab === 'mi-equipo'
-                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
-            }`}
-          >
-            <span className="material-symbols-outlined text-base">shield</span>
-            Mi equipo
-          </button>
-          <button
-            onClick={() => setTorneoTab('todos')}
-            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
-              torneoTab === 'todos'
-                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
-                : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
-            }`}
-          >
-            <span className="material-symbols-outlined text-base">groups</span>
-            Todos los equipos
-          </button>
+        <div className="flex gap-1 bg-slate-100 dark:bg-slate-900 rounded-xl p-1">
+          {([
+            { id: 'mi-equipo', label: 'Mi equipo', icon: 'shield' },
+            { id: 'todos', label: 'Todos los equipos', icon: 'groups' },
+          ] as const).map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setTorneoTab(tab.id)}
+              className={`flex-1 min-w-0 py-2 px-3 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                torneoTab === tab.id
+                  ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+              }`}
+            >
+              <span className="material-symbols-outlined text-base shrink-0">{tab.icon}</span>
+              <span className="truncate">{tab.label}</span>
+            </button>
+          ))}
         </div>
 
         {/* ── Tab: Mi equipo ── */}
@@ -285,51 +280,54 @@ export default function JugadorTorneosPage() {
                 <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               </div>
             ) : misEquiposEnTorneo.length === 0 ? (
-              <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-                <span className="material-symbols-outlined text-5xl text-slate-300 dark:text-slate-600 mb-2 block">shield</span>
-                <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">No estás inscrito en ningún equipo</p>
-                <p className="text-slate-400 dark:text-slate-500 text-xs mt-1">Solo los delegados pueden agregar jugadores a los equipos</p>
+              <div className="text-center py-12 px-4 bg-white dark:bg-slate-800 rounded-2xl ring-1 ring-slate-200/70 dark:ring-white/10">
+                <div className="size-16 rounded-full bg-slate-100 dark:bg-slate-900 flex items-center justify-center mx-auto mb-3">
+                  <span className="material-symbols-outlined text-3xl text-slate-400 dark:text-slate-500">groups</span>
+                </div>
+                <p className="text-slate-900 dark:text-white text-sm font-semibold">Todavía no estás en un equipo de este torneo</p>
+                <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">Pedile al delegado de tu equipo que te agregue.</p>
               </div>
             ) : (
               <div className="flex flex-col gap-3">
                 {misEquiposEnTorneo.map((equipo) => {
                   const inscripcion = misInscripcionesTorneo.find(i => i.torneo_equipo_id === equipo.id)
+                  const esDelegado = !!jugadorId && !!equipo.delegados?.some(d => d.jugador_id === jugadorId)
                   return (
                     <div
                       key={equipo.id}
                       onClick={() => handleOpenEquipo(equipo)}
-                      className={`bg-white dark:bg-slate-800 rounded-xl border-2 p-4 cursor-pointer transition-colors active:scale-[0.99] ${
-                        equipo.inhabilitado_por_deuda
-                          ? 'border-red-200 dark:border-red-500/30 opacity-80'
-                          : 'border-primary/30 hover:border-primary/50'
+                      className={`rounded-2xl ring-1 p-4 cursor-pointer transition-all active:scale-[0.99] bg-gradient-to-br from-primary/10 to-sky-100/40 dark:from-primary/20 dark:to-slate-800 ${
+                        equipo.inhabilitado_por_deuda ? 'ring-red-300 dark:ring-red-500/40' : 'ring-primary/30 hover:ring-primary/50'
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="size-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                          <span className="material-symbols-outlined text-primary text-2xl">shield</span>
+                        <div className="size-14 rounded-full bg-primary text-white flex items-center justify-center shrink-0 text-xl font-bold shadow-sm">
+                          {(equipo.equipo_nombre || '?').trim().charAt(0).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-base font-bold text-slate-900 dark:text-white">{equipo.equipo_nombre}</p>
-                            <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-primary/10 text-primary">Mi equipo</span>
-                            {jugadorId && equipo.delegados?.some(d => d.jugador_id === jugadorId) && (
-                              <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">Delegado</span>
-                            )}
-                            {equipo.inhabilitado_por_deuda && (
-                              <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300 inline-flex items-center gap-1">
-                                <span className="material-symbols-outlined text-xs">lock</span>
-                                Falta de pago
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-slate-500 dark:text-slate-400">{equipo.categoria_nombre}</p>
-                          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                            {equipo.jugadores.length} jugador{equipo.jugadores.length !== 1 ? 'es' : ''}
+                          <p className="text-lg font-bold text-slate-900 dark:text-white truncate">{equipo.equipo_nombre}</p>
+                          <p className="text-sm text-slate-600 dark:text-slate-300 truncate">
+                            {equipo.categoria_nombre} · {equipo.jugadores.length} jugador{equipo.jugadores.length !== 1 ? 'es' : ''}
                             {inscripcion?.numero_camiseta != null && ` · #${inscripcion.numero_camiseta}`}
                             {inscripcion?.posicion && ` · ${inscripcion.posicion}`}
                           </p>
                         </div>
-                        <span className="material-symbols-outlined text-slate-400 text-lg shrink-0">{equipo.inhabilitado_por_deuda ? 'lock' : 'chevron_right'}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap mt-3">
+                        <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-primary/10 text-primary">Mi equipo</span>
+                        {esDelegado && (
+                          <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400">Delegado</span>
+                        )}
+                        {equipo.inhabilitado_por_deuda && (
+                          <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300 inline-flex items-center gap-1">
+                            <span className="material-symbols-outlined text-xs">lock</span>
+                            Falta de pago
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-primary/15">
+                        <span className="text-sm font-semibold text-primary">Ver equipo</span>
+                        <span className="material-symbols-outlined text-primary text-xl">{equipo.inhabilitado_por_deuda ? 'lock' : 'chevron_right'}</span>
                       </div>
                     </div>
                   )
@@ -342,37 +340,6 @@ export default function JugadorTorneosPage() {
         {/* ── Tab: Todos los equipos ── */}
         {torneoTab === 'todos' && (
           <div>
-            {/* Category tabs */}
-            {!loadingEquipos && categoriasDelTorneo.length > 1 && (
-              <div className="mb-3 overflow-x-auto -mx-1 px-1">
-                <div className="flex gap-1.5 min-w-max">
-                  <button
-                    onClick={() => setCategoriaTab('todos')}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
-                      categoriaTab === 'todos'
-                        ? 'bg-primary text-white shadow-sm'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
-                    }`}
-                  >
-                    Todos ({equiposTorneo.length})
-                  </button>
-                  {categoriasDelTorneo.map(cat => (
-                    <button
-                      key={cat.nombre}
-                      onClick={() => setCategoriaTab(cat.nombre)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
-                        categoriaTab === cat.nombre
-                          ? 'bg-primary text-white shadow-sm'
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
-                      }`}
-                    >
-                      {cat.nombre} ({cat.count})
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Search */}
             {!loadingEquipos && equiposTorneo.length > 0 && (
               <div className="relative mb-3">
@@ -382,13 +349,38 @@ export default function JugadorTorneosPage() {
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
                   placeholder="Buscar equipo..."
-                  className="w-full pl-9 pr-9 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                  className="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-white/10 rounded-xl text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/40 transition-shadow"
                 />
                 {busqueda && (
-                  <button onClick={() => setBusqueda('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors">
-                    <span className="material-symbols-outlined text-slate-400 text-lg">close</span>
+                  <button
+                    onClick={() => setBusqueda('')}
+                    aria-label="Limpiar búsqueda"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-slate-400 text-lg block">close</span>
                   </button>
                 )}
+              </div>
+            )}
+
+            {/* Category chips */}
+            {!loadingEquipos && categoriasDelTorneo.length > 1 && (
+              <div className="mb-3 overflow-x-auto -mx-1 px-1">
+                <div className="flex gap-1.5 min-w-max">
+                  {[{ nombre: 'todos', label: `Todos (${equiposTorneo.length})` }, ...categoriasDelTorneo.map(c => ({ nombre: c.nombre, label: `${c.nombre} (${c.count})` }))].map(chip => (
+                    <button
+                      key={chip.nombre}
+                      onClick={() => setCategoriaTab(chip.nombre)}
+                      className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors whitespace-nowrap ${
+                        categoriaTab === chip.nombre
+                          ? 'bg-primary text-white shadow-sm'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -397,12 +389,12 @@ export default function JugadorTorneosPage() {
                 <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               </div>
             ) : equiposTorneo.length === 0 ? (
-              <div className="text-center py-10 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+              <div className="text-center py-10 bg-white dark:bg-slate-800 rounded-2xl ring-1 ring-slate-200/70 dark:ring-white/10">
                 <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2 block">group_off</span>
                 <p className="text-sm text-slate-500 dark:text-slate-400">No hay equipos inscriptos</p>
               </div>
             ) : equiposFiltrados.length === 0 ? (
-              <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+              <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-2xl ring-1 ring-slate-200/70 dark:ring-white/10">
                 <span className="material-symbols-outlined text-4xl text-slate-300 dark:text-slate-600 mb-2 block">search_off</span>
                 <p className="text-sm text-slate-500 dark:text-slate-400">Sin resultados</p>
                 <button onClick={() => { setCategoriaTab('todos'); setBusqueda('') }} className="mt-2 text-xs text-primary hover:underline">
@@ -410,7 +402,7 @@ export default function JugadorTorneosPage() {
                 </button>
               </div>
             ) : (
-              <div className="flex flex-col gap-2.5">
+              <div className="flex flex-col gap-2">
                 {equiposFiltrados.map((equipo) => {
                   const esMiEquipo = typeof equipo.es_mi_equipo === 'boolean'
                     ? equipo.es_mi_equipo
@@ -419,30 +411,30 @@ export default function JugadorTorneosPage() {
                     <div
                       key={equipo.id}
                       onClick={() => handleOpenEquipo(equipo)}
-                      className={`bg-white dark:bg-slate-800 rounded-xl border p-4 cursor-pointer transition-colors active:scale-[0.99] ${
+                      className={`bg-white dark:bg-slate-800 rounded-2xl ring-1 px-3.5 py-3 cursor-pointer transition-all active:scale-[0.99] ${
                         equipo.inhabilitado_por_deuda
-                          ? 'border-red-200 dark:border-red-500/30 opacity-80'
-                          : esMiEquipo ? 'border-primary/40 dark:border-primary/30 hover:border-primary/50 dark:hover:border-primary/30' : 'border-slate-200 dark:border-slate-700 hover:border-primary/50 dark:hover:border-primary/30'
+                          ? 'ring-red-200 dark:ring-red-500/30 opacity-80'
+                          : esMiEquipo ? 'ring-primary/40 hover:ring-primary/60' : 'ring-slate-200/70 dark:ring-white/10 hover:ring-primary/40'
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`size-10 rounded-xl flex items-center justify-center shrink-0 ${esMiEquipo ? 'bg-primary/20' : 'bg-primary/10'}`}>
-                          <span className="material-symbols-outlined text-primary text-lg">groups</span>
+                        <div className="size-10 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 flex items-center justify-center shrink-0 text-sm font-bold">
+                          {(equipo.equipo_nombre || '?').trim().charAt(0).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
                             <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{equipo.equipo_nombre}</p>
                             {esMiEquipo && (
-                              <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-primary/10 text-primary whitespace-nowrap">Mi equipo</span>
+                              <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-primary/10 text-primary whitespace-nowrap shrink-0">Mi equipo</span>
                             )}
                             {equipo.inhabilitado_por_deuda && (
-                              <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300 whitespace-nowrap inline-flex items-center gap-1">
+                              <span className="px-2 py-0.5 text-[10px] font-semibold rounded-full bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300 whitespace-nowrap shrink-0 inline-flex items-center gap-1">
                                 <span className="material-symbols-outlined text-xs">lock</span>
                                 Falta de pago
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
+                          <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
                             {equipo.categoria_nombre} · {equipo.jugadores.length} jugador{equipo.jugadores.length !== 1 ? 'es' : ''}
                           </p>
                         </div>
