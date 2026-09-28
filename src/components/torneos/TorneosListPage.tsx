@@ -83,7 +83,7 @@ export default function TorneosListPage({ basePath }: Props) {
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Torneos</h1>
+        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Torneos de Fútbol</h1>
         <Link
           href={`${basePath}/nuevo`}
           className="flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors"

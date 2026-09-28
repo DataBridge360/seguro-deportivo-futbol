@@ -199,7 +199,7 @@ export default function JugadorTorneosPage() {
   if (error) {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
-        <h1 className="text-2xl font-bold text-[#111518] dark:text-white">Torneos</h1>
+        <h1 className="text-2xl font-bold text-[#111518] dark:text-white">Torneos de Fútbol</h1>
         <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl p-5 text-center">
           <span className="material-symbols-outlined text-3xl text-red-400 mb-2 block">error</span>
           <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
@@ -496,7 +496,7 @@ export default function JugadorTorneosPage() {
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold text-[#111518] dark:text-white">Torneos</h1>
+        <h1 className="text-2xl font-bold text-[#111518] dark:text-white">Torneos de Fútbol</h1>
         <p className="text-sm text-[#617989] dark:text-slate-400 mt-1">
           Consultá los torneos y tus equipos
         </p>
