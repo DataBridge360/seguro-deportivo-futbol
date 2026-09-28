@@ -7,6 +7,7 @@ import {
   createCategoria, updateCategoria, deleteCategoria,
 } from '@/lib/api'
 import { compressImage } from '@/lib/imageUtils'
+import { matchesSearch } from '@/lib/utils'
 import type { Equipo, Categoria } from '@/types/club'
 import NotificationModal from '@/components/ui/NotificationModal'
 
@@ -93,8 +94,7 @@ export default function EquiposListPage({ basePath }: Props) {
   const equiposFiltrados = useMemo(() => {
     let result = equipos
     if (busqueda.trim()) {
-      const query = busqueda.toLowerCase().trim()
-      result = result.filter(e => e.nombre.toLowerCase().includes(query))
+      result = result.filter(e => matchesSearch(e.nombre, busqueda))
     }
     if (filtroCategoria) {
       result = result.filter(e => e.categorias?.some(c => c.id === filtroCategoria))

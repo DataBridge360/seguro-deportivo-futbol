@@ -27,3 +27,32 @@ export function formatDateOnly(dateStr: string | null | undefined, fallback = '-
   if (Number.isNaN(date.getTime())) return fallback
   return date.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
+
+/**
+ * Normalizes text for searching: strips accents (diacritics), lowercases,
+ * trims and collapses repeated whitespace.
+ */
+export function normalizeSearch(value: string | null | undefined): string {
+  return (value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
+ * Use for every client-side search so accents and case never matter.
+ *
+ * Returns true when the normalized query is empty, or when every word of the
+ * query is contained in the normalized (joined) haystack.
+ */
+export function matchesSearch(
+  haystack: string | null | undefined | Array<string | null | undefined>,
+  query: string
+): boolean {
+  const q = normalizeSearch(query)
+  if (!q) return true
+  const text = normalizeSearch(Array.isArray(haystack) ? haystack.join(' ') : haystack)
+  return q.split(' ').every(word => text.includes(word))
+}

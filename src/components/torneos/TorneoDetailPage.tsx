@@ -10,6 +10,7 @@ import {
 import type { Torneo, Inscripcion, Equipo, Categoria, JugadorEquipoTorneo, CreateTorneoDTO } from '@/types/club'
 import NotificationModal from '@/components/ui/NotificationModal'
 import DatePicker from '@/components/ui/DatePicker'
+import { matchesSearch } from '@/lib/utils'
 
 interface Props {
   basePath: string
@@ -133,8 +134,7 @@ export default function TorneoDetailPage({ basePath }: Props) {
   const inscripcionesFiltradas = useMemo(() => {
     let result = categoriaTab === 'todos' ? inscripciones : inscripciones.filter(i => i.categoria_id === categoriaTab)
     if (busquedaEquipos.trim()) {
-      const q = busquedaEquipos.toLowerCase()
-      result = result.filter(i => i.equipo_nombre.toLowerCase().includes(q))
+      result = result.filter(i => matchesSearch(i.equipo_nombre, busquedaEquipos))
     }
     return result
   }, [inscripciones, categoriaTab, busquedaEquipos])
@@ -863,7 +863,7 @@ export default function TorneoDetailPage({ basePath }: Props) {
             )
           : []
         const equiposFiltrados = inscripcionBusqueda.trim()
-          ? equiposEnCategoria.filter(e => e.nombre.toLowerCase().includes(inscripcionBusqueda.toLowerCase()))
+          ? equiposEnCategoria.filter(e => matchesSearch(e.nombre, inscripcionBusqueda))
           : equiposEnCategoria
         const todosSeleccionados = equiposFiltrados.length > 0 && equiposFiltrados.every(e => inscripcionEquipoIds.includes(e.id))
 

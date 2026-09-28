@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { getJugadorTorneos, getJugadorInscripciones, getEquiposTorneo } from '@/lib/api'
+import { matchesSearch } from '@/lib/utils'
 import type { JugadorTorneo, JugadorInscripcion } from '@/lib/api'
 import type { EquipoTorneoConVisibilidad } from '@/types/torneos-visibilidad'
 import NotificationModal from '@/components/ui/NotificationModal'
@@ -166,8 +167,7 @@ export default function JugadorTorneosPage() {
     let result = equiposTorneo
     if (categoriaTab !== 'todos') result = result.filter(e => e.categoria_nombre === categoriaTab)
     if (busqueda.trim()) {
-      const q = busqueda.trim().toLowerCase()
-      result = result.filter(e => e.equipo_nombre.toLowerCase().includes(q))
+      result = result.filter(e => matchesSearch(e.equipo_nombre, busqueda))
     }
     // Mi equipo primero
     const misIds = new Set(misInscripcionesTorneo.map(i => i.torneo_equipo_id))
