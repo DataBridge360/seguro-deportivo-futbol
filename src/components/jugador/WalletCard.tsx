@@ -312,8 +312,10 @@ export default function WalletCard({
             <p className="text-[10px] sm:text-xs uppercase font-bold tracking-wider text-white/60">Nacimiento</p>
             <p className="text-base sm:text-lg font-semibold tabular-nums">{birthDate}</p>
           </div>
+          {/* Insurance validity on the left, payment status pill on the right */}
+          <div className="col-span-2 pt-3 border-t border-white/15 flex items-end justify-between gap-3">
           <div
-            className="col-span-2 pt-3 border-t border-white/15 motion-reduce:animate-none animate-card-item"
+            className="min-w-0 motion-reduce:animate-none animate-card-item"
             style={{ animationDelay: `${DATA_ITEM_DELAY_MS * 2}ms` }}
           >
             <p className="text-[10px] sm:text-xs uppercase font-bold tracking-wider text-white/60">Vigencia del Seguro</p>
@@ -322,7 +324,7 @@ export default function WalletCard({
             </p>
           </div>
           <div
-            className="col-span-2 motion-reduce:animate-none animate-card-item"
+            className="shrink-0 motion-reduce:animate-none animate-card-item"
             style={{ animationDelay: `${DATA_ITEM_DELAY_MS * 3}ms` }}
           >
             {status === 'activo' ? (
@@ -336,6 +338,7 @@ export default function WalletCard({
                 NO PAGADO
               </span>
             )}
+          </div>
           </div>
         </div>
       </div>
