@@ -1380,3 +1380,65 @@ export async function registerFCMToken(token: string): Promise<void> {
     body: JSON.stringify({ token }),
   })
 }
+
+// ========================================
+// Puntos (cantina)
+// ========================================
+
+export interface PuntosConfigResponse {
+  club_id: string
+  monto_base: number
+  puntos: number
+  activo: boolean
+}
+
+export interface PuntosJugadorResponse {
+  jugador_id: string
+  nombre: string
+  apellido: string
+  saldo: number
+}
+
+export interface PuntosCompraResponse {
+  jugador: { nombre: string; apellido: string }
+  monto_compra: number
+  puntos_acreditados: number
+  saldo: number
+}
+
+export interface CanjearCuponConPuntosResponse {
+  data: CuponResponse
+  // null when crediting points failed after the redemption was committed
+  puntos_acreditados: number | null
+  saldo_puntos?: number
+}
+
+// Raw response (no { success, data } wrapper); null when the club has no config
+export async function getPuntosConfig(): Promise<PuntosConfigResponse | null> {
+  const res = await apiFetch('/puntos/config')
+  return res ?? null
+}
+
+export async function getPuntosJugadorPorDni(dni: string): Promise<PuntosJugadorResponse> {
+  return apiFetch(`/puntos/jugador/${encodeURIComponent(dni)}`)
+}
+
+export async function registrarCompraPuntos(dni: string, montoCompra: number): Promise<PuntosCompraResponse> {
+  return apiFetch('/puntos/compra', {
+    method: 'POST',
+    body: JSON.stringify({ dni, monto_compra: montoCompra }),
+  })
+}
+
+// Same endpoint as canjearCupon but keeps the top-level points fields
+export async function canjearCuponConPuntos(id: string, montoCompra: number): Promise<CanjearCuponConPuntosResponse> {
+  const res = await apiFetch(`/cupones/${id}/canjear`, {
+    method: 'POST',
+    body: JSON.stringify({ monto_compra: montoCompra }),
+  })
+  return {
+    data: res.data,
+    puntos_acreditados: res.puntos_acreditados ?? null,
+    saldo_puntos: res.saldo_puntos,
+  }
+}

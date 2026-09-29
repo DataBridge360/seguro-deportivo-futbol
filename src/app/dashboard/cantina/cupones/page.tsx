@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import jsQR from 'jsqr'
-import { buscarCupon, canjearCupon, CuponResponse, getResumenCupones, ResumenCuponesResponse } from '@/lib/api'
+import { buscarCupon, canjearCuponConPuntos, CuponResponse, getResumenCupones, getPuntosConfig, PuntosConfigResponse, ResumenCuponesResponse } from '@/lib/api'
+import CompraSinCuponModal, { calcPuntos, parseMonto } from '@/components/cantina/CompraSinCuponModal'
+import CanjeExitosoModal from '@/components/cantina/CanjeExitosoModal'
 import NotificationModal from '@/components/ui/NotificationModal'
 import DateTimePicker from '@/components/ui/DateTimePicker'
 
@@ -60,6 +62,20 @@ export default function CantinaCajaPage() {
   const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: ModalType }>({
     open: false, title: '', message: '', type: 'success'
   })
+
+  // === Points state ===
+  const [puntosConfig, setPuntosConfig] = useState<PuntosConfigResponse | null>(null)
+  const [showSinCupon, setShowSinCupon] = useState(false)
+  const [canjeResult, setCanjeResult] = useState<{
+    montoDescuento: number
+    montoTotal: number
+    puntosAcreditados: number | null
+    saldoPuntos?: number
+  } | null>(null)
+
+  useEffect(() => {
+    getPuntosConfig().then(setPuntosConfig).catch(() => setPuntosConfig(null))
+  }, [])
 
   // === QR Scanner state ===
   const [scannerActive, setScannerActive] = useState(false)
@@ -258,12 +274,12 @@ export default function CantinaCajaPage() {
     try {
       setLoading(true)
       setError('')
-      const result = await canjearCupon(cupon.id, monto)
-      setNotification({
-        open: true,
-        title: 'Cupon canjeado',
-        message: `Descuento de $${Number(result.monto_descuento).toLocaleString()} aplicado. Total a cobrar: $${Number(result.monto_total).toLocaleString()}`,
-        type: 'success'
+      const result = await canjearCuponConPuntos(cupon.id, monto)
+      setCanjeResult({
+        montoDescuento: Number(result.data.monto_descuento),
+        montoTotal: Number(result.data.monto_total),
+        puntosAcreditados: result.puntos_acreditados,
+        saldoPuntos: result.saldo_puntos,
       })
       // Re-fetch summary immediately after successful canje
       fetchResumen(false)
@@ -454,6 +470,13 @@ export default function CantinaCajaPage() {
                 {error && <p className="text-red-400 text-xs mt-1">{error}</p>}
               </div>
 
+              {calcPuntos(parseMonto(montoCompra), puntosConfig) > 0 && (
+                <p className="text-base font-medium text-primary flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-xl">stars</span>
+                  Suma {calcPuntos(parseMonto(montoCompra), puntosConfig)} puntos
+                </p>
+              )}
+
               {calcDescuento() && (
                 <div className="space-y-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg p-4">
                   <div className="flex justify-between text-sm">
@@ -492,6 +515,14 @@ export default function CantinaCajaPage() {
             </>
           )}
         </div>
+        <button
+          type="button"
+          onClick={() => setShowSinCupon(true)}
+          className="mt-4 w-full h-12 bg-white dark:bg-slate-800 border-2 border-primary text-primary hover:bg-primary/5 rounded-lg text-base font-semibold transition-colors flex items-center justify-center gap-2"
+        >
+          <span className="material-symbols-outlined text-2xl">shopping_bag</span>
+          Compra sin cupón
+        </button>
       </div>
 
       {/* === SHIFT SUMMARY === */}
@@ -677,6 +708,16 @@ export default function CantinaCajaPage() {
         )}
       </div>
 
+      <CompraSinCuponModal isOpen={showSinCupon} onClose={() => setShowSinCupon(false)} config={puntosConfig} />
+      <CanjeExitosoModal
+        isOpen={canjeResult !== null}
+        onClose={() => { setCanjeResult(null); resetForm() }}
+        montoDescuento={canjeResult?.montoDescuento ?? 0}
+        montoTotal={canjeResult?.montoTotal ?? 0}
+        puntosAcreditados={canjeResult ? canjeResult.puntosAcreditados : 0}
+        saldoPuntos={canjeResult?.saldoPuntos}
+        puntosActivos={!!puntosConfig?.activo}
+      />
       <NotificationModal
         isOpen={notification.open}
         onClose={() => { setNotification(prev => ({ ...prev, open: false })); if (notification.type === 'success') resetForm() }}
