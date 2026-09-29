@@ -1,6 +1,7 @@
 'use client'
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import SafeImage from '@/components/ui/SafeImage'
 import { AnuncioResponse, crearAnuncio, eliminarAnuncio, getAnunciosCantina } from '@/lib/api'
 
 const BANNER_WIDTH = 2048
@@ -126,12 +127,28 @@ export default function CantinaAnunciosPage() {
     if (!ctx) return
 
     const { sourceX, sourceY, cropWidth, cropHeight } = getCropRect(image, cropZoom, cropX, cropY)
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, BANNER_WIDTH, BANNER_HEIGHT)
     ctx.drawImage(image, sourceX, sourceY, cropWidth, cropHeight, 0, 0, BANNER_WIDTH, BANNER_HEIGHT)
 
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92))
+    const toBlob = (type: string, quality: number) =>
+      new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, quality))
+
+    let type = 'image/webp'
+    let ext = 'webp'
+    let blob = await toBlob(type, 0.82)
+    if (!blob || blob.type !== type) {
+      type = 'image/jpeg'
+      ext = 'jpg'
+      blob = await toBlob(type, 0.85)
+    }
+    if (blob && blob.size > 1.5 * 1024 * 1024) {
+      const smaller = await toBlob(type, 0.6)
+      if (smaller) blob = smaller
+    }
     if (!blob) return
 
-    const file = new File([blob], `anuncio-${Date.now()}.jpg`, { type: 'image/jpeg' })
+    const file = new File([blob], `anuncio-${Date.now()}.${ext}`, { type: blob.type })
     setImagen(file)
     setCropOpen(false)
   }
@@ -373,7 +390,12 @@ export default function CantinaAnunciosPage() {
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {sortedAnuncios.map((anuncio) => (
               <div key={anuncio.id} className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
-                <img src={anuncio.imagen_url} alt={anuncio.titulo} className="w-full h-[69px] sm:h-[81px] object-cover" />
+                <SafeImage
+                  src={anuncio.imagen_url}
+                  alt={anuncio.titulo}
+                  icon="campaign"
+                  className="w-full h-[69px] sm:h-[81px] object-cover"
+                />
                 <div className="p-4">
                   <h3 className="font-bold text-slate-900 dark:text-white line-clamp-1">{anuncio.titulo}</h3>
                   {anuncio.descripcion && (

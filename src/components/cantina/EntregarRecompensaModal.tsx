@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import SafeImage from '@/components/ui/SafeImage'
 import {
   anularPuntosCanje,
   entregarPuntosCanje,
@@ -161,11 +162,12 @@ function Inner({ onClose }: { onClose: () => void }) {
           <>
             <div className="flex gap-4">
               <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-700">
-                {canje.recompensa?.imagen_url ? (
-                  <img src={canje.recompensa.imagen_url} alt="" className="size-full object-cover" />
-                ) : (
-                  <span className="material-symbols-outlined text-5xl text-slate-400">redeem</span>
-                )}
+                <SafeImage
+                  src={canje.recompensa?.imagen_url}
+                  icon="redeem"
+                  iconClassName="text-5xl"
+                  className="size-full object-cover"
+                />
               </div>
               <div className="min-w-0 flex-1 space-y-1">
                 <h3 className="break-words text-lg font-bold text-slate-900 dark:text-white">

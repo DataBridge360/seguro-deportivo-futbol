@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import SafeImage from '@/components/ui/SafeImage'
 import { useParams } from 'next/navigation'
 import { AnuncioResponse, getAnuncio } from '@/lib/api'
 
@@ -39,9 +40,11 @@ export default function AnuncioDetallePage() {
   return (
     <article className="space-y-5">
       <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm">
-        <img
+        <SafeImage
           src={anuncio.imagen_url}
           alt={anuncio.titulo}
+          icon="campaign"
+          iconClassName="text-5xl"
           className="w-full aspect-[16/9] object-cover"
         />
       </div>

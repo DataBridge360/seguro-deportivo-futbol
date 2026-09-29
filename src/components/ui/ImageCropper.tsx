@@ -16,6 +16,7 @@ const MAX_BYTES = 2 * 1024 * 1024
 const MAX_ZOOM = 4
 
 interface Loaded {
+  file: File
   img: HTMLImageElement
   w: number
   h: number
@@ -50,8 +51,11 @@ export default function ImageCropper({ file, aspect = 1, onConfirm, onCancel }: 
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const pinchDist = useRef(0)
 
-  const [loaded, setLoaded] = useState<Loaded | null>(null)
-  const [loadError, setLoadError] = useState('')
+  // Load results are keyed by file so a new file never shows the previous result
+  const [loadedState, setLoaded] = useState<Loaded | null>(null)
+  const [loadErrorState, setLoadError] = useState<{ file: File; message: string } | null>(null)
+  const loaded = loadedState && loadedState.file === file ? loadedState : null
+  const loadError = loadErrorState && loadErrorState.file === file ? loadErrorState.message : ''
   const [zoom, setZoom] = useState(1)
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [frameW, setFrameW] = useState(280)
@@ -64,17 +68,27 @@ export default function ImageCropper({ file, aspect = 1, onConfirm, onCancel }: 
   // Load the picked file as an image; state is only set from async callbacks
   useEffect(() => {
     if (!validType) return
+    // StrictMode runs this effect twice: ignore results from the cancelled run
+    let cancelled = false
     const url = URL.createObjectURL(file)
     const img = new Image()
     img.onload = () => {
-      setLoaded({ img, w: img.naturalWidth, h: img.naturalHeight })
+      if (cancelled) return
+      setLoaded({ file, img, w: img.naturalWidth, h: img.naturalHeight })
       zoomRef.current = 1
       setZoom(1)
       setOffset({ x: 0, y: 0 })
+      setError('')
     }
-    img.onerror = () => setLoadError('No pudimos abrir esa imagen. Probá con otra.')
+    img.onerror = () => {
+      if (cancelled) return
+      setLoadError({ file, message: 'No pudimos abrir esa imagen. Probá con otra.' })
+    }
     img.src = url
     return () => {
+      cancelled = true
+      img.onload = null
+      img.onerror = null
       URL.revokeObjectURL(url)
     }
   }, [file, validType])

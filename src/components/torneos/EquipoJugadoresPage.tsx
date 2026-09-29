@@ -12,6 +12,7 @@ import {
 } from '@/lib/api'
 import type { DelegadoEquipo, JugadorBusqueda } from '@/lib/api'
 import type { Inscripcion, JugadorEquipoTorneo } from '@/types/club'
+import SafeImage from '@/components/ui/SafeImage'
 import NotificationModal from '@/components/ui/NotificationModal'
 import { useAuthStore } from '@/stores/authStore'
 import { formatDateOnly, matchesSearch, normalizeSearch } from '@/lib/utils'
@@ -453,11 +454,12 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
 
         <div className="flex items-center gap-3">
           <div className="w-14 h-14 shrink-0 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden border border-primary/20">
-            {inscripcion?.equipo_logo_url ? (
-              <img src={inscripcion.equipo_logo_url} alt={inscripcion.equipo_nombre} className="w-full h-full object-cover" />
-            ) : (
-              <span className="material-symbols-outlined text-3xl text-primary">shield</span>
-            )}
+            <SafeImage
+              src={inscripcion?.equipo_logo_url}
+              alt={inscripcion?.equipo_nombre}
+              className="w-full h-full object-cover"
+              fallback={<span className="material-symbols-outlined text-3xl text-primary">shield</span>}
+            />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -702,13 +704,13 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
               {jugadoresFiltrados.map((jugador) => (
                 <div key={jugador.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-900 rounded-xl ring-1 ring-slate-200/70 dark:ring-white/10">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    {jugador.foto_url ? (
-                      <img src={jugador.foto_url} alt={jugador.nombre_completo} className="w-10 h-10 rounded-full object-cover shrink-0" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0">
-                        <span className="material-symbols-outlined text-lg text-slate-400">person</span>
-                      </div>
-                    )}
+                    <SafeImage
+                      src={jugador.foto_url}
+                      alt={jugador.nombre_completo}
+                      icon="person"
+                      iconClassName="text-lg"
+                      className="w-10 h-10 rounded-full object-cover shrink-0"
+                    />
                     <div className="min-w-0 flex-1">
                       <p className="text-base font-semibold text-slate-900 dark:text-white flex items-center gap-1.5 flex-wrap">
                         <span className="break-words min-w-0">{jugador.nombre_completo}</span>

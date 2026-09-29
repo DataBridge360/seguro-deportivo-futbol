@@ -11,6 +11,7 @@ import {
   type PuntosCategoria,
   type PuntosRecompensa,
 } from '@/lib/api'
+import SafeImage from '@/components/ui/SafeImage'
 import ImageCropper from '@/components/ui/ImageCropper'
 import {
   ConfirmModal,
@@ -38,13 +39,7 @@ function stockLabel(stock: number | null): string {
 }
 
 function Thumb({ src, className }: { src: string | null; className: string }) {
-  return src ? (
-    <img src={src} alt="" className={`${className} object-cover`} />
-  ) : (
-    <span className={`${className} flex items-center justify-center bg-slate-100 text-slate-400 dark:bg-slate-700`}>
-      <span className="material-symbols-outlined text-3xl">redeem</span>
-    </span>
-  )
+  return <SafeImage src={src} icon="redeem" className={`${className} object-cover`} />
 }
 
 function RecompensaModal({

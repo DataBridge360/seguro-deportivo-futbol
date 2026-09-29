@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createEquipo, uploadEquipoLogo, getCategorias } from '@/lib/api'
 import { compressImage } from '@/lib/imageUtils'
 import type { Categoria } from '@/types/club'
+import SafeImage from '@/components/ui/SafeImage'
 import NotificationModal from '@/components/ui/NotificationModal'
 
 interface Props {
@@ -145,7 +146,7 @@ export default function NuevoEquipoForm({ basePath }: Props) {
             </label>
             {imagePreview ? (
               <div className="flex items-center gap-3">
-                <img src={imagePreview} alt="Preview" className="w-12 h-12 rounded-lg object-cover" />
+                <SafeImage src={imagePreview} alt="Preview" icon="shield" iconClassName="text-xl" className="w-12 h-12 rounded-lg object-cover" />
                 <div>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     {imageFile ? `${(imageFile.size / 1024).toFixed(0)} KB` : ''}

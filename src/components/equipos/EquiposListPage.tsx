@@ -9,6 +9,7 @@ import {
 import { compressImage } from '@/lib/imageUtils'
 import { matchesSearch } from '@/lib/utils'
 import type { Equipo, Categoria } from '@/types/club'
+import SafeImage from '@/components/ui/SafeImage'
 import NotificationModal from '@/components/ui/NotificationModal'
 
 interface Props {
@@ -534,13 +535,13 @@ export default function EquiposListPage({ basePath }: Props) {
                   className="bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-4 cursor-pointer hover:border-primary/40 transition-colors group"
                 >
                   <div className="flex items-center gap-3">
-                    {equipo.logo_url ? (
-                      <img src={equipo.logo_url} alt={equipo.nombre} className="w-10 h-10 rounded-lg object-cover" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-lg bg-white dark:bg-slate-800 flex items-center justify-center">
-                        <span className="material-symbols-outlined text-xl text-slate-400">shield</span>
-                      </div>
-                    )}
+                    <SafeImage
+                      src={equipo.logo_url}
+                      alt={equipo.nombre}
+                      icon="shield"
+                      iconClassName="text-xl"
+                      className="w-10 h-10 rounded-lg object-cover"
+                    />
                     <div className="flex-1 min-w-0">
                       <h3 className="text-sm font-semibold text-slate-900 dark:text-white truncate">{equipo.nombre}</h3>
                       {equipo.categorias && equipo.categorias.length > 0 && (
@@ -619,7 +620,7 @@ export default function EquiposListPage({ basePath }: Props) {
               <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1">Logo</label>
               <div className="flex items-center gap-3">
                 {(editImagePreview || editModal.logo_url) ? (
-                  <img src={editImagePreview || editModal.logo_url || ''} alt="Logo" className="w-12 h-12 rounded-lg object-cover" />
+                  <SafeImage src={editImagePreview || editModal.logo_url} alt="Logo" icon="shield" iconClassName="text-xl" className="w-12 h-12 rounded-lg object-cover" />
                 ) : (
                   <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-900 flex items-center justify-center">
                     <span className="material-symbols-outlined text-xl text-slate-400">shield</span>

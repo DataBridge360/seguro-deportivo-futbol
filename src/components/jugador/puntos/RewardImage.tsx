@@ -1,3 +1,5 @@
+import SafeImage from '@/components/ui/SafeImage'
+
 export default function RewardImage({
   src,
   alt,
@@ -13,13 +15,17 @@ export default function RewardImage({
     <div
       className={`flex shrink-0 items-center justify-center overflow-hidden bg-primary/10 text-primary dark:bg-primary/20 dark:text-sky-300 ${className}`}
     >
-      {src ? (
-        <img src={src} alt={alt} className="size-full object-cover" loading="lazy" />
-      ) : (
-        <span className={`material-symbols-outlined ${iconClass}`} aria-hidden>
-          redeem
-        </span>
-      )}
+      <SafeImage
+        src={src}
+        alt={alt}
+        loading="lazy"
+        className="size-full object-cover"
+        fallback={
+          <span className={`material-symbols-outlined ${iconClass}`} aria-hidden>
+            redeem
+          </span>
+        }
+      />
     </div>
   )
 }
