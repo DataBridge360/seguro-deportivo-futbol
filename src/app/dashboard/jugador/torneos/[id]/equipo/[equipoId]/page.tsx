@@ -739,14 +739,8 @@ export default function JugadorEquipoDetailPage() {
                                   : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700/50'
                               }`}
                             >
-                              <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 transition-colors border-2 ${
-                                seleccionado
-                                  ? 'bg-primary border-primary'
-                                  : 'border-slate-300 dark:border-slate-600'
-                              }`}>
-                                {seleccionado && (
-                                  <span className="material-symbols-outlined text-white text-sm" style={{ fontVariationSettings: "'wght' 700" }}>check</span>
-                                )}
+                              <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 text-sm font-bold text-slate-600 dark:text-slate-300" aria-hidden="true">
+                                {(j.nombre?.[0] ?? j.apellido?.[0] ?? '?').toUpperCase()}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-base font-semibold text-slate-900 dark:text-white truncate">
@@ -754,6 +748,15 @@ export default function JugadorEquipoDetailPage() {
                                 </p>
                                 <p className="text-sm font-mono text-slate-500 dark:text-slate-400">{j.dni}</p>
                               </div>
+                              <span
+                                role="img"
+                                aria-label={seleccionado ? `Quitar ${j.apellido}, ${j.nombre} de la selección` : `Agregar ${j.apellido}, ${j.nombre}`}
+                                className={`size-11 rounded-full text-white flex items-center justify-center shrink-0 active:scale-95 transition-all ${
+                                  seleccionado ? 'bg-emerald-500' : 'bg-primary'
+                                }`}
+                              >
+                                <span className="material-symbols-outlined text-2xl" aria-hidden="true">{seleccionado ? 'check' : 'add'}</span>
+                              </span>
                             </button>
                           )
                         })}

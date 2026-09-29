@@ -940,10 +940,16 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
                             <span className="material-symbols-outlined text-sm text-slate-500">person</span>
                           </div>
                           <div className="min-w-0 flex-1">
-                            <p className="text-base font-semibold text-slate-900 dark:text-white">{j.apellido}, {j.nombre}</p>
+                            <p className="text-base font-semibold text-slate-900 dark:text-white truncate">{j.apellido}, {j.nombre}</p>
                             <p className="text-sm text-slate-500 dark:text-slate-400">DNI: {j.dni}</p>
                           </div>
-                          <span className="material-symbols-outlined text-primary text-lg shrink-0">add_circle</span>
+                          <span
+                            role="img"
+                            aria-label={`Agregar ${j.apellido}, ${j.nombre}`}
+                            className="size-11 rounded-full bg-primary text-white flex items-center justify-center shrink-0 active:scale-95 transition-transform"
+                          >
+                            <span className="material-symbols-outlined text-2xl" aria-hidden="true">add</span>
+                          </span>
                         </button>
                       )
                     })}
