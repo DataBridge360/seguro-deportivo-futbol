@@ -33,13 +33,32 @@ const PODIUM = [
   },
 ]
 
-function ApoyarIcon() {
+// Round plus button used to support a team
+function ApoyarButton({
+  equipo,
+  onApoyar,
+  className,
+}: {
+  equipo: RankingEquipoPuntos
+  onApoyar: (e: RankingEquipoPuntos) => void
+  className: string
+}) {
   return (
-    <span className="material-symbols-outlined text-lg" aria-hidden>
-      add
-    </span>
+    <button
+      type="button"
+      onClick={() => onApoyar(equipo)}
+      aria-label={`Apoyar a ${equipo.equipo_nombre}`}
+      className={`flex size-11 shrink-0 items-center justify-center rounded-full border transition-transform active:scale-95 ${className}`}
+    >
+      <span className="material-symbols-outlined text-2xl font-bold" aria-hidden>
+        add
+      </span>
+    </button>
   )
 }
+
+const SOFT_BTN =
+  'border-slate-300 bg-slate-100 text-slate-800 hover:bg-slate-200 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600'
 
 function PodiumItem({
   equipo,
@@ -59,10 +78,10 @@ function PodiumItem({
         highlight ? 'ring-4 ring-emerald-400' : ''
       }`}
     >
-      <div className="relative mb-2">
+      <div className="relative mb-1.5">
         <TeamLogo src={equipo.equipo_logo_url} name={equipo.equipo_nombre} className={s.logo} />
         <span
-          className={`absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full px-2.5 py-0.5 text-xs font-extrabold ${s.badge}`}
+          className={`absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-full px-2 py-0.5 text-xs font-extrabold ring-2 ring-white dark:ring-slate-800 ${s.badge}`}
         >
           {equipo.posicion}°
         </span>
@@ -75,15 +94,7 @@ function PodiumItem({
       <p className="text-base font-bold tabular-nums text-slate-700 dark:text-slate-200">
         <AnimatedNumber value={equipo.total} /> <span className="text-xs font-semibold">pts</span>
       </p>
-      <button
-        type="button"
-        onClick={() => onApoyar(equipo)}
-        aria-label={`Apoyar a ${equipo.equipo_nombre}`}
-        className={`flex min-h-11 w-full items-center justify-center gap-1 rounded-full border px-2 text-sm font-bold transition-colors ${s.btn}`}
-      >
-        <ApoyarIcon />
-        Apoyar
-      </button>
+      <ApoyarButton equipo={equipo} onApoyar={onApoyar} className={s.btn} />
     </article>
   )
 }
@@ -128,14 +139,16 @@ function Row({
 }) {
   return (
     <li
-      className={`flex items-center gap-3 py-3.5 transition-colors duration-500 ${
+      className={`flex items-center gap-3 py-3 transition-colors duration-500 ${
         highlight ? 'bg-emerald-50 dark:bg-emerald-500/15' : ''
       }`}
     >
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-700 dark:bg-slate-700 dark:text-slate-200">
-        {equipo.posicion}
-      </span>
-      <TeamLogo src={equipo.equipo_logo_url} name={equipo.equipo_nombre} className="size-12" />
+      <div className="relative shrink-0">
+        <TeamLogo src={equipo.equipo_logo_url} name={equipo.equipo_nombre} className="size-12" />
+        <span className="absolute -bottom-1 -left-1 flex size-6 items-center justify-center rounded-full bg-slate-700 text-xs font-bold text-white ring-2 ring-white dark:bg-slate-200 dark:text-slate-900 dark:ring-slate-900">
+          {equipo.posicion}
+        </span>
+      </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-base font-semibold text-slate-900 dark:text-white">{equipo.equipo_nombre}</p>
         {equipo.categoria_nombre && (
@@ -145,15 +158,7 @@ function Row({
       <p className="shrink-0 text-base font-bold tabular-nums text-slate-800 dark:text-slate-100">
         <AnimatedNumber value={equipo.total} /> <span className="text-xs font-semibold">pts</span>
       </p>
-      <button
-        type="button"
-        onClick={() => onApoyar(equipo)}
-        aria-label={`Apoyar a ${equipo.equipo_nombre}`}
-        className="flex min-h-11 shrink-0 items-center gap-1 rounded-full border border-slate-300 bg-slate-100 px-3 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-200 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
-      >
-        <ApoyarIcon />
-        Apoyar
-      </button>
+      <ApoyarButton equipo={equipo} onApoyar={onApoyar} className={SOFT_BTN} />
     </li>
   )
 }
@@ -172,7 +177,7 @@ function Slide({
   return (
     <section
       aria-label={torneo.torneo_nombre}
-      className="w-full shrink-0 snap-center snap-always space-y-3 self-start px-0.5"
+      className="w-full shrink-0 snap-center snap-always space-y-3 self-start px-2"
     >
       {torneo.equipos.length === 0 ? (
         <p className="py-6 text-center text-base text-slate-600 dark:text-slate-300">Todavía no hay equipos en este torneo</p>
