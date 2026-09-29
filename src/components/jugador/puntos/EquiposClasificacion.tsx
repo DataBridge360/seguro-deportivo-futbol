@@ -177,7 +177,7 @@ function Slide({
 }
 
 export default function EquiposClasificacion() {
-  const { ranking, status, highlightId } = useRankingStream()
+  const { ranking, highlightId } = useRankingStream()
   const [picked, setPicked] = useState<string | null>(null)
   const [target, setTarget] = useState<RankingEquipoPuntos | null>(null)
   const [saldo, setSaldo] = useState<number | undefined>(undefined)
@@ -195,7 +195,6 @@ export default function EquiposClasificacion() {
     0,
     torneos.findIndex(t => t.torneo_id === activeId)
   )
-  const live = status === 'live'
   const multi = torneos.length > 1
 
   useEffect(() => {
@@ -246,13 +245,6 @@ export default function EquiposClasificacion() {
     <div className="mx-auto max-w-2xl space-y-4">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Apoyá a tu equipo</h1>
-        <span role="status" className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-          <span className="relative flex size-2">
-            {live && <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-75" />}
-            <span className={`relative inline-flex size-2 rounded-full ${live ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-          </span>
-          {live ? 'En vivo' : 'Reconectando…'}
-        </span>
       </div>
 
       <p className="flex items-start gap-2 text-base text-slate-600 dark:text-slate-300">
@@ -260,14 +252,14 @@ export default function EquiposClasificacion() {
           info
         </span>
         <span>
-          Son puntos que la gente les regala a los equipos para apoyarlos. No cuentan para el torneo: el club premia a los
+          Son puntos que la gente les da a los equipos en forma de apoyo. No cuentan para el torneo: el club premia a los
           equipos que más puntos juntan.
         </span>
       </p>
 
       {saldo !== undefined && (
         <p className="text-sm text-slate-600 dark:text-slate-300">
-          Tenés <span className="font-bold text-slate-900 dark:text-white">{fmt(saldo)}</span> puntos para regalar
+          Tenés <span className="font-bold text-slate-900 dark:text-white">{fmt(saldo)}</span> puntos para dar en forma de apoyo
         </p>
       )}
 

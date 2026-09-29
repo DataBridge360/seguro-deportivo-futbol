@@ -9,7 +9,6 @@ import Link from 'next/link'
 import { getMisAnuncios, getMisCupones, AnuncioResponse, CuponResponse } from '@/lib/api'
 import WalletCard from '@/components/jugador/WalletCard'
 import PuntosResumenCard from '@/components/jugador/PuntosResumenCard'
-import ApoyarAviso from '@/components/jugador/puntos/ApoyarAviso'
 
 const couponTextColor = {
   amber: 'text-amber-600 dark:text-amber-400',
@@ -149,9 +148,10 @@ function JugadorDashboard() {
     href?: string
     external?: boolean
     badge?: string
+    featured?: boolean
     onClick?: () => void
   }[] = [
-    { icon: 'qr_code_2', label: 'Mi QR', tint: 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-sky-300', onClick: () => setShowQR(true) },
+    { icon: 'favorite', label: 'Apoyá', tint: 'bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-300', href: '/dashboard/jugador/puntos/equipos', featured: true },
     { icon: 'confirmation_number', label: 'Cupones', tint: 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400', href: '/dashboard/jugador/cupones' },
     { icon: 'health_and_safety', label: 'Pedir seguro', tint: 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400', href: WHATSAPP_SEGURO_URL, external: true },
     { icon: 'stars', label: 'Puntos', tint: 'bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300', href: '/dashboard/jugador/puntos' },
@@ -175,13 +175,14 @@ function JugadorDashboard() {
 
         <PuntosResumenCard />
 
-        <ApoyarAviso />
-
         {/* Quick actions */}
         <div className="grid grid-cols-4 gap-2">
           {quickActions.map((action) => {
-            const tileClass =
-              'relative flex min-w-0 flex-col items-center gap-2 rounded-2xl bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-white/10 px-1 py-3 shadow-sm transition-transform active:scale-95'
+            const tileClass = `relative flex min-w-0 flex-col items-center gap-2 rounded-2xl px-1 py-3 shadow-sm transition-transform active:scale-95 ${
+              action.featured
+                ? 'bg-rose-50 ring-2 ring-rose-300/70 dark:bg-rose-500/10 dark:ring-rose-400/40'
+                : 'bg-white ring-1 ring-slate-200/70 dark:bg-slate-800 dark:ring-white/10'
+            }`
             const content = (
               <>
                 {action.badge && (
@@ -190,7 +191,12 @@ function JugadorDashboard() {
                   </span>
                 )}
                 <span className={`flex size-11 items-center justify-center rounded-full ${action.tint}`}>
-                  <span className="material-symbols-outlined text-[24px]">{action.icon}</span>
+                  <span
+                    className="material-symbols-outlined text-[24px]"
+                    style={action.featured ? { fontVariationSettings: "'FILL' 1" } : undefined}
+                  >
+                    {action.icon}
+                  </span>
                 </span>
                 <span className="w-full truncate text-center text-xs font-semibold text-slate-700 dark:text-slate-200">
                   {action.label}

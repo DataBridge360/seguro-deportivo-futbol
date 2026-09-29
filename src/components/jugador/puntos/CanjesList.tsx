@@ -8,7 +8,6 @@ import {
   type PuntosCanjeEstado,
 } from '@/lib/api'
 import { ErrorNote, Modal, Spinner, dangerBtnCls, errMsg, fmt, formatDateTime, secondaryBtnCls } from '@/components/club/puntos/ui'
-import BackToPuntos from './BackToPuntos'
 import CanjeQr from './CanjeQr'
 import RewardImage from './RewardImage'
 
@@ -124,7 +123,6 @@ export default function CanjesList() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
-      <BackToPuntos />
       <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Mis canjes</h1>
 
       <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1" role="group" aria-label="Filtrar canjes">

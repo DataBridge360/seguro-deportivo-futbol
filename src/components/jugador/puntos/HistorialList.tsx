@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { getMisMovimientosPuntos, getMiSaldoPuntos, type PuntosMovimiento, type PuntosMovimientoTipo } from '@/lib/api'
 import { errMsg, fmt } from '@/components/club/puntos/ui'
-import BackToPuntos from './BackToPuntos'
 
 const PAGE_SIZE = 20
 
@@ -108,7 +107,6 @@ export default function HistorialList() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-5">
-      <BackToPuntos />
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Historial</h1>
         {saldo !== null && (
