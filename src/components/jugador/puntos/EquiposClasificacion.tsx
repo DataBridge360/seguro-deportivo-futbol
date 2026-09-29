@@ -8,24 +8,30 @@ import ApoyarEquipoModal from './ApoyarEquipoModal'
 import { AnimatedNumber } from './AnimatedNumber'
 import TeamLogo from './TeamLogo'
 
-// Visual order is 2nd, 1st, 3rd; index is the place (0 = first)
+// Index is the place (0 = first)
 const PODIUM = [
   {
     badge: 'bg-amber-500 text-white',
-    box: 'border-2 border-amber-400 bg-gradient-to-b from-amber-50 to-white shadow-md -translate-y-4 dark:from-amber-500/15 dark:to-slate-800',
+    box: 'border-2 border-amber-400 bg-gradient-to-b from-amber-50 to-white p-4 shadow-md dark:from-amber-500/15 dark:to-slate-800',
     logo: 'size-20 border-2 border-amber-400',
+    name: 'text-lg',
+    pts: 'text-base',
     btn: 'bg-amber-500 text-white hover:bg-amber-600 border border-amber-500',
   },
   {
     badge: 'bg-slate-200 text-slate-700 dark:bg-slate-600 dark:text-slate-100',
-    box: 'border-2 border-slate-400 bg-white shadow-sm dark:border-slate-400 dark:bg-slate-800',
+    box: 'border-2 border-slate-400 bg-white p-3 shadow-sm dark:border-slate-400 dark:bg-slate-800',
     logo: 'size-16 border-2 border-slate-400',
+    name: 'text-base',
+    pts: 'text-sm',
     btn: 'bg-slate-100 text-slate-800 border border-slate-300 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:border-slate-500 dark:hover:bg-slate-600',
   },
   {
     badge: 'bg-orange-100 text-orange-800 dark:bg-orange-500/20 dark:text-orange-200',
-    box: 'border-2 border-orange-600 bg-white shadow-sm dark:border-orange-500 dark:bg-slate-800',
+    box: 'border-2 border-orange-600 bg-white p-3 shadow-sm dark:border-orange-500 dark:bg-slate-800',
     logo: 'size-16 border-2 border-orange-600',
+    name: 'text-base',
+    pts: 'text-sm',
     btn: 'bg-slate-100 text-slate-800 border border-slate-300 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:border-slate-500 dark:hover:bg-slate-600',
   },
 ]
@@ -52,16 +58,16 @@ function PodiumItem({
   const s = PODIUM[place]
   return (
     <article
-      className={`flex min-w-0 flex-col items-center gap-1.5 rounded-2xl p-2 pt-3 text-center transition-all duration-500 ${s.box} ${
+      className={`flex min-w-0 flex-col items-center gap-2 rounded-2xl text-center transition-all duration-500 ${s.box} ${
         highlight ? 'ring-4 ring-emerald-400' : ''
       }`}
     >
       <span className={`rounded-full px-2.5 py-0.5 text-sm font-extrabold ${s.badge}`}>{equipo.posicion}°</span>
       <TeamLogo src={equipo.equipo_logo_url} name={equipo.equipo_nombre} className={s.logo} />
-      <p className="line-clamp-2 min-h-8 w-full break-words text-sm font-bold leading-tight text-slate-900 dark:text-white">
+      <p className={`line-clamp-2 w-full break-words font-bold leading-tight text-slate-900 dark:text-white ${s.name}`}>
         {equipo.equipo_nombre}
       </p>
-      <p className="text-sm font-semibold tabular-nums text-slate-600 dark:text-slate-300">
+      <p className={`font-semibold tabular-nums text-slate-600 dark:text-slate-300 ${s.pts}`}>
         <AnimatedNumber value={equipo.total} /> pts
       </p>
       <button
@@ -87,19 +93,24 @@ function Podium({
   onApoyar: (e: RankingEquipoPuntos) => void
 }) {
   const top = equipos.slice(0, 3)
-  const order = [1, 0, 2].filter(i => top[i])
+  const item = (i: number) => (
+    <PodiumItem
+      key={top[i].torneo_equipo_id}
+      equipo={top[i]}
+      place={i}
+      highlight={highlightId === top[i].torneo_equipo_id}
+      onApoyar={onApoyar}
+    />
+  )
   return (
-    <div className="grid grid-cols-3 items-end gap-2 pt-4">
-      {order.map(i => (
-        <div key={top[i].torneo_equipo_id} className={i === 1 ? 'col-start-1' : i === 0 ? 'col-start-2' : 'col-start-3'}>
-          <PodiumItem
-            equipo={top[i]}
-            place={i}
-            highlight={highlightId === top[i].torneo_equipo_id}
-            onApoyar={onApoyar}
-          />
+    <div className="space-y-4">
+      {top[0] && <div className="mx-auto w-full max-w-sm">{item(0)}</div>}
+      {top[1] && (
+        <div className="grid grid-cols-2 items-stretch gap-4">
+          {item(1)}
+          {top[2] && item(2)}
         </div>
-      ))}
+      )}
     </div>
   )
 }
@@ -287,7 +298,7 @@ export default function EquiposClasificacion() {
                     role="tab"
                     aria-selected={active}
                     onClick={() => selectTorneo(t.torneo_id, i)}
-                    className={`min-h-11 min-w-fit flex-1 whitespace-nowrap rounded-xl px-4 text-base transition-colors ${
+                    className={`min-h-11 min-w-fit flex-1 whitespace-nowrap rounded-xl px-4 text-sm sm:text-base transition-colors ${
                       active
                         ? 'bg-white font-bold text-slate-900 shadow-sm dark:bg-slate-600 dark:text-white'
                         : 'font-semibold text-slate-500 dark:text-slate-400'

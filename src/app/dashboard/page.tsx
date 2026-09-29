@@ -151,7 +151,7 @@ function JugadorDashboard() {
     featured?: boolean
     onClick?: () => void
   }[] = [
-    { icon: 'favorite', label: 'Apoyá', tint: 'bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-300', href: '/dashboard/jugador/puntos/equipos', featured: true },
+    { icon: 'emoji_events', label: 'Apoyá a tu equipo', tint: 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400', href: '/dashboard/jugador/puntos/equipos', featured: true },
     { icon: 'confirmation_number', label: 'Cupones', tint: 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400', href: '/dashboard/jugador/cupones' },
     { icon: 'health_and_safety', label: 'Pedir seguro', tint: 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400', href: WHATSAPP_SEGURO_URL, external: true },
     { icon: 'stars', label: 'Puntos', tint: 'bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300', href: '/dashboard/jugador/puntos' },
@@ -180,7 +180,7 @@ function JugadorDashboard() {
           {quickActions.map((action) => {
             const tileClass = `relative flex min-w-0 flex-col items-center gap-2 rounded-2xl px-1 py-3 shadow-sm transition-transform active:scale-95 ${
               action.featured
-                ? 'bg-rose-50 ring-2 ring-rose-300/70 dark:bg-rose-500/10 dark:ring-rose-400/40'
+                ? 'bg-amber-50 ring-2 ring-amber-300/70 dark:bg-amber-500/10 dark:ring-amber-400/40'
                 : 'bg-white ring-1 ring-slate-200/70 dark:bg-slate-800 dark:ring-white/10'
             }`
             const content = (
@@ -198,7 +198,11 @@ function JugadorDashboard() {
                     {action.icon}
                   </span>
                 </span>
-                <span className="w-full truncate text-center text-xs font-semibold text-slate-700 dark:text-slate-200">
+                <span
+                  className={`w-full text-center text-xs font-semibold text-slate-700 dark:text-slate-200 ${
+                    action.featured ? 'line-clamp-2 leading-tight' : 'truncate'
+                  }`}
+                >
                   {action.label}
                 </span>
               </>

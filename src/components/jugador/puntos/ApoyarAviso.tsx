@@ -8,13 +8,13 @@ export default function ApoyarAviso() {
       className="flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white p-3.5 shadow-sm transition-transform active:scale-[0.99] dark:border-slate-700 dark:bg-slate-800"
     >
       <span className="flex min-w-0 items-center gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-rose-100 bg-rose-50 dark:border-rose-500/20 dark:bg-rose-500/10">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-amber-200 bg-amber-100 dark:border-amber-500/20 dark:bg-amber-500/20">
           <span
-            className="material-symbols-outlined text-xl text-rose-500"
+            className="material-symbols-outlined text-xl text-amber-600 dark:text-amber-400"
             style={{ fontVariationSettings: "'FILL' 1" }}
             aria-hidden
           >
-            favorite
+            emoji_events
           </span>
         </span>
         <span className="min-w-0">

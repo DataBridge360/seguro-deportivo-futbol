@@ -3,10 +3,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { apoyarEquipoPuntos, getApoyarPuntos, type ApoyarEquipoResponse, type RankingEquipoPuntos } from '@/lib/api'
 import { ErrorNote, Modal, Spinner, errMsg, fmt, primaryBtnCls } from '@/components/club/puntos/ui'
+import Confetti from '@/components/ui/Confetti'
+import ApoyoExitoIlustracion from './ApoyoExitoIlustracion'
 import TeamLogo from './TeamLogo'
 
 const STEP = 10
 const MAX_POINTS = 1000000
+const SUCCESS_MS = 3500
 
 const roundBtnCls =
   'flex size-12 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
@@ -52,7 +55,7 @@ export default function ApoyarEquipoModal({
 
   useEffect(() => {
     if (!result) return
-    const t = setTimeout(() => closeRef.current(), 1500)
+    const t = setTimeout(() => closeRef.current(), SUCCESS_MS)
     return () => clearTimeout(t)
   }, [result])
 
@@ -80,7 +83,7 @@ export default function ApoyarEquipoModal({
     const nombre = result.equipo_nombre || equipo.equipo_nombre
     return (
       <Modal
-        title="¡Gracias por apoyar!"
+        title="¡Apoyo enviado!"
         onClose={onClose}
         footer={
           <button type="button" onClick={onClose} className={`${primaryBtnCls} w-full`}>
@@ -88,17 +91,12 @@ export default function ApoyarEquipoModal({
           </button>
         }
       >
-        <div className="flex flex-col items-center gap-3 py-4 text-center">
-          <span
-            className="material-symbols-outlined text-7xl text-emerald-500 transition duration-500 starting:scale-50 starting:opacity-0"
-            style={{ fontVariationSettings: "'FILL' 1" }}
-            aria-hidden
-          >
-            check_circle
-          </span>
-          <p className="text-xl font-bold text-slate-900 dark:text-white">¡Gracias por apoyar a {nombre}!</p>
+        <Confetti fire />
+        <div className="flex flex-col items-center gap-2 py-2 text-center">
+          <ApoyoExitoIlustracion />
+          <p className="text-xl font-bold text-slate-900 dark:text-white">¡Gracias por tu apoyo!</p>
           <p className="text-base text-slate-600 dark:text-slate-300">
-            Le diste {fmt(result.puntos)} puntos. Te quedan {fmt(result.saldo)}.
+            {fmt(result.puntos)} puntos para {nombre}
           </p>
         </div>
       </Modal>

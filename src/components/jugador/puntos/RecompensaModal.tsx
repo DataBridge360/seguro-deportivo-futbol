@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { canjearRecompensaPuntos, type CanjearRecompensaResponse, type PuntosCatalogoRecompensa } from '@/lib/api'
 import { ErrorNote, Modal, Spinner, errMsg, fmt, primaryBtnCls, secondaryBtnCls } from '@/components/club/puntos/ui'
+import Confetti from '@/components/ui/Confetti'
 import CanjeQr from './CanjeQr'
 import RewardImage from './RewardImage'
 
@@ -65,6 +66,7 @@ export default function RecompensaModal({
           </>
         }
       >
+        <Confetti fire />
         <p className="text-center text-lg font-bold text-slate-900 dark:text-white">{result.recompensa.titulo}</p>
         <CanjeQr codigo={result.codigo} />
         <p className="rounded-xl bg-primary/10 p-3 text-center text-base font-semibold text-primary dark:bg-primary/20 dark:text-sky-300">
