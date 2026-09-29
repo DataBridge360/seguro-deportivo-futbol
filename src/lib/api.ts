@@ -1976,3 +1976,66 @@ export async function apoyarEquipoPuntos(torneoEquipoId: string, puntos: number)
     equipo_nombre: res.equipo_nombre ?? '',
   }
 }
+
+// ========================================
+// Puntos (cantina: deliver a reward by code) and jugador saldo with active promotion
+// Raw responses; numeric columns may arrive as strings
+// ========================================
+
+export interface CanjePorCodigo {
+  id: string
+  codigo: string
+  estado: PuntosCanjeEstado
+  costo_puntos: number
+  created_at: string
+  entregado_at: string | null
+  recompensa: { titulo: string; imagen_url: string | null } | null
+  jugador: { nombre: string; apellido: string; dni: string } | null
+}
+
+export interface EntregarCanjeResponse {
+  id: string
+  codigo: string
+  estado: PuntosCanjeEstado
+  entregado_at: string | null
+}
+
+export interface MiSaldoConPromocionResponse {
+  saldo: number
+  promocion_activa: PuntosPromocionActiva | null
+}
+
+export async function getCanjePorCodigo(codigo: string): Promise<CanjePorCodigo> {
+  const res = await apiFetch(`/puntos/canjes/codigo/${encodeURIComponent(codigo)}`)
+  return {
+    id: res.id,
+    codigo: res.codigo,
+    estado: res.estado,
+    costo_puntos: Number(res.costo_puntos) || 0,
+    created_at: res.created_at,
+    entregado_at: res.entregado_at ?? null,
+    recompensa: res.recompensa ?? null,
+    jugador: res.jugador ?? null,
+  }
+}
+
+export async function entregarPuntosCanje(id: string): Promise<EntregarCanjeResponse> {
+  const res = await apiFetch(`/puntos/canjes/${encodeURIComponent(id)}/entregar`, { method: 'POST' })
+  return {
+    id: res.id,
+    codigo: res.codigo,
+    estado: res.estado,
+    entregado_at: res.entregado_at ?? null,
+  }
+}
+
+export async function getMiSaldoConPromocion(): Promise<MiSaldoConPromocionResponse> {
+  const res = await apiFetch('/puntos/mi-saldo')
+  const p = res.promocion_activa
+  return {
+    saldo: Number(res.saldo) || 0,
+    promocion_activa: p
+      ? { id: p.id, titulo: p.titulo, multiplicador: Number(p.multiplicador) || 1 }
+      : null,
+  }
+}

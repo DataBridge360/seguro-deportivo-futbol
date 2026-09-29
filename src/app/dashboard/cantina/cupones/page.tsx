@@ -5,6 +5,7 @@ import jsQR from 'jsqr'
 import { buscarCupon, canjearCuponConPuntos, CuponResponse, getResumenCupones, getPuntosConfig, PuntosConfigResponse, ResumenCuponesResponse } from '@/lib/api'
 import CompraSinCuponModal, { calcPuntos, parseMonto } from '@/components/cantina/CompraSinCuponModal'
 import CanjeExitosoModal from '@/components/cantina/CanjeExitosoModal'
+import EntregarRecompensaModal from '@/components/cantina/EntregarRecompensaModal'
 import NotificationModal from '@/components/ui/NotificationModal'
 import DateTimePicker from '@/components/ui/DateTimePicker'
 
@@ -66,6 +67,7 @@ export default function CantinaCajaPage() {
   // === Points state ===
   const [puntosConfig, setPuntosConfig] = useState<PuntosConfigResponse | null>(null)
   const [showSinCupon, setShowSinCupon] = useState(false)
+  const [showEntregar, setShowEntregar] = useState(false)
   const [canjeResult, setCanjeResult] = useState<{
     montoDescuento: number
     montoTotal: number
@@ -523,6 +525,14 @@ export default function CantinaCajaPage() {
           <span className="material-symbols-outlined text-2xl">shopping_bag</span>
           Compra sin cupón
         </button>
+        <button
+          type="button"
+          onClick={() => setShowEntregar(true)}
+          className="mt-3 w-full h-12 bg-primary hover:bg-primary/90 text-white rounded-lg text-base font-semibold transition-colors flex items-center justify-center gap-2"
+        >
+          <span className="material-symbols-outlined text-2xl">redeem</span>
+          Entregar recompensa
+        </button>
       </div>
 
       {/* === SHIFT SUMMARY === */}
@@ -708,6 +718,7 @@ export default function CantinaCajaPage() {
         )}
       </div>
 
+      <EntregarRecompensaModal isOpen={showEntregar} onClose={() => setShowEntregar(false)} />
       <CompraSinCuponModal isOpen={showSinCupon} onClose={() => setShowSinCupon(false)} config={puntosConfig} />
       <CanjeExitosoModal
         isOpen={canjeResult !== null}

@@ -8,6 +8,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { getMisAnuncios, getMisCupones, AnuncioResponse, CuponResponse } from '@/lib/api'
 import WalletCard from '@/components/jugador/WalletCard'
+import PuntosResumenCard from '@/components/jugador/PuntosResumenCard'
 
 const couponTextColor = {
   amber: 'text-amber-600 dark:text-amber-400',
@@ -170,6 +171,8 @@ function JugadorDashboard() {
           status={memberData.status}
           onShowQR={() => setShowQR(true)}
         />
+
+        <PuntosResumenCard />
 
         {/* Quick actions */}
         <div className="grid grid-cols-4 gap-2">
