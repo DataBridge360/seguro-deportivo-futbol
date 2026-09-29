@@ -1760,3 +1760,124 @@ export async function anularPuntosCanje(id: string): Promise<AnularCanjeResponse
     saldo: Number(res.saldo) || 0,
   }
 }
+
+// ========================================
+// Puntos (jugador: rewards catalog and redemptions)
+// Raw responses (no { success, data } wrapper); numeric columns may arrive as strings
+// ========================================
+
+export interface PuntosCatalogoRecompensa {
+  id: string
+  titulo: string
+  descripcion: string | null
+  imagen_url: string | null
+  costo_puntos: number
+  // null = unlimited
+  stock: number | null
+  agotado: boolean
+  categoria_id: string | null
+  categoria_nombre: string | null
+}
+
+export interface PuntosCatalogoCategoria {
+  id: string
+  nombre: string
+  icono: string | null
+}
+
+export interface PuntosCatalogoResponse {
+  saldo: number
+  promocion_activa: PuntosPromocionActiva | null
+  categorias: PuntosCatalogoCategoria[]
+  recompensas: PuntosCatalogoRecompensa[]
+}
+
+export interface CanjearRecompensaResponse {
+  canje_id: string
+  codigo: string
+  costo_puntos: number
+  saldo: number
+  recompensa: { titulo: string; imagen_url: string | null }
+}
+
+export interface MiCanjePuntos {
+  id: string
+  codigo: string
+  estado: PuntosCanjeEstado
+  costo_puntos: number
+  created_at: string
+  entregado_at: string | null
+  recompensa: { titulo: string; imagen_url: string | null } | null
+}
+
+export interface AnularMiCanjeResponse {
+  canje_id: string
+  puntos_devueltos: number
+  saldo: number
+}
+
+export async function getPuntosCatalogo(): Promise<PuntosCatalogoResponse> {
+  const res = await apiFetch('/puntos/catalogo')
+  return {
+    saldo: Number(res.saldo) || 0,
+    promocion_activa: res.promocion_activa
+      ? {
+          id: res.promocion_activa.id,
+          titulo: res.promocion_activa.titulo,
+          multiplicador: Number(res.promocion_activa.multiplicador),
+        }
+      : null,
+    categorias: (res.categorias ?? []).map((c: PuntosCatalogoCategoria) => ({
+      id: c.id,
+      nombre: c.nombre,
+      icono: c.icono ?? null,
+    })),
+    recompensas: (res.recompensas ?? []).map((r: PuntosCatalogoRecompensa) => ({
+      id: r.id,
+      titulo: r.titulo,
+      descripcion: r.descripcion ?? null,
+      imagen_url: r.imagen_url ?? null,
+      costo_puntos: Number(r.costo_puntos),
+      stock: r.stock === null || r.stock === undefined ? null : Number(r.stock),
+      agotado: Boolean(r.agotado),
+      categoria_id: r.categoria_id ?? null,
+      categoria_nombre: r.categoria_nombre ?? null,
+    })),
+  }
+}
+
+export async function canjearRecompensaPuntos(id: string): Promise<CanjearRecompensaResponse> {
+  const res = await apiFetch(`/puntos/recompensas/${encodeURIComponent(id)}/canjear`, { method: 'POST' })
+  return {
+    canje_id: res.canje_id,
+    codigo: res.codigo,
+    costo_puntos: Number(res.costo_puntos) || 0,
+    saldo: Number(res.saldo) || 0,
+    recompensa: {
+      titulo: res.recompensa?.titulo ?? '',
+      imagen_url: res.recompensa?.imagen_url ?? null,
+    },
+  }
+}
+
+export async function getMisCanjesPuntos(estado?: PuntosCanjeEstado): Promise<MiCanjePuntos[]> {
+  const res = await apiFetch(`/puntos/mis-canjes${estado ? `?estado=${estado}` : ''}`)
+  return (Array.isArray(res) ? res : []).map((c: MiCanjePuntos) => ({
+    id: c.id,
+    codigo: c.codigo,
+    estado: c.estado,
+    costo_puntos: Number(c.costo_puntos) || 0,
+    created_at: c.created_at,
+    entregado_at: c.entregado_at ?? null,
+    recompensa: c.recompensa ?? null,
+  }))
+}
+
+export async function anularMiCanjePuntos(id: string): Promise<AnularMiCanjeResponse> {
+  const res = await apiFetch(`/puntos/mis-canjes/${encodeURIComponent(id)}/anular`, { method: 'POST' })
+  return {
+    canje_id: res.canje_id,
+    puntos_devueltos: Number(res.puntos_devueltos) || 0,
+    saldo: Number(res.saldo) || 0,
+  }
+}
