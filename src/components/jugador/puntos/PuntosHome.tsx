@@ -122,37 +122,29 @@ export default function PuntosHome() {
               Hoy sumás x{data.promocion_activa.multiplicador}
             </p>
           )}
-          {!loading && data && available.length > 0 && (
+          {!loading && data && available.length > 0 && nextReward && (
             <div className="space-y-2 border-t border-slate-100 pt-3 dark:border-slate-700">
-              {nextReward ? (
-                <>
-                  <div className="flex items-baseline justify-between gap-3 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                    <span className="min-w-0 truncate">
-                      {nextReward.titulo.length <= 24 ? `Próxima: ${nextReward.titulo}` : 'Próxima recompensa'}
-                    </span>
-                    <span className="shrink-0 tabular-nums">
-                      {fmt(saldo)} / {fmt(nextReward.costo_puntos)} pts
-                    </span>
-                  </div>
-                  <div
-                    className="h-2 rounded-full bg-slate-100 dark:bg-slate-700"
-                    role="progressbar"
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={progress}
-                    aria-label="Progreso hacia la próxima recompensa"
-                  >
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-600"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
-                  ¡Te alcanza para cualquier recompensa!
-                </p>
-              )}
+              <div className="flex items-baseline justify-between gap-3 text-xs font-semibold text-slate-600 dark:text-slate-300">
+                <span className="min-w-0 truncate">
+                  {nextReward.titulo.length <= 24 ? `Próxima: ${nextReward.titulo}` : 'Próxima recompensa'}
+                </span>
+                <span className="shrink-0 tabular-nums">
+                  {fmt(saldo)} / {fmt(nextReward.costo_puntos)} pts
+                </span>
+              </div>
+              <div
+                className="h-2 rounded-full bg-slate-100 dark:bg-slate-700"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={progress}
+                aria-label="Progreso hacia la próxima recompensa"
+              >
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-600"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
             </div>
           )}
         </div>
