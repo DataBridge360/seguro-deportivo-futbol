@@ -9,18 +9,24 @@ import { AnimatedNumber } from './AnimatedNumber'
 import TeamLogo from './TeamLogo'
 
 // Index is the place (0 = first)
-const TIERS = [
+const PODIUM = [
   {
-    row: 'border-amber-400 bg-amber-50/60 dark:border-amber-400 dark:bg-amber-500/10',
     badge: 'bg-amber-500 text-white',
+    box: 'border-amber-400 bg-gradient-to-b from-amber-50 to-white pt-4 shadow-md dark:from-amber-500/15 dark:to-slate-800',
+    logo: 'size-12 ring-2 ring-amber-400',
+    btn: 'border-amber-500 bg-amber-500 text-white hover:bg-amber-600',
   },
   {
-    row: 'border-slate-400 bg-slate-50 dark:border-slate-400 dark:bg-slate-700/40',
-    badge: 'bg-slate-500 text-white dark:bg-slate-400 dark:text-slate-900',
+    badge: 'bg-slate-200 text-slate-800 dark:bg-slate-600 dark:text-slate-100',
+    box: 'border-slate-400 bg-white pt-3 dark:bg-slate-800',
+    logo: 'size-10 ring-2 ring-slate-400',
+    btn: 'border-slate-300 bg-slate-100 text-slate-800 hover:bg-slate-200 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600',
   },
   {
-    row: 'border-orange-600/70 bg-orange-50/60 dark:border-orange-500/70 dark:bg-orange-500/10',
-    badge: 'bg-orange-600 text-white',
+    badge: 'bg-orange-100 text-orange-800 dark:bg-orange-500/20 dark:text-orange-200',
+    box: 'border-orange-600/70 bg-orange-50/40 pt-3 dark:border-orange-500/70 dark:bg-orange-500/10',
+    logo: 'size-10 ring-2 ring-orange-600/70',
+    btn: 'border-slate-300 bg-slate-100 text-slate-800 hover:bg-slate-200 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600',
   },
 ]
 
@@ -32,36 +38,91 @@ function ApoyarIcon() {
   )
 }
 
-function Row({
+function PodiumItem({
   equipo,
-  tier,
+  place,
   highlight,
   onApoyar,
 }: {
   equipo: RankingEquipoPuntos
-  tier?: number
+  place: number
   highlight: boolean
   onApoyar: (e: RankingEquipoPuntos) => void
 }) {
-  const t = tier === undefined ? null : TIERS[tier]
+  const s = PODIUM[place]
+  return (
+    <article
+      className={`flex min-w-0 flex-col items-center gap-1 rounded-2xl border-2 p-2 text-center transition-all duration-500 ${s.box} ${
+        highlight ? 'ring-4 ring-emerald-400' : ''
+      }`}
+    >
+      <span className={`rounded-full px-2.5 py-0.5 text-sm font-extrabold ${s.badge}`}>{equipo.posicion}°</span>
+      <TeamLogo src={equipo.equipo_logo_url} name={equipo.equipo_nombre} className={s.logo} />
+      <p className="line-clamp-2 w-full break-words text-sm font-bold leading-tight text-slate-900 dark:text-white">
+        {equipo.equipo_nombre}
+      </p>
+      <p className="text-sm font-semibold tabular-nums text-slate-600 dark:text-slate-300">
+        <AnimatedNumber value={equipo.total} /> pts
+      </p>
+      <button
+        type="button"
+        onClick={() => onApoyar(equipo)}
+        aria-label={`Apoyar a ${equipo.equipo_nombre}`}
+        className={`flex min-h-11 w-full items-center justify-center gap-1 rounded-full border px-2 text-sm font-bold transition-colors ${s.btn}`}
+      >
+        <ApoyarIcon />
+        Apoyar
+      </button>
+    </article>
+  )
+}
+
+function Podium({
+  equipos,
+  highlightId,
+  onApoyar,
+}: {
+  equipos: RankingEquipoPuntos[]
+  highlightId: string | null
+  onApoyar: (e: RankingEquipoPuntos) => void
+}) {
+  // Visual order is 2nd, 1st, 3rd
+  const order = [1, 0, 2].filter(i => equipos[i])
+  return (
+    <div className="grid grid-cols-3 items-end gap-3">
+      {order.map(i => (
+        <div key={equipos[i].torneo_equipo_id} className={`min-w-0 ${equipos.length === 1 ? 'col-start-2' : ''}`}>
+          <PodiumItem
+            equipo={equipos[i]}
+            place={i}
+            highlight={highlightId === equipos[i].torneo_equipo_id}
+            onApoyar={onApoyar}
+          />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function Row({
+  equipo,
+  highlight,
+  onApoyar,
+}: {
+  equipo: RankingEquipoPuntos
+  highlight: boolean
+  onApoyar: (e: RankingEquipoPuntos) => void
+}) {
   return (
     <li
-      className={`flex items-center gap-3 transition-colors duration-500 ${
-        t ? `rounded-2xl border-2 px-3 py-3.5 ${t.row}` : 'py-2.5'
-      } ${highlight ? (t ? 'ring-4 ring-emerald-400' : 'bg-emerald-50 dark:bg-emerald-500/15') : ''}`}
+      className={`flex items-center gap-3 py-2.5 transition-colors duration-500 ${
+        highlight ? 'bg-emerald-50 dark:bg-emerald-500/15' : ''
+      }`}
     >
-      {t ? (
-        <span
-          className={`flex size-8 shrink-0 items-center justify-center rounded-full text-base font-extrabold ${t.badge}`}
-        >
-          {equipo.posicion}
-        </span>
-      ) : (
-        <span className="w-8 shrink-0 text-center text-base font-extrabold text-slate-500 dark:text-slate-300">
-          {equipo.posicion}
-        </span>
-      )}
-      <TeamLogo src={equipo.equipo_logo_url} name={equipo.equipo_nombre} className={t ? 'size-12' : 'size-10'} />
+      <span className="w-8 shrink-0 text-center text-base font-extrabold text-slate-500 dark:text-slate-300">
+        {equipo.posicion}
+      </span>
+      <TeamLogo src={equipo.equipo_logo_url} name={equipo.equipo_nombre} className="size-10" />
       <div className="min-w-0 flex-1">
         <p className="truncate text-base font-bold text-slate-900 dark:text-white">{equipo.equipo_nombre}</p>
         <p className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
@@ -104,23 +165,18 @@ function Slide({
         <p className="py-6 text-center text-base text-slate-600 dark:text-slate-300">Todavía no hay equipos en este torneo</p>
       ) : (
         <>
-          <ul className="space-y-2">
-            {top.map((e, i) => (
-              <Row
-                key={e.torneo_equipo_id}
-                equipo={e}
-                tier={i}
-                highlight={highlightId === e.torneo_equipo_id}
-                onApoyar={onApoyar}
-              />
-            ))}
-          </ul>
+          <Podium equipos={top} highlightId={highlightId} onApoyar={onApoyar} />
           {rest.length > 0 && (
-            <ul className="divide-y divide-slate-200 border-t border-slate-200 dark:divide-slate-700 dark:border-slate-700">
-              {rest.map(e => (
-                <Row key={e.torneo_equipo_id} equipo={e} highlight={highlightId === e.torneo_equipo_id} onApoyar={onApoyar} />
-              ))}
-            </ul>
+            <div>
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Resto de los equipos
+              </h2>
+              <ul className="mt-1 divide-y divide-slate-200 border-t border-slate-200 dark:divide-slate-700 dark:border-slate-700">
+                {rest.map(e => (
+                  <Row key={e.torneo_equipo_id} equipo={e} highlight={highlightId === e.torneo_equipo_id} onApoyar={onApoyar} />
+                ))}
+              </ul>
+            </div>
           )}
         </>
       )}
