@@ -12,20 +12,23 @@ import TeamLogo from './TeamLogo'
 const PODIUM = [
   {
     badge: 'bg-amber-500 text-white',
-    box: 'border-amber-400 bg-gradient-to-b from-amber-50 to-white pt-4 shadow-md dark:from-amber-500/15 dark:to-slate-800',
-    logo: 'size-12 ring-2 ring-amber-400',
+    box: 'mt-0 border-amber-400 bg-gradient-to-b from-amber-50 to-white shadow-md dark:from-amber-500/15 dark:to-slate-800',
+    logo: 'size-20 border-2 border-white ring-[3px] ring-amber-400',
+    name: 'font-extrabold',
     btn: 'border-amber-500 bg-amber-500 text-white hover:bg-amber-600',
   },
   {
-    badge: 'bg-slate-200 text-slate-800 dark:bg-slate-600 dark:text-slate-100',
-    box: 'border-slate-400 bg-white pt-3 dark:bg-slate-800',
-    logo: 'size-10 ring-2 ring-slate-400',
+    badge: 'bg-slate-300 text-slate-900',
+    box: 'mt-8 border-slate-400 bg-white dark:bg-slate-800',
+    logo: 'size-16 border-2 border-white ring-[3px] ring-slate-400',
+    name: 'font-bold',
     btn: 'border-slate-300 bg-slate-100 text-slate-800 hover:bg-slate-200 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600',
   },
   {
-    badge: 'bg-orange-100 text-orange-800 dark:bg-orange-500/20 dark:text-orange-200',
-    box: 'border-orange-600/70 bg-orange-50/40 pt-3 dark:border-orange-500/70 dark:bg-orange-500/10',
-    logo: 'size-10 ring-2 ring-orange-600/70',
+    badge: 'bg-orange-500 text-white',
+    box: 'mt-8 border-orange-600/70 bg-orange-50/40 dark:border-orange-500/70 dark:bg-orange-500/10',
+    logo: 'size-16 border-2 border-white ring-[3px] ring-orange-500',
+    name: 'font-bold',
     btn: 'border-slate-300 bg-slate-100 text-slate-800 hover:bg-slate-200 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600',
   },
 ]
@@ -52,17 +55,25 @@ function PodiumItem({
   const s = PODIUM[place]
   return (
     <article
-      className={`flex min-w-0 flex-col items-center gap-1 rounded-2xl border-2 p-2 text-center transition-all duration-500 ${s.box} ${
+      className={`flex min-w-0 flex-col items-center gap-2 rounded-2xl border-2 px-2 pb-3 pt-4 text-center transition-all duration-500 ${s.box} ${
         highlight ? 'ring-4 ring-emerald-400' : ''
       }`}
     >
-      <span className={`rounded-full px-2.5 py-0.5 text-sm font-extrabold ${s.badge}`}>{equipo.posicion}°</span>
-      <TeamLogo src={equipo.equipo_logo_url} name={equipo.equipo_nombre} className={s.logo} />
-      <p className="line-clamp-2 w-full break-words text-sm font-bold leading-tight text-slate-900 dark:text-white">
+      <div className="relative mb-2">
+        <TeamLogo src={equipo.equipo_logo_url} name={equipo.equipo_nombre} className={s.logo} />
+        <span
+          className={`absolute -bottom-2 left-1/2 -translate-x-1/2 rounded-full px-2.5 py-0.5 text-xs font-extrabold ${s.badge}`}
+        >
+          {equipo.posicion}°
+        </span>
+      </div>
+      <p
+        className={`line-clamp-2 min-h-[2.5rem] w-full break-words text-base leading-5 text-slate-900 dark:text-white ${s.name}`}
+      >
         {equipo.equipo_nombre}
       </p>
-      <p className="text-sm font-semibold tabular-nums text-slate-600 dark:text-slate-300">
-        <AnimatedNumber value={equipo.total} /> pts
+      <p className="text-base font-bold tabular-nums text-slate-700 dark:text-slate-200">
+        <AnimatedNumber value={equipo.total} /> <span className="text-xs font-semibold">pts</span>
       </p>
       <button
         type="button"
@@ -88,10 +99,12 @@ function Podium({
 }) {
   // Visual order is 2nd, 1st, 3rd
   const order = [1, 0, 2].filter(i => equipos[i])
+  const single = equipos.length === 1
+  const cols = equipos.length === 2 ? 'grid-cols-2' : 'grid-cols-3'
   return (
-    <div className="grid grid-cols-3 items-end gap-3">
+    <div className={single ? 'flex justify-center' : `grid ${cols} items-start gap-2.5`}>
       {order.map(i => (
-        <div key={equipos[i].torneo_equipo_id} className={`min-w-0 ${equipos.length === 1 ? 'col-start-2' : ''}`}>
+        <div key={equipos[i].torneo_equipo_id} className={`min-w-0 ${single ? 'w-full max-w-[12rem]' : ''}`}>
           <PodiumItem
             equipo={equipos[i]}
             place={i}
@@ -115,28 +128,28 @@ function Row({
 }) {
   return (
     <li
-      className={`flex items-center gap-3 py-2.5 transition-colors duration-500 ${
+      className={`flex items-center gap-3 py-3.5 transition-colors duration-500 ${
         highlight ? 'bg-emerald-50 dark:bg-emerald-500/15' : ''
       }`}
     >
-      <span className="w-8 shrink-0 text-center text-base font-extrabold text-slate-500 dark:text-slate-300">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-700 dark:bg-slate-700 dark:text-slate-200">
         {equipo.posicion}
       </span>
-      <TeamLogo src={equipo.equipo_logo_url} name={equipo.equipo_nombre} className="size-10" />
+      <TeamLogo src={equipo.equipo_logo_url} name={equipo.equipo_nombre} className="size-12" />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-base font-bold text-slate-900 dark:text-white">{equipo.equipo_nombre}</p>
-        <p className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-          {equipo.categoria_nombre && <span className="truncate">{equipo.categoria_nombre}</span>}
-          <span className="shrink-0 text-sm font-semibold tabular-nums text-slate-700 dark:text-slate-200">
-            <AnimatedNumber value={equipo.total} /> pts
-          </span>
-        </p>
+        <p className="truncate text-base font-semibold text-slate-900 dark:text-white">{equipo.equipo_nombre}</p>
+        {equipo.categoria_nombre && (
+          <p className="truncate text-xs text-slate-500 dark:text-slate-400">{equipo.categoria_nombre}</p>
+        )}
       </div>
+      <p className="shrink-0 text-base font-bold tabular-nums text-slate-800 dark:text-slate-100">
+        <AnimatedNumber value={equipo.total} /> <span className="text-xs font-semibold">pts</span>
+      </p>
       <button
         type="button"
         onClick={() => onApoyar(equipo)}
         aria-label={`Apoyar a ${equipo.equipo_nombre}`}
-        className="flex min-h-11 shrink-0 items-center gap-1 rounded-full border border-slate-300 bg-slate-50 px-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+        className="flex min-h-11 shrink-0 items-center gap-1 rounded-full border border-slate-300 bg-slate-100 px-3 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-200 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
       >
         <ApoyarIcon />
         Apoyar
@@ -167,8 +180,8 @@ function Slide({
         <>
           <Podium equipos={top} highlightId={highlightId} onApoyar={onApoyar} />
           {rest.length > 0 && (
-            <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            <div className="mt-6">
+              <h2 className="text-sm font-semibold text-slate-500 dark:text-slate-400">
                 Resto de los equipos
               </h2>
               <ul className="mt-1 divide-y divide-slate-200 border-t border-slate-200 dark:divide-slate-700 dark:border-slate-700">

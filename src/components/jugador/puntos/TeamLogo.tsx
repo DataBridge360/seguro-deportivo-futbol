@@ -1,15 +1,35 @@
+// Tailwind needs literal class names, so the initial's size is looked up from the size token
+const INITIAL_SIZE: Record<string, string> = {
+  'size-8': 'text-sm',
+  'size-10': 'text-lg',
+  'size-12': 'text-xl',
+  'size-14': 'text-2xl',
+  'size-16': 'text-2xl',
+  'size-20': 'text-3xl',
+  'size-24': 'text-4xl',
+}
+
+function initialClass(className: string) {
+  const token = className.split(/\s+/).find(c => c in INITIAL_SIZE)
+  return token ? INITIAL_SIZE[token] : 'text-xl'
+}
+
 export default function TeamLogo({
   src,
   name,
   className = 'size-12',
+  textClassName,
 }: {
   src: string | null | undefined
   name: string
   className?: string
+  textClassName?: string
 }) {
   return (
     <div
-      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-primary dark:bg-primary/20 dark:text-sky-300 ${className}`}
+      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full ${
+        src ? 'bg-white' : 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-sky-300'
+      } ${className}`}
     >
       {src ? (
         <img src={src} alt="" className="size-full object-cover" loading="lazy" />
@@ -21,7 +41,9 @@ export default function TeamLogo({
           >
             shield
           </span>
-          <span className="relative text-base font-extrabold">{name.trim().charAt(0).toUpperCase()}</span>
+          <span className={`relative font-extrabold ${textClassName ?? initialClass(className)}`}>
+            {name.trim().charAt(0).toUpperCase()}
+          </span>
         </span>
       )}
     </div>
