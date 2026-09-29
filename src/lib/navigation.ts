@@ -100,6 +100,13 @@ export const navigationItems: NavItem[] = [
     roles: ['club']
   },
   {
+    label: 'Puntos',
+    href: '/dashboard/club/puntos',
+    icon: 'Star',
+    materialIcon: 'stars',
+    roles: ['club']
+  },
+  {
     label: 'Notificaciones',
     href: '/dashboard/club/notificaciones',
     icon: 'Bell',

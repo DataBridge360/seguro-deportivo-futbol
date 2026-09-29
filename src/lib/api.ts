@@ -1442,3 +1442,74 @@ export async function canjearCuponConPuntos(id: string, montoCompra: number): Pr
     saldo_puntos: res.saldo_puntos,
   }
 }
+
+// ========================================
+// Puntos (club config + jugador balance)
+// ========================================
+
+export interface PuntosConfigInput {
+  monto_base: number
+  puntos: number
+  activo?: boolean
+}
+
+export interface MiSaldoPuntosResponse {
+  saldo: number
+  config: { monto_base: number; puntos: number; activo: boolean } | null
+}
+
+export type PuntosMovimientoTipo = 'compra' | 'canje' | 'apoyo' | 'anulacion' | 'ajuste'
+
+export interface PuntosMovimiento {
+  tipo: PuntosMovimientoTipo
+  puntos: number
+  monto_compra: number | null
+  descripcion: string | null
+  created_at: string
+}
+
+export interface MisMovimientosPuntosResponse {
+  data: PuntosMovimiento[]
+  total: number
+  page: number
+  limit: number
+}
+
+// Raw response (no { success, data } wrapper); returns the upserted row
+export async function guardarPuntosConfig(input: PuntosConfigInput): Promise<PuntosConfigResponse> {
+  return apiFetch('/puntos/config', {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  })
+}
+
+// Numeric columns may arrive as strings from PostgREST, so they are coerced
+export async function getMiSaldoPuntos(): Promise<MiSaldoPuntosResponse> {
+  const res = await apiFetch('/puntos/mi-saldo')
+  return {
+    saldo: Number(res.saldo) || 0,
+    config: res.config
+      ? {
+          monto_base: Number(res.config.monto_base),
+          puntos: Number(res.config.puntos),
+          activo: Boolean(res.config.activo),
+        }
+      : null,
+  }
+}
+
+export async function getMisMovimientosPuntos(page = 1, limit = 20): Promise<MisMovimientosPuntosResponse> {
+  const res = await apiFetch(`/puntos/mis-movimientos?page=${page}&limit=${limit}`)
+  return {
+    data: (res.data ?? []).map((m: PuntosMovimiento) => ({
+      tipo: m.tipo,
+      puntos: Number(m.puntos),
+      monto_compra: m.monto_compra === null || m.monto_compra === undefined ? null : Number(m.monto_compra),
+      descripcion: m.descripcion ?? null,
+      created_at: m.created_at,
+    })),
+    total: Number(res.total) || 0,
+    page: Number(res.page) || page,
+    limit: Number(res.limit) || limit,
+  }
+}

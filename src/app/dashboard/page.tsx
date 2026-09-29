@@ -152,7 +152,7 @@ function JugadorDashboard() {
     { icon: 'qr_code_2', label: 'Mi QR', tint: 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-sky-300', onClick: () => setShowQR(true) },
     { icon: 'confirmation_number', label: 'Cupones', tint: 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400', href: '/dashboard/jugador/cupones' },
     { icon: 'health_and_safety', label: 'Pedir seguro', tint: 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400', href: WHATSAPP_SEGURO_URL, external: true },
-    { icon: 'stars', label: 'Puntos', tint: 'bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300', href: '/dashboard/jugador/puntos', badge: 'Pronto' },
+    { icon: 'stars', label: 'Puntos', tint: 'bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300', href: '/dashboard/jugador/puntos' },
   ]
 
   return (
