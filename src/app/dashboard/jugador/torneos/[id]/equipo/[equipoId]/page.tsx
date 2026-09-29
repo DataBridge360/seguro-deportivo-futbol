@@ -668,17 +668,21 @@ export default function JugadorEquipoDetailPage() {
                                 key={j.id}
                                 className="flex items-center gap-3 p-3 rounded-xl border bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 cursor-default"
                               >
-                                <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 border-2 border-emerald-500 bg-emerald-500">
-                                  <span className="material-symbols-outlined text-white text-sm" style={{ fontVariationSettings: "'wght' 700" }}>check</span>
+                                <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 text-sm font-bold text-slate-600 dark:text-slate-300" aria-hidden="true">
+                                  {(j.nombre?.[0] ?? j.apellido?.[0] ?? '?').toUpperCase()}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-base font-semibold text-emerald-800 dark:text-emerald-300 truncate">
                                     {j.apellido}, {j.nombre}
                                   </p>
-                                  <p className="text-sm font-mono text-emerald-600 dark:text-emerald-400">{j.dni}</p>
+                                  <p className="text-sm text-emerald-600 dark:text-emerald-400">Ya en el equipo</p>
                                 </div>
-                                <span className="text-sm font-bold px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 shrink-0 whitespace-nowrap">
-                                  Ya en el equipo
+                                <span
+                                  role="img"
+                                  aria-label="Ya en el equipo"
+                                  className="size-11 rounded-full flex items-center justify-center shrink-0 bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400"
+                                >
+                                  <span className="material-symbols-outlined text-2xl" aria-hidden="true">check</span>
                                 </span>
                               </div>
                             )
@@ -689,8 +693,8 @@ export default function JugadorEquipoDetailPage() {
                                 key={j.id}
                                 className="flex items-center gap-3 p-3 rounded-xl border bg-red-50 dark:bg-red-500/5 border-red-200 dark:border-red-500/20 cursor-not-allowed"
                               >
-                                <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 border-2 border-red-300 bg-red-100">
-                                  <span className="material-symbols-outlined text-red-500 text-sm">block</span>
+                                <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 text-sm font-bold text-slate-600 dark:text-slate-300" aria-hidden="true">
+                                  {(j.nombre?.[0] ?? j.apellido?.[0] ?? '?').toUpperCase()}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-base font-semibold text-slate-500 dark:text-slate-400 truncate">
@@ -701,6 +705,13 @@ export default function JugadorEquipoDetailPage() {
                                     Jugando en {j.equipo_en_torneo}
                                   </p>
                                 </div>
+                                <span
+                                  role="img"
+                                  aria-label={`Jugando en ${j.equipo_en_torneo}`}
+                                  className="size-11 rounded-full flex items-center justify-center shrink-0 bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400"
+                                >
+                                  <span className="material-symbols-outlined text-2xl" aria-hidden="true">block</span>
+                                </span>
                               </div>
                             )
                           }
@@ -710,8 +721,8 @@ export default function JugadorEquipoDetailPage() {
                                 key={j.id}
                                 className="flex items-center gap-3 p-3 rounded-xl border bg-amber-50 dark:bg-amber-500/5 border-amber-200 dark:border-amber-500/20 cursor-not-allowed"
                               >
-                                <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 border-2 border-amber-300 bg-amber-100">
-                                  <span className="material-symbols-outlined text-amber-600 text-sm">block</span>
+                                <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 text-sm font-bold text-slate-600 dark:text-slate-300" aria-hidden="true">
+                                  {(j.nombre?.[0] ?? j.apellido?.[0] ?? '?').toUpperCase()}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <p className="text-base font-semibold text-slate-500 dark:text-slate-400 truncate">
@@ -722,6 +733,13 @@ export default function JugadorEquipoDetailPage() {
                                     Seguro no pagado
                                   </p>
                                 </div>
+                                <span
+                                  role="img"
+                                  aria-label="Seguro no pagado"
+                                  className="size-11 rounded-full flex items-center justify-center shrink-0 bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400"
+                                >
+                                  <span className="material-symbols-outlined text-2xl" aria-hidden="true">block</span>
+                                </span>
                               </div>
                             )
                           }
