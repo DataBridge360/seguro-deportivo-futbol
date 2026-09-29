@@ -7,7 +7,7 @@ import { matchesSearch } from '@/lib/utils'
 import { fmt } from '@/components/club/puntos/ui'
 import RecompensaModal from './RecompensaModal'
 import RewardImage from './RewardImage'
-import PuntosEquiposSection from './PuntosEquiposSection'
+import ApoyarAviso from './ApoyarAviso'
 
 const ghostBtnCls =
   'flex min-h-11 items-center gap-1 rounded-full px-3 text-base font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800'
@@ -48,10 +48,6 @@ export default function PuntosHome() {
 
   const saldo = data?.saldo ?? 0
 
-  useEffect(() => {
-    if (loading || window.location.hash !== '#equipos') return
-    document.getElementById('equipos')?.scrollIntoView()
-  }, [loading])
   const categorias = data?.categorias ?? []
   const categoriaActual = categorias.find(c => c.id === categoria) ?? null
 
@@ -107,6 +103,8 @@ export default function PuntosHome() {
           </p>
         )}
       </div>
+
+      <ApoyarAviso />
 
       <label className="relative block">
         <span className="sr-only">Buscar una recompensa</span>
@@ -215,10 +213,6 @@ export default function PuntosHome() {
             </ul>
           )}
       </section>
-
-      <div className="border-t border-slate-200 pt-6 dark:border-slate-700" id="equipos">
-        <PuntosEquiposSection variant="full" saldo={data ? saldo : undefined} onSaldoChange={n => setData(d => (d ? { ...d, saldo: n } : d))} />
-      </div>
 
       {selected && (
         <RecompensaModal

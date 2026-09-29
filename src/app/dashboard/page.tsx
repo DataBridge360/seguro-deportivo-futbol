@@ -9,7 +9,7 @@ import Link from 'next/link'
 import { getMisAnuncios, getMisCupones, AnuncioResponse, CuponResponse } from '@/lib/api'
 import WalletCard from '@/components/jugador/WalletCard'
 import PuntosResumenCard from '@/components/jugador/PuntosResumenCard'
-import PuntosEquiposSection from '@/components/jugador/puntos/PuntosEquiposSection'
+import ApoyarAviso from '@/components/jugador/puntos/ApoyarAviso'
 
 const couponTextColor = {
   amber: 'text-amber-600 dark:text-amber-400',
@@ -175,6 +175,8 @@ function JugadorDashboard() {
 
         <PuntosResumenCard />
 
+        <ApoyarAviso />
+
         {/* Quick actions */}
         <div className="grid grid-cols-4 gap-2">
           {quickActions.map((action) => {
@@ -217,8 +219,6 @@ function JugadorDashboard() {
             )
           })}
         </div>
-
-        <PuntosEquiposSection variant="compact" />
 
         {anunciosInicio.length > 0 && (
           <div>

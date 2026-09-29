@@ -8,7 +8,7 @@ export default function ApoyarPage() {
   useEffect(() => {
     const torneo = new URLSearchParams(window.location.search).get('torneo')
     const qs = torneo ? `?torneo=${encodeURIComponent(torneo)}` : ''
-    router.replace(`/dashboard/jugador/puntos${qs}#equipos`)
+    router.replace(`/dashboard/jugador/puntos/equipos${qs}`)
   }, [router])
   return null
 }
