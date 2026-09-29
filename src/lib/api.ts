@@ -1513,3 +1513,250 @@ export async function getMisMovimientosPuntos(page = 1, limit = 20): Promise<Mis
     limit: Number(res.limit) || limit,
   }
 }
+
+// ========================================
+// Puntos (club management: promotions, categories, rewards, redemptions)
+// All responses are raw (no { success, data } wrapper); numeric columns may arrive as strings
+// ========================================
+
+export interface PuntosPromocion {
+  id: string
+  titulo: string
+  multiplicador: number
+  // 0 = Sunday ... 6 = Saturday; null = every day
+  dias_semana: number[] | null
+  fecha_desde: string | null
+  fecha_hasta: string | null
+  activo: boolean
+  created_at: string
+}
+
+export interface PuntosPromocionInput {
+  titulo?: string
+  multiplicador?: number
+  dias_semana?: number[] | null
+  fecha_desde?: string | null
+  fecha_hasta?: string | null
+  activo?: boolean
+}
+
+export interface PuntosPromocionActiva {
+  id: string
+  titulo: string
+  multiplicador: number
+}
+
+export interface PuntosCategoria {
+  id: string
+  nombre: string
+  icono: string | null
+  orden: number
+  activo: boolean
+}
+
+export interface PuntosCategoriaInput {
+  nombre?: string
+  icono?: string
+  orden?: number
+  activo?: boolean
+}
+
+export interface PuntosRecompensa {
+  id: string
+  titulo: string
+  descripcion: string | null
+  imagen_url: string | null
+  costo_puntos: number
+  // null = unlimited
+  stock: number | null
+  activo: boolean
+  orden: number
+  categoria_id: string | null
+  categoria_nombre: string | null
+}
+
+export interface PuntosRecompensaInput {
+  titulo?: string
+  descripcion?: string
+  imagen_url?: string
+  costo_puntos?: number
+  stock?: number | null
+  categoria_id?: string | null
+  activo?: boolean
+  orden?: number
+}
+
+export type PuntosCanjeEstado = 'pendiente' | 'entregado' | 'anulado'
+
+export interface PuntosCanje {
+  id: string
+  codigo: string
+  estado: PuntosCanjeEstado
+  costo_puntos: number
+  created_at: string
+  entregado_at: string | null
+  recompensa: { titulo: string; imagen_url: string | null } | null
+  jugador: { nombre: string; apellido: string } | null
+}
+
+export interface PuntosCanjesResponse {
+  data: PuntosCanje[]
+  total: number
+  page: number
+  limit: number
+}
+
+export interface AnularCanjeResponse {
+  canje_id: string
+  puntos_devueltos: number
+  saldo: number
+}
+
+function normalizePromocion(p: PuntosPromocion): PuntosPromocion {
+  return {
+    ...p,
+    multiplicador: Number(p.multiplicador),
+    dias_semana: Array.isArray(p.dias_semana) ? p.dias_semana.map(Number) : null,
+    fecha_desde: p.fecha_desde ?? null,
+    fecha_hasta: p.fecha_hasta ?? null,
+    activo: Boolean(p.activo),
+  }
+}
+
+function normalizeRecompensa(r: PuntosRecompensa): PuntosRecompensa {
+  return {
+    ...r,
+    descripcion: r.descripcion ?? null,
+    imagen_url: r.imagen_url ?? null,
+    costo_puntos: Number(r.costo_puntos),
+    stock: r.stock === null || r.stock === undefined ? null : Number(r.stock),
+    orden: Number(r.orden) || 0,
+    categoria_id: r.categoria_id ?? null,
+    categoria_nombre: r.categoria_nombre ?? null,
+  }
+}
+
+export async function getPuntosPromociones(): Promise<PuntosPromocion[]> {
+  const res = await apiFetch('/puntos/promociones')
+  return (Array.isArray(res) ? res : []).map(normalizePromocion)
+}
+
+export async function crearPuntosPromocion(input: PuntosPromocionInput): Promise<PuntosPromocion> {
+  const res = await apiFetch('/puntos/promociones', { method: 'POST', body: JSON.stringify(input) })
+  return normalizePromocion(res)
+}
+
+export async function actualizarPuntosPromocion(id: string, input: PuntosPromocionInput): Promise<PuntosPromocion> {
+  const res = await apiFetch(`/puntos/promociones/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  })
+  return normalizePromocion(res)
+}
+
+export async function eliminarPuntosPromocion(id: string): Promise<void> {
+  await apiFetch(`/puntos/promociones/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
+export async function getPuntosPromocionActiva(): Promise<PuntosPromocionActiva | null> {
+  const res = await apiFetch('/puntos/promocion-activa')
+  return res ? { id: res.id, titulo: res.titulo, multiplicador: Number(res.multiplicador) } : null
+}
+
+export async function getPuntosCategorias(): Promise<PuntosCategoria[]> {
+  const res = await apiFetch('/puntos/categorias')
+  return (Array.isArray(res) ? res : []).map((c: PuntosCategoria) => ({
+    ...c,
+    icono: c.icono ?? null,
+    orden: Number(c.orden) || 0,
+    activo: Boolean(c.activo),
+  }))
+}
+
+export async function crearPuntosCategoria(input: PuntosCategoriaInput): Promise<PuntosCategoria> {
+  return apiFetch('/puntos/categorias', { method: 'POST', body: JSON.stringify(input) })
+}
+
+export async function actualizarPuntosCategoria(id: string, input: PuntosCategoriaInput): Promise<PuntosCategoria> {
+  return apiFetch(`/puntos/categorias/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(input) })
+}
+
+export async function eliminarPuntosCategoria(id: string): Promise<void> {
+  await apiFetch(`/puntos/categorias/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
+export async function getPuntosRecompensasAdmin(): Promise<PuntosRecompensa[]> {
+  const res = await apiFetch('/puntos/recompensas/admin')
+  return (Array.isArray(res) ? res : []).map(normalizeRecompensa)
+}
+
+export async function crearPuntosRecompensa(input: PuntosRecompensaInput): Promise<PuntosRecompensa> {
+  const res = await apiFetch('/puntos/recompensas', { method: 'POST', body: JSON.stringify(input) })
+  return normalizeRecompensa(res)
+}
+
+export async function actualizarPuntosRecompensa(id: string, input: PuntosRecompensaInput): Promise<PuntosRecompensa> {
+  const res = await apiFetch(`/puntos/recompensas/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  })
+  return normalizeRecompensa(res)
+}
+
+export async function eliminarPuntosRecompensa(id: string): Promise<void> {
+  await apiFetch(`/puntos/recompensas/${encodeURIComponent(id)}`, { method: 'DELETE' })
+}
+
+// Multipart upload (field "imagen", max 2 MB, jpeg/png/webp); returns the public image URL
+export async function subirImagenRecompensa(imagen: File): Promise<string> {
+  const formData = new FormData()
+  formData.append('imagen', imagen)
+
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+
+  const res = await fetch(`${API_URL}/puntos/recompensas/imagen`, {
+    method: 'POST',
+    headers: {
+      'ngrok-skip-browser-warning': 'true',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  })
+
+  const json = await res.json()
+
+  if (!res.ok) {
+    throw new Error(json.error?.message || json.message || 'No pudimos subir la imagen')
+  }
+
+  return json.imagen_url
+}
+
+export async function getPuntosCanjesClub(
+  estado: PuntosCanjeEstado,
+  page = 1,
+  limit = 20
+): Promise<PuntosCanjesResponse> {
+  const res = await apiFetch(`/puntos/canjes?estado=${estado}&page=${page}&limit=${limit}`)
+  return {
+    data: (res.data ?? []).map((c: PuntosCanje) => ({
+      ...c,
+      costo_puntos: Number(c.costo_puntos),
+      entregado_at: c.entregado_at ?? null,
+      recompensa: c.recompensa ?? null,
+      jugador: c.jugador ?? null,
+    })),
+    total: Number(res.total) || 0,
+    page: Number(res.page) || page,
+    limit: Number(res.limit) || limit,
+  }
+}
+
+export async function anularPuntosCanje(id: string): Promise<AnularCanjeResponse> {
+  const res = await apiFetch(`/puntos/canjes/${encodeURIComponent(id)}/anular`, { method: 'POST' })
+  return {
+    canje_id: res.canje_id,
+    puntos_devueltos: Number(res.puntos_devueltos) || 0,
+    saldo: Number(res.saldo) || 0,
+  }
+}

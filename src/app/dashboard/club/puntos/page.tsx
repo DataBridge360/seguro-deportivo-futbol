@@ -1,212 +1,53 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { getPuntosConfig, guardarPuntosConfig } from '@/lib/api'
+import { useState } from 'react'
+import RecompensasSection from '@/components/club/puntos/RecompensasSection'
+import CategoriasSection from '@/components/club/puntos/CategoriasSection'
+import PromocionesSection from '@/components/club/puntos/PromocionesSection'
+import CanjesSection from '@/components/club/puntos/CanjesSection'
+import EquivalenciaSection from '@/components/club/puntos/EquivalenciaSection'
 
-const MAX_MONTO = 100_000_000
-const MAX_PUNTOS = 1_000_000
+const TABS = [
+  { id: 'recompensas', label: 'Recompensas' },
+  { id: 'categorias', label: 'Categorías' },
+  { id: 'promociones', label: 'Puntos dobles' },
+  { id: 'canjes', label: 'Canjes' },
+  { id: 'equivalencia', label: 'Equivalencia' },
+] as const
 
-const fmt = (n: number) => n.toLocaleString('es-AR')
-
-// Accepts comma or dot as decimal separator
-function parseMonto(raw: string): number {
-  const v = raw.trim().replace(',', '.')
-  if (!/^\d+(\.\d+)?$/.test(v)) return NaN
-  return Number(v)
-}
-
-function validate(montoRaw: string, puntosRaw: string): string | null {
-  const monto = parseMonto(montoRaw)
-  if (!Number.isFinite(monto) || monto <= 0) return 'Ingresá un monto de compra mayor a 0.'
-  if (monto > MAX_MONTO) return 'El monto de compra es demasiado alto.'
-  if (Math.round(monto * 100) / 100 !== monto) return 'El monto admite hasta 2 decimales.'
-  if (!/^\d+$/.test(puntosRaw.trim())) return 'Los puntos deben ser un número entero.'
-  const puntos = Number(puntosRaw)
-  if (puntos < 1 || puntos > MAX_PUNTOS) return `Los puntos deben estar entre 1 y ${fmt(MAX_PUNTOS)}.`
-  return null
-}
+type TabId = (typeof TABS)[number]['id']
 
 export default function ClubPuntosPage() {
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState('')
-  const [hasConfig, setHasConfig] = useState(false)
-  const [monto, setMonto] = useState('')
-  const [puntos, setPuntos] = useState('')
-  const [activo, setActivo] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [saved, setSaved] = useState(false)
-
-  useEffect(() => {
-    let active = true
-    getPuntosConfig()
-      .then(cfg => {
-        if (!active) return
-        if (cfg) {
-          setHasConfig(true)
-          setMonto(String(Number(cfg.monto_base)).replace('.', ','))
-          setPuntos(String(Number(cfg.puntos)))
-          setActivo(Boolean(cfg.activo))
-        }
-      })
-      .catch(e => {
-        if (active) setLoadError(e instanceof Error ? e.message : 'No pudimos cargar la configuración.')
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-    return () => {
-      active = false
-    }
-  }, [])
-
-  const montoNum = parseMonto(monto)
-  const puntosNum = /^\d+$/.test(puntos.trim()) ? Number(puntos) : NaN
-  const example =
-    Number.isFinite(montoNum) && montoNum > 0 && Number.isFinite(puntosNum)
-      ? Math.floor((5000 * puntosNum) / montoNum)
-      : null
-
-  const handleSave = async () => {
-    setSaved(false)
-    const err = validate(monto, puntos)
-    if (err) {
-      setError(err)
-      return
-    }
-    setError('')
-    setSaving(true)
-    try {
-      await guardarPuntosConfig({ monto_base: montoNum, puntos: puntosNum, activo })
-      setHasConfig(true)
-      setSaved(true)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'No pudimos guardar los cambios.')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const inputCls =
-    'h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-base text-slate-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white'
+  const [tab, setTab] = useState<TabId>('recompensas')
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Puntos</h1>
-        <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
-          Cada compra en la cantina suma puntos al jugador según esta equivalencia. Los puntos se calculan sobre el total de la compra, antes del descuento del cupón.
-        </p>
+    <div className="mx-auto max-w-3xl space-y-6">
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Puntos ClubPlaza</h1>
+
+      <div role="tablist" aria-label="Secciones de puntos" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+        {TABS.map(t => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
+            onClick={() => setTab(t.id)}
+            className={`h-12 shrink-0 rounded-xl px-5 text-base font-semibold transition-colors ${
+              tab === t.id
+                ? 'bg-primary text-white'
+                : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <h2 className="text-lg font-bold text-slate-900 dark:text-white">Equivalencia</h2>
-
-        {loading ? (
-          <div className="space-y-3">
-            <div className="h-11 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-700" />
-            <div className="h-11 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-700" />
-          </div>
-        ) : loadError ? (
-          <p className="rounded-xl bg-red-50 p-3 text-base text-red-700 dark:bg-red-500/10 dark:text-red-300">
-            {loadError}
-          </p>
-        ) : (
-          <>
-            {!hasConfig && (
-              <p className="rounded-xl bg-amber-50 p-3 text-base text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
-                Todavía no configuraste los puntos
-              </p>
-            )}
-
-            <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-900/50">
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-3 text-base text-slate-700 dark:text-slate-200">
-                <span className="font-medium">Cada $</span>
-                <div className="min-w-[8rem] flex-1">
-                  <label htmlFor="monto" className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
-                    Monto de compra ($)
-                  </label>
-                  <input
-                    id="monto"
-                    inputMode="decimal"
-                    value={monto}
-                    onChange={e => {
-                      setMonto(e.target.value)
-                      setSaved(false)
-                    }}
-                    placeholder="1000"
-                    className={inputCls}
-                  />
-                </div>
-                <span className="font-medium">suman</span>
-                <div className="min-w-[8rem] flex-1">
-                  <label htmlFor="puntos" className="mb-1 block text-xs font-semibold text-slate-500 dark:text-slate-400">
-                    Puntos que suma
-                  </label>
-                  <input
-                    id="puntos"
-                    inputMode="numeric"
-                    value={puntos}
-                    onChange={e => {
-                      setPuntos(e.target.value)
-                      setSaved(false)
-                    }}
-                    placeholder="10"
-                    className={inputCls}
-                  />
-                </div>
-                <span className="font-medium">puntos</span>
-              </div>
-            </div>
-
-            <p className="text-base text-slate-600 dark:text-slate-300">
-              {example !== null
-                ? `Ejemplo: una compra de $5.000 suma ${fmt(example)} puntos`
-                : 'Completá los dos campos para ver un ejemplo.'}
-            </p>
-
-            <label className="flex min-h-11 cursor-pointer items-center justify-between gap-3">
-              <span className="text-base font-medium text-slate-900 dark:text-white">Puntos activos</span>
-              <input
-                type="checkbox"
-                role="switch"
-                checked={activo}
-                onChange={e => {
-                  setActivo(e.target.checked)
-                  setSaved(false)
-                }}
-                className="peer sr-only"
-              />
-              <span
-                aria-hidden
-                className="relative h-7 w-12 shrink-0 rounded-full bg-slate-300 transition-colors after:absolute after:left-0.5 after:top-0.5 after:size-6 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:bg-primary peer-checked:after:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-primary/40 dark:bg-slate-600"
-              />
-            </label>
-
-            {error && (
-              <p role="alert" className="rounded-xl bg-red-50 p-3 text-base text-red-700 dark:bg-red-500/10 dark:text-red-300">
-                {error}
-              </p>
-            )}
-            {saved && (
-              <p role="status" className="flex items-center gap-2 rounded-xl bg-emerald-50 p-3 text-base text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-                <span className="material-symbols-outlined">check_circle</span>
-                Guardado
-              </p>
-            )}
-
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-base font-bold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {saving && <span className="material-symbols-outlined animate-spin">progress_activity</span>}
-              {saving ? 'Guardando...' : 'Guardar'}
-            </button>
-          </>
-        )}
-      </section>
+      {tab === 'recompensas' && <RecompensasSection />}
+      {tab === 'categorias' && <CategoriasSection />}
+      {tab === 'promociones' && <PromocionesSection />}
+      {tab === 'canjes' && <CanjesSection />}
+      {tab === 'equivalencia' && <EquivalenciaSection />}
     </div>
   )
 }
