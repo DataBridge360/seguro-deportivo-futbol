@@ -1881,3 +1881,98 @@ export async function anularMiCanjePuntos(id: string): Promise<AnularMiCanjeResp
     saldo: Number(res.saldo) || 0,
   }
 }
+
+// Team support ranking ("Apoyá a tu equipo")
+
+export interface RankingEquipoPuntos {
+  torneo_equipo_id: string
+  equipo_nombre: string
+  equipo_logo_url: string | null
+  categoria_nombre: string | null
+  total: number
+  apoyos: number
+  posicion: number
+}
+
+export interface RankingTorneoPuntos {
+  torneo_id: string
+  torneo_nombre: string
+  equipos: RankingEquipoPuntos[]
+}
+
+export interface RankingPuntosResponse {
+  torneos: RankingTorneoPuntos[]
+  actualizado_at: string | null
+}
+
+export interface MiApoyoPuntos {
+  torneo_equipo_id: string
+  total: number
+}
+
+export interface ApoyarPuntosResponse {
+  saldo: number
+  torneos: RankingTorneoPuntos[]
+  mis_apoyos: MiApoyoPuntos[]
+}
+
+export interface ApoyarEquipoResponse {
+  torneo_id: string
+  torneo_equipo_id: string
+  puntos: number
+  saldo: number
+  total_equipo: number
+  equipo_nombre: string
+}
+
+export function normalizeRankingTorneosPuntos(torneos: unknown): RankingTorneoPuntos[] {
+  if (!Array.isArray(torneos)) return []
+  return torneos.map((t: RankingTorneoPuntos) => ({
+    torneo_id: t.torneo_id,
+    torneo_nombre: t.torneo_nombre ?? '',
+    equipos: (Array.isArray(t.equipos) ? t.equipos : []).map((e: RankingEquipoPuntos) => ({
+      torneo_equipo_id: e.torneo_equipo_id,
+      equipo_nombre: e.equipo_nombre ?? '',
+      equipo_logo_url: e.equipo_logo_url ?? null,
+      categoria_nombre: e.categoria_nombre ?? null,
+      total: Number(e.total) || 0,
+      apoyos: Number(e.apoyos) || 0,
+      posicion: Number(e.posicion) || 0,
+    })),
+  }))
+}
+
+export async function getRankingPuntos(): Promise<RankingPuntosResponse> {
+  const res = await apiFetch('/puntos/ranking')
+  return {
+    torneos: normalizeRankingTorneosPuntos(res.torneos),
+    actualizado_at: res.actualizado_at ?? null,
+  }
+}
+
+export async function getApoyarPuntos(): Promise<ApoyarPuntosResponse> {
+  const res = await apiFetch('/puntos/apoyar')
+  return {
+    saldo: Number(res.saldo) || 0,
+    torneos: normalizeRankingTorneosPuntos(res.torneos),
+    mis_apoyos: (Array.isArray(res.mis_apoyos) ? res.mis_apoyos : []).map((a: MiApoyoPuntos) => ({
+      torneo_equipo_id: a.torneo_equipo_id,
+      total: Number(a.total) || 0,
+    })),
+  }
+}
+
+export async function apoyarEquipoPuntos(torneoEquipoId: string, puntos: number): Promise<ApoyarEquipoResponse> {
+  const res = await apiFetch('/puntos/apoyar', {
+    method: 'POST',
+    body: JSON.stringify({ torneo_equipo_id: torneoEquipoId, puntos }),
+  })
+  return {
+    torneo_id: res.torneo_id,
+    torneo_equipo_id: res.torneo_equipo_id,
+    puntos: Number(res.puntos) || 0,
+    saldo: Number(res.saldo) || 0,
+    total_equipo: Number(res.total_equipo) || 0,
+    equipo_nombre: res.equipo_nombre ?? '',
+  }
+}
