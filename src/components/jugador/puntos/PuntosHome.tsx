@@ -7,9 +7,10 @@ import { matchesSearch } from '@/lib/utils'
 import { fmt } from '@/components/club/puntos/ui'
 import RecompensaModal from './RecompensaModal'
 import RewardImage from './RewardImage'
+import PuntosEquiposSection from './PuntosEquiposSection'
 
-const iconBtnCls =
-  'flex size-12 items-center justify-center rounded-full bg-white/15 text-white transition-colors hover:bg-white/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white'
+const ghostBtnCls =
+  'flex min-h-11 items-center gap-1 rounded-full px-3 text-base font-semibold text-slate-700 transition-colors hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800'
 
 function Skeleton() {
   return (
@@ -46,6 +47,11 @@ export default function PuntosHome() {
   }, [load])
 
   const saldo = data?.saldo ?? 0
+
+  useEffect(() => {
+    if (loading || window.location.hash !== '#equipos') return
+    document.getElementById('equipos')?.scrollIntoView()
+  }, [loading])
   const categorias = data?.categorias ?? []
   const categoriaActual = categorias.find(c => c.id === categoria) ?? null
 
@@ -60,117 +66,89 @@ export default function PuntosHome() {
   )
 
   return (
-    <div className="mx-auto max-w-2xl">
-      {/* Hero */}
-      <div className="rounded-3xl bg-gradient-to-br from-slate-900 via-[#0b3a63] to-[#1392ec] px-4 pb-10 pt-5 text-white shadow-lg">
-        <div className="flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-bold">Puntos ClubPlaza</h1>
-          <div className="flex gap-2">
-            <Link href="/dashboard/jugador/puntos/canjes" aria-label="Mis canjes" className={iconBtnCls}>
-              <span className="material-symbols-outlined">confirmation_number</span>
-            </Link>
-            <Link href="/dashboard/jugador/puntos/historial" aria-label="Historial" className={iconBtnCls}>
-              <span className="material-symbols-outlined">receipt_long</span>
-            </Link>
-          </div>
+    <div className="mx-auto max-w-2xl space-y-5">
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Puntos ClubPlaza</h1>
+        <div className="flex">
+          <Link href="/dashboard/jugador/puntos/historial" className={ghostBtnCls}>
+            <span className="material-symbols-outlined" aria-hidden>
+              receipt_long
+            </span>
+            Historial
+          </Link>
+          <Link href="/dashboard/jugador/puntos/canjes" className={ghostBtnCls}>
+            <span className="material-symbols-outlined" aria-hidden>
+              confirmation_number
+            </span>
+            Mis canjes
+          </Link>
         </div>
-
-        <label className="relative mt-4 block">
-          <span className="sr-only">Buscar una recompensa</span>
-          <span className="material-symbols-outlined pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">
-            search
-          </span>
-          <input
-            type="search"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Buscar una recompensa"
-            className="h-12 w-full rounded-full bg-white pl-12 pr-4 text-base text-slate-900 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-white/60"
-          />
-        </label>
-
-        {categorias.length > 0 && (
-          <div className="-mx-4 mt-4 flex gap-4 overflow-x-auto px-4 pb-1" role="group" aria-label="Categorías">
-            {[{ id: null as string | null, nombre: 'Todos', icono: 'apps' as string | null }, ...categorias].map(c => {
-              const active = categoria === c.id
-              return (
-                <button
-                  key={c.id ?? 'todos'}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => setCategoria(c.id)}
-                  className="flex w-20 shrink-0 flex-col items-center gap-1.5"
-                >
-                  <span
-                    className={`flex size-16 items-center justify-center rounded-2xl transition-colors ${
-                      active ? 'bg-white text-primary' : 'bg-white/15 text-white'
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-3xl">{c.icono || 'redeem'}</span>
-                  </span>
-                  <span className={`line-clamp-2 text-center text-sm leading-tight ${active ? 'font-bold' : 'font-medium'}`}>
-                    {c.nombre}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        )}
       </div>
 
-      {/* Balance card */}
-      <div className="relative -mt-6 mx-3 space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-md dark:border-slate-700 dark:bg-slate-800">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-lg font-bold leading-tight text-slate-900 dark:text-white">Mis Puntos</p>
-            <p className="text-base text-slate-600 dark:text-slate-300">ClubPlaza</p>
-          </div>
-          {loading ? (
-            <div className="h-11 w-28 animate-pulse rounded-full bg-slate-100 dark:bg-slate-700" />
-          ) : (
-            <span className="rounded-full bg-sky-100 px-5 py-2 text-2xl font-extrabold text-primary dark:bg-primary/25 dark:text-sky-200">
-              {fmt(saldo)}
+      <div>
+        <p className="text-base text-slate-600 dark:text-slate-300">Tenés</p>
+        {loading ? (
+          <div className="mt-1 h-14 w-48 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" aria-hidden />
+        ) : (
+          <p className="flex items-center gap-2">
+            <span className="text-5xl font-bold tabular-nums text-slate-900 dark:text-white">{fmt(saldo)}</span>
+            <span className="text-lg font-semibold text-slate-600 dark:text-slate-300">puntos</span>
+            <span className="material-symbols-outlined text-3xl text-amber-500" style={{ fontVariationSettings: "'FILL' 1" }} aria-hidden>
+              stars
             </span>
-          )}
-        </div>
+          </p>
+        )}
         {data?.promocion_activa && (
-          <div className="flex items-center gap-3 rounded-xl bg-gradient-to-r from-amber-400 to-orange-500 p-3 text-white shadow">
-            <span className="material-symbols-outlined text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>
+          <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-amber-800 dark:bg-amber-500/20 dark:text-amber-200">
+            <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }} aria-hidden>
               bolt
             </span>
-            <div>
-              <p className="text-base font-extrabold">¡Hoy sumás puntos x{data.promocion_activa.multiplicador}!</p>
-              <p className="text-sm text-white/90">{data.promocion_activa.titulo}</p>
-            </div>
-          </div>
+            Hoy sumás x{data.promocion_activa.multiplicador}
+          </p>
         )}
       </div>
 
-      <div className="mt-5 space-y-5">
-        <Link
-          href="/dashboard/jugador/puntos/apoyar"
-          className="flex min-h-16 items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 transition-colors hover:bg-rose-100 dark:border-rose-500/30 dark:bg-rose-500/10 dark:hover:bg-rose-500/20"
-        >
-          <span
-            className="material-symbols-outlined text-3xl text-rose-500"
-            style={{ fontVariationSettings: "'FILL' 1" }}
-            aria-hidden
-          >
-            favorite
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-base font-bold text-slate-900 dark:text-white">¡Apoyá a tu equipo!</p>
-            <p className="text-base text-slate-600 dark:text-slate-300">Usá tus puntos para empujar a tu equipo en la tabla</p>
-          </div>
-          <span className="material-symbols-outlined text-slate-400" aria-hidden>
-            chevron_right
-          </span>
-        </Link>
+      <label className="relative block">
+        <span className="sr-only">Buscar una recompensa</span>
+        <span className="material-symbols-outlined pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" aria-hidden>
+          search
+        </span>
+        <input
+          type="search"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Buscar una recompensa"
+          className="h-12 w-full rounded-full border border-slate-300 bg-white pl-12 pr-4 text-base text-slate-900 placeholder:text-slate-500 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 dark:border-slate-600 dark:bg-slate-900 dark:text-white"
+        />
+      </label>
 
-        <section className="space-y-3">
-          <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-            {categoriaActual ? categoriaActual.nombre : 'Todas las recompensas'}
-          </h2>
+      {categorias.length > 0 && (
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="Categorías">
+          {[{ id: null as string | null, nombre: 'Todos' }, ...categorias].map(c => {
+            const active = categoria === c.id
+            return (
+              <button
+                key={c.id ?? 'todos'}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setCategoria(c.id)}
+                className={`min-h-11 shrink-0 rounded-full border px-4 text-base font-semibold transition-colors ${
+                  active
+                    ? 'border-primary bg-primary/10 text-primary dark:border-sky-300 dark:bg-primary/20 dark:text-sky-200'
+                    : 'border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800'
+                }`}
+              >
+                {c.nombre}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      <section className="space-y-3">
+        <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+          {categoriaActual ? categoriaActual.nombre : 'Recompensas'}
+        </h2>
 
           {error && (
             <div
@@ -236,7 +214,10 @@ export default function PuntosHome() {
               })}
             </ul>
           )}
-        </section>
+      </section>
+
+      <div className="border-t border-slate-200 pt-6 dark:border-slate-700" id="equipos">
+        <PuntosEquiposSection variant="full" saldo={data ? saldo : undefined} onSaldoChange={n => setData(d => (d ? { ...d, saldo: n } : d))} />
       </div>
 
       {selected && (

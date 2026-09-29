@@ -1,10 +1,14 @@
-import { Suspense } from 'react'
-import TablaEnVivo from '@/components/jugador/puntos/TablaEnVivo'
+'use client'
 
-export default function TablaPuntosPage() {
-  return (
-    <Suspense fallback={null}>
-      <TablaEnVivo />
-    </Suspense>
-  )
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+
+export default function TablaPage() {
+  const router = useRouter()
+  useEffect(() => {
+    const torneo = new URLSearchParams(window.location.search).get('torneo')
+    const qs = torneo ? `?torneo=${encodeURIComponent(torneo)}` : ''
+    router.replace(`/dashboard/jugador/puntos${qs}#equipos`)
+  }, [router])
+  return null
 }
