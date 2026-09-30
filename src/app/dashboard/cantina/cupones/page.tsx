@@ -1,37 +1,12 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import jsQR from 'jsqr'
-import { buscarCupon, canjearCuponConPuntos, CuponResponse, getResumenCupones, getPuntosConfig, PuntosConfigResponse, ResumenCuponesResponse } from '@/lib/api'
-import CompraSinCuponModal, { calcPuntos, parseMonto } from '@/components/cantina/CompraSinCuponModal'
-import CanjeExitosoModal from '@/components/cantina/CanjeExitosoModal'
+import { getResumenCupones, getPuntosConfig, PuntosConfigResponse, ResumenCuponesResponse } from '@/lib/api'
+import RegistrarCompraWizard from '@/components/cantina/RegistrarCompraWizard'
 import EntregarRecompensaModal from '@/components/cantina/EntregarRecompensaModal'
-import NotificationModal from '@/components/ui/NotificationModal'
 import DateTimePicker from '@/components/ui/DateTimePicker'
 
-type Step = 'buscar' | 'preview' | 'monto'
-type InputMode = 'manual' | 'scanner'
-type ModalType = 'success' | 'error' | 'warning'
-
 const RECENT_PAGE_SIZE = 10
-
-const couponColorText = {
-  amber: 'text-amber-600 dark:text-amber-400',
-  blue: 'text-blue-600 dark:text-blue-400',
-  green: 'text-green-600 dark:text-green-400',
-  red: 'text-red-600 dark:text-red-400',
-  purple: 'text-purple-600 dark:text-purple-400',
-} as const
-
-function getCouponTextColor(cupon: CuponResponse) {
-  return couponColorText[cupon.color || 'amber'] || couponColorText.amber
-}
-
-function getEstado(cupon: CuponResponse): 'disponible' | 'usado' | 'vencido' {
-  if (cupon.usado) return 'usado'
-  if (cupon.fecha_vencimiento && cupon.fecha_vencimiento.slice(0, 10) < todayDate()) return 'vencido'
-  return 'disponible'
-}
 
 function todayDate() {
   const d = new Date()
@@ -52,128 +27,13 @@ function toLocalDateTimeString(date: string, time: string): string {
 }
 
 export default function CantinaCajaPage() {
-  // === Coupon validation state ===
-  const [step, setStep] = useState<Step>('buscar')
-  const [inputMode, setInputMode] = useState<InputMode>('manual')
-  const [codigo, setCodigo] = useState('')
-  const [cupon, setCupon] = useState<CuponResponse | null>(null)
-  const [montoCompra, setMontoCompra] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: ModalType }>({
-    open: false, title: '', message: '', type: 'success'
-  })
-
-  // === Points state ===
   const [puntosConfig, setPuntosConfig] = useState<PuntosConfigResponse | null>(null)
-  const [showSinCupon, setShowSinCupon] = useState(false)
+  const [showWizard, setShowWizard] = useState(false)
   const [showEntregar, setShowEntregar] = useState(false)
-  const [canjeResult, setCanjeResult] = useState<{
-    montoDescuento: number
-    montoTotal: number
-    puntosAcreditados: number | null
-    saldoPuntos?: number
-  } | null>(null)
 
   useEffect(() => {
     getPuntosConfig().then(setPuntosConfig).catch(() => setPuntosConfig(null))
   }, [])
-
-  // === QR Scanner state ===
-  const [scannerActive, setScannerActive] = useState(false)
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const animFrameRef = useRef<number | null>(null)
-
-  const stopScanner = useCallback(() => {
-    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop())
-      streamRef.current = null
-    }
-    setScannerActive(false)
-  }, [])
-
-  const startScanner = useCallback(async () => {
-    try {
-      setError('')
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
-      })
-      streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        videoRef.current.play()
-      }
-      setScannerActive(true)
-    } catch {
-      setError('No se pudo acceder a la camara. Usa el modo manual.')
-    }
-  }, [])
-
-  // Scan loop using BarcodeDetector or jsQR fallback
-  useEffect(() => {
-    if (!scannerActive || !videoRef.current) return
-    const video = videoRef.current
-
-    const scan = async () => {
-      if (!video || video.readyState < 2) {
-        animFrameRef.current = requestAnimationFrame(scan)
-        return
-      }
-      try {
-        let scannedValue: string | null = null
-        if ('BarcodeDetector' in window) {
-          const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] })
-          const codes = await detector.detect(video)
-          if (codes.length > 0) scannedValue = codes[0].rawValue as string
-        } else {
-          const canvas = document.createElement('canvas')
-          canvas.width = video.videoWidth
-          canvas.height = video.videoHeight
-          canvas.getContext('2d')!.drawImage(video, 0, 0)
-          const imageData = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height)
-          const result = jsQR(imageData.data, imageData.width, imageData.height)
-          if (result) scannedValue = result.data
-        }
-        if (scannedValue !== null) {
-          const value = scannedValue
-          stopScanner()
-          setCodigo(value)
-          setInputMode('manual')
-          try {
-            setLoading(true)
-            const data = await buscarCupon(value)
-            setCupon(data)
-            const estado = getEstado(data)
-            if (estado === 'usado') {
-              setNotification({
-                open: true,
-                title: 'Cupon ya utilizado',
-                message: 'Este cupon ya fue canjeado anteriormente. No se puede aplicar de nuevo.',
-                type: 'warning',
-              })
-              return
-            }
-            if (estado === 'vencido') { setError('Este cupon esta vencido'); return }
-            setStep('preview')
-          } catch (err) {
-            setError(err instanceof Error ? err.message : 'Cupon no encontrado')
-          } finally {
-            setLoading(false)
-          }
-          return
-        }
-      } catch { /* ignore detection errors */ }
-      animFrameRef.current = requestAnimationFrame(scan)
-    }
-
-    animFrameRef.current = requestAnimationFrame(scan)
-    return () => { if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current) }
-  }, [scannerActive, stopScanner])
-
-  // Cleanup on unmount
-  useEffect(() => () => stopScanner(), [stopScanner])
 
   // === Summary state ===
   const [resumen, setResumen] = useState<ResumenCuponesResponse | null>(null)
@@ -233,95 +93,6 @@ export default function CantinaCajaPage() {
     }
   }, [fetchResumen])
 
-  // === Coupon handlers ===
-  const handleBuscar = async () => {
-    if (!codigo.trim()) {
-      setError('Ingresa un codigo de cupon')
-      return
-    }
-    try {
-      setLoading(true)
-      setError('')
-      const data = await buscarCupon(codigo.trim())
-      setCupon(data)
-      const estado = getEstado(data)
-      if (estado === 'usado') {
-        setNotification({
-          open: true,
-          title: 'Cupon ya utilizado',
-          message: 'Este cupon ya fue canjeado anteriormente. No se puede aplicar de nuevo.',
-          type: 'warning',
-        })
-        return
-      }
-      if (estado === 'vencido') {
-        setError('Este cupon esta vencido')
-        return
-      }
-      setStep('preview')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Cupon no encontrado')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleCanjear = async () => {
-    if (!cupon) return
-    const monto = parseFloat(montoCompra)
-    if (!monto || monto <= 0) {
-      setError('Ingresa un monto valido')
-      return
-    }
-    try {
-      setLoading(true)
-      setError('')
-      const result = await canjearCuponConPuntos(cupon.id, monto)
-      setCanjeResult({
-        montoDescuento: Number(result.data.monto_descuento),
-        montoTotal: Number(result.data.monto_total),
-        puntosAcreditados: result.puntos_acreditados,
-        saldoPuntos: result.saldo_puntos,
-      })
-      // Re-fetch summary immediately after successful canje
-      fetchResumen(false)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Error al canjear'
-      const alreadyUsed = message.toLowerCase().includes('ya fue utilizado')
-      setNotification({
-        open: true,
-        title: alreadyUsed ? 'Cupon ya utilizado' : 'Error',
-        message: alreadyUsed ? 'Este cupon ya fue canjeado anteriormente. No se puede aplicar de nuevo.' : message,
-        type: alreadyUsed ? 'warning' : 'error'
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const resetForm = () => {
-    stopScanner()
-    setStep('buscar')
-    setInputMode('manual')
-    setCodigo('')
-    setCupon(null)
-    setMontoCompra('')
-    setError('')
-  }
-
-  const calcDescuento = (): { descuento: number; total: number } | null => {
-    if (!cupon || !montoCompra) return null
-    const monto = parseFloat(montoCompra)
-    if (!monto || monto <= 0) return null
-    let descuento: number
-    if (cupon.tipo_descuento === 'porcentaje') {
-      descuento = Math.round(monto * cupon.valor_descuento / 100 * 100) / 100
-    } else {
-      descuento = Math.min(cupon.valor_descuento, monto)
-    }
-    return { descuento, total: Math.round((monto - descuento) * 100) / 100 }
-  }
-
   const totales = resumen?.totales ?? { total_canjes: 0, total_compras: 0, total_descuentos: 0, total_cobrado: 0 }
   const totalRecentPages = Math.max(1, Math.ceil((resumen?.cupones.length ?? 0) / RECENT_PAGE_SIZE))
   const recentPageSafe = Math.min(recentPage, totalRecentPages)
@@ -330,205 +101,29 @@ export default function CantinaCajaPage() {
     recentPageSafe * RECENT_PAGE_SIZE
   )
 
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Caja</h1>
-        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Validar cupones y controlar el resumen del turno</p>
+        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Registrá cada venta de la cantina y controlá el resumen del turno</p>
       </div>
 
-      {/* === COUPON VALIDATION === */}
-      <div className="max-w-md mx-auto lg:mx-0">
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-6 space-y-5">
-          {/* Step: Buscar */}
-          {step === 'buscar' && (
-            <>
-              {/* Toggle manual / scanner */}
-              <div className="flex gap-1 bg-slate-100 dark:bg-slate-900 rounded-lg p-1">
-                <button
-                  onClick={() => { setInputMode('manual'); stopScanner(); setError('') }}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-colors ${inputMode === 'manual' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                >
-                  <span className="material-symbols-outlined text-base">keyboard</span>
-                  Manual
-                </button>
-                <button
-                  onClick={() => { setInputMode('scanner'); startScanner(); setError('') }}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-md text-sm font-medium transition-colors ${inputMode === 'scanner' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
-                >
-                  <span className="material-symbols-outlined text-base">qr_code_scanner</span>
-                  Escanear QR
-                </button>
-              </div>
-
-              {/* Scanner view */}
-              {inputMode === 'scanner' && (
-                <div className="space-y-3">
-                  <div className="relative bg-black rounded-xl overflow-hidden aspect-square">
-                    <video
-                      ref={videoRef}
-                      className="w-full h-full object-cover"
-                      playsInline
-                      muted
-                    />
-                    {/* Targeting overlay */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-48 h-48 relative">
-                        <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-lg" />
-                        <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-lg" />
-                        <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-lg" />
-                        <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-lg" />
-                        {/* Scan line */}
-                        <div className="absolute inset-x-0 top-1/2 h-0.5 bg-primary/70 animate-pulse" />
-                      </div>
-                    </div>
-                    {loading && (
-                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                        <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      </div>
-                    )}
-                  </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 text-center">Apunta la camara al QR del cupon del jugador</p>
-                  {error && <p className="text-red-400 text-xs text-center">{error}</p>}
-                </div>
-              )}
-
-              {/* Manual input */}
-              {inputMode === 'manual' && (
-                <>
-                  <div>
-                    <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">Codigo del cupon</label>
-                    <input
-                      type="text"
-                      value={codigo}
-                      onChange={(e) => { setCodigo(e.target.value.toUpperCase()); setError('') }}
-                      placeholder="Ej: CUP-ABC123"
-                      className={`w-full px-3 py-2.5 bg-slate-100 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-sm font-mono placeholder:text-slate-400 focus:outline-none focus:border-primary ${error ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'}`}
-                      onKeyDown={(e) => e.key === 'Enter' && handleBuscar()}
-                    />
-                    {error && <p className="text-red-400 text-xs mt-1">{error}</p>}
-                  </div>
-                  <button
-                    onClick={handleBuscar}
-                    disabled={loading}
-                    className="w-full py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {loading ? (
-                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Buscando...</>
-                    ) : (
-                      <><span className="material-symbols-outlined text-lg">search</span> Buscar cupon</>
-                    )}
-                  </button>
-                </>
-              )}
-            </>
-          )}
-
-          {/* Step: Preview */}
-          {step === 'preview' && cupon && (
-            <>
-              <div className="text-center py-2">
-                <p className={`text-3xl font-bold ${getCouponTextColor(cupon)}`}>
-                  {cupon.tipo_descuento === 'porcentaje' ? `${cupon.valor_descuento}%` : `$${cupon.valor_descuento.toLocaleString()}`}
-                </p>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{cupon.titulo}</p>
-                <p className="text-xs text-slate-400 font-mono mt-1">{cupon.codigo}</p>
-              </div>
-              {cupon.jugadores && (
-                <div className="bg-slate-100 dark:bg-slate-900 rounded-lg p-3 text-center">
-                  <p className="text-sm text-slate-900 dark:text-white font-medium">
-                    {cupon.jugadores.apellido} {cupon.jugadores.nombre}
-                  </p>
-                  <p className="text-xs text-slate-500">DNI: {cupon.jugadores.dni}</p>
-                </div>
-              )}
-              <div className="flex gap-3">
-                <button onClick={resetForm}
-                  className="flex-1 py-2.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-900 dark:text-white rounded-lg text-sm font-medium transition-colors">
-                  Cancelar
-                </button>
-                <button onClick={() => setStep('monto')}
-                  className="flex-1 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors">
-                  Aplicar descuento
-                </button>
-              </div>
-            </>
-          )}
-
-          {/* Step: Monto */}
-          {step === 'monto' && cupon && (
-            <>
-              <div>
-                <label className="block text-slate-600 dark:text-slate-300 text-sm font-medium mb-1.5">Monto de la compra ($)</label>
-                <input
-                  type="number"
-                  value={montoCompra}
-                  onChange={(e) => { setMontoCompra(e.target.value); setError('') }}
-                  placeholder="Ej: 5000"
-                  className={`w-full px-3 py-3 bg-slate-100 dark:bg-slate-900 border rounded-lg text-slate-900 dark:text-white text-lg font-bold text-center placeholder:text-slate-400 placeholder:font-normal focus:outline-none focus:border-primary ${error ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'}`}
-                  min="1"
-                />
-                {error && <p className="text-red-400 text-xs mt-1">{error}</p>}
-              </div>
-
-              {calcPuntos(parseMonto(montoCompra), puntosConfig) > 0 && (
-                <p className="text-base font-medium text-primary flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-xl">stars</span>
-                  Suma {calcPuntos(parseMonto(montoCompra), puntosConfig)} puntos
-                </p>
-              )}
-
-              {calcDescuento() && (
-                <div className="space-y-2 bg-slate-50 dark:bg-slate-900/50 rounded-lg p-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500 dark:text-slate-400">Subtotal</span>
-                    <span className="text-slate-900 dark:text-white">${parseFloat(montoCompra).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500 dark:text-slate-400">
-                      Descuento ({cupon.tipo_descuento === 'porcentaje' ? `${cupon.valor_descuento}%` : `$${cupon.valor_descuento}`})
-                    </span>
-                    <span className="text-green-500 font-medium">-${calcDescuento()!.descuento.toLocaleString()}</span>
-                  </div>
-                  <div className="border-t border-slate-200 dark:border-slate-700 pt-2">
-                    <div className="flex justify-between">
-                      <span className="text-slate-900 dark:text-white font-bold">Total a cobrar</span>
-                      <span className="text-slate-900 dark:text-white font-bold text-lg">${calcDescuento()!.total.toLocaleString()}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-3">
-                <button onClick={() => { setStep('preview'); setMontoCompra(''); setError('') }}
-                  className="flex-1 py-2.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-900 dark:text-white rounded-lg text-sm font-medium transition-colors">
-                  Volver
-                </button>
-                <button onClick={handleCanjear} disabled={loading}
-                  className="flex-1 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-                  {loading ? (
-                    <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Canjeando...</>
-                  ) : (
-                    <><span className="material-symbols-outlined text-lg">check_circle</span> Confirmar canje</>
-                  )}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+      {/* === HERO ACTIONS === */}
+      <div className="max-w-md mx-auto lg:mx-0 space-y-3">
         <button
           type="button"
-          onClick={() => setShowSinCupon(true)}
-          className="mt-4 w-full h-12 bg-white dark:bg-slate-800 border-2 border-primary text-primary hover:bg-primary/5 rounded-lg text-base font-semibold transition-colors flex items-center justify-center gap-2"
+          onClick={() => setShowWizard(true)}
+          className="w-full min-h-[96px] bg-primary hover:bg-primary/90 text-white rounded-2xl shadow-lg shadow-primary/20 text-xl font-bold transition-colors flex items-center justify-center gap-3"
         >
-          <span className="material-symbols-outlined text-2xl">shopping_bag</span>
-          Compra sin cupón
+          <span className="material-symbols-outlined text-4xl">point_of_sale</span>
+          Registrar compra
         </button>
         <button
           type="button"
           onClick={() => setShowEntregar(true)}
-          className="mt-3 w-full h-12 bg-primary hover:bg-primary/90 text-white rounded-lg text-base font-semibold transition-colors flex items-center justify-center gap-2"
+          className="w-full min-h-12 bg-white dark:bg-slate-800 border-2 border-primary text-primary hover:bg-primary/5 rounded-lg text-base font-semibold transition-colors flex items-center justify-center gap-2"
         >
           <span className="material-symbols-outlined text-2xl">redeem</span>
           Entregar recompensa
@@ -718,24 +313,13 @@ export default function CantinaCajaPage() {
         )}
       </div>
 
-      <EntregarRecompensaModal isOpen={showEntregar} onClose={() => setShowEntregar(false)} />
-      <CompraSinCuponModal isOpen={showSinCupon} onClose={() => setShowSinCupon(false)} config={puntosConfig} />
-      <CanjeExitosoModal
-        isOpen={canjeResult !== null}
-        onClose={() => { setCanjeResult(null); resetForm() }}
-        montoDescuento={canjeResult?.montoDescuento ?? 0}
-        montoTotal={canjeResult?.montoTotal ?? 0}
-        puntosAcreditados={canjeResult ? canjeResult.puntosAcreditados : 0}
-        saldoPuntos={canjeResult?.saldoPuntos}
+      <RegistrarCompraWizard
+        isOpen={showWizard}
+        onClose={() => setShowWizard(false)}
         puntosActivos={!!puntosConfig?.activo}
+        onCompleted={() => fetchResumen(false)}
       />
-      <NotificationModal
-        isOpen={notification.open}
-        onClose={() => { setNotification(prev => ({ ...prev, open: false })); if (notification.type === 'success') resetForm() }}
-        title={notification.title}
-        message={notification.message}
-        type={notification.type}
-      />
+      <EntregarRecompensaModal isOpen={showEntregar} onClose={() => setShowEntregar(false)} />
     </div>
   )
 }

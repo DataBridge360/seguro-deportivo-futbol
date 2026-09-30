@@ -2058,3 +2058,33 @@ export async function removeFCMToken(token: string): Promise<void> {
     body: JSON.stringify({ token }),
   })
 }
+
+// ========================================
+// Cantina: unified purchase registration
+// ========================================
+
+export interface RegistrarCompraBody {
+  monto_compra: number
+  dni?: string
+  cupon_codigo?: string
+  sumar_puntos?: boolean
+}
+
+export interface RegistrarCompraData {
+  compra_id: string
+  jugador_encontrado: boolean
+  jugador: { nombre: string; apellido: string } | null
+  monto_compra: number
+  monto_descuento: number
+  monto_total: number
+  puntos_acreditados: number
+  cupon: { titulo: string } | null
+}
+
+export async function registrarCompra(body: RegistrarCompraBody): Promise<RegistrarCompraData> {
+  const res = await apiFetch('/compras', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+  return res.data
+}
