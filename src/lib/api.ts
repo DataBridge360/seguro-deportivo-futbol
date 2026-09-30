@@ -2067,7 +2067,6 @@ export interface RegistrarCompraBody {
   monto_compra: number
   dni?: string
   cupon_codigo?: string
-  sumar_puntos?: boolean
 }
 
 export interface RegistrarCompraData {

@@ -70,7 +70,6 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
   const [jugador, setJugador] = useState<PuntosJugadorResponse | null>(null)
   const [lookupMsg, setLookupMsg] = useState('')
   const [cuponOn, setCuponOn] = useState(false)
-  const [puntosOn, setPuntosOn] = useState(false)
   const [codigo, setCodigo] = useState('')
   const [cupon, setCupon] = useState<CuponResponse | null>(null)
   const [cuponLoading, setCuponLoading] = useState(false)
@@ -121,7 +120,6 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
     setJugador(null)
     setLookupMsg('')
     setCuponOn(false)
-    setPuntosOn(false)
     setCodigo('')
     setCupon(null)
     setCuponLoading(false)
@@ -172,11 +170,6 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
     }
   }, [dni, sinDni])
 
-  // Points default ON when the player is found and points are active
-  useEffect(() => {
-    setPuntosOn(puedeSumarPuntos)
-  }, [puedeSumarPuntos])
-
   // Coupon validity given the current amount / DNI
   const cuponProblem = useMemo(() => {
     if (!cupon) return ''
@@ -194,7 +187,8 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
   const cuponAplicado = cuponOn && !!cupon && !cuponProblem ? cupon : null
   const descuento = calcDescuento(cuponAplicado, montoNum)
   const total = Math.max(0, Math.round((montoNum - descuento) * 100) / 100)
-  const puntosFinal = puntosOn && puedeSumarPuntos
+  // Points are automatic: credited whenever the DNI is a registered player.
+  const puntosFinal = puedeSumarPuntos
 
   if (!mounted || !isOpen) return null
 
@@ -238,7 +232,6 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
         monto_compra: montoNum,
         ...(!sinDni && dniValido ? { dni } : {}),
         ...(cuponAplicado?.codigo ? { cupon_codigo: cuponAplicado.codigo } : {}),
-        sumar_puntos: puntosFinal,
       })
       setResult(data)
       setStep('resultado')
@@ -521,35 +514,25 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
                 )}
               </div>
 
-              {/* Points card */}
+              {/* Points info (automatic, not an option) */}
               <div
-                className={`rounded-xl border-2 transition-colors ${
+                className={`rounded-xl border-2 min-h-[72px] px-4 py-3 flex items-center gap-3 ${
                   puntosFinal ? 'border-primary bg-primary/5' : 'border-slate-300 dark:border-slate-600'
-                } ${puedeSumarPuntos ? '' : 'opacity-60'}`}
+                }`}
               >
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={puntosFinal}
-                  disabled={!puedeSumarPuntos}
-                  onClick={() => setPuntosOn((v) => !v)}
-                  className="w-full min-h-[72px] px-4 flex items-center gap-3 text-left disabled:cursor-not-allowed"
-                >
-                  <span className="material-symbols-outlined text-3xl text-primary">stars</span>
-                  <span className="flex-1">
-                    <span className="block text-base font-semibold text-slate-900 dark:text-white">Sumar puntos</span>
-                    {!puedeSumarPuntos && (
-                      <span className="block text-sm text-slate-500 dark:text-slate-400">
-                        {!puntosActivos
-                          ? 'El club no tiene puntos activos'
-                          : 'Necesitás un DNI registrado en la app'}
-                      </span>
-                    )}
+                <span className="material-symbols-outlined text-3xl text-primary">stars</span>
+                <span className="flex-1">
+                  <span className="block text-base font-semibold text-slate-900 dark:text-white">
+                    {puntosFinal ? 'Los puntos se suman solos' : 'Esta compra no suma puntos'}
                   </span>
-                  <span className="material-symbols-outlined text-3xl text-primary">
-                    {puntosFinal ? 'toggle_on' : 'toggle_off'}
-                  </span>
-                </button>
+                  {!puntosFinal && (
+                    <span className="block text-sm text-slate-500 dark:text-slate-400">
+                      {!puntosActivos
+                        ? 'El club no tiene puntos activos'
+                        : 'Para sumar puntos hace falta un DNI registrado en la app'}
+                    </span>
+                  )}
+                </span>
               </div>
             </div>
           )}
