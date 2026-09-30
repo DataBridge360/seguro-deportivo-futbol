@@ -1,7 +1,7 @@
 'use client'
 
-import { ChangeEvent, useEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { ChangeEvent, useEffect, useState } from 'react'
+import ImageCropper from '@/components/ui/ImageCropper'
 import SafeImage from '@/components/ui/SafeImage'
 import { AnuncioResponse, crearAnuncio } from '@/lib/api'
 
@@ -16,24 +16,6 @@ const DURATION_CHIPS: { label: string; days: number }[] = [
   { label: '2 semanas', days: 14 },
   { label: '1 mes', days: 30 },
 ]
-
-function getCropRect(image: HTMLImageElement, zoom: number, positionX: number, positionY: number) {
-  const imageWidth = image.naturalWidth
-  const imageHeight = image.naturalHeight
-  const imageAspect = imageWidth / imageHeight
-  const baseWidth = imageAspect > BANNER_ASPECT ? imageHeight * BANNER_ASPECT : imageWidth
-  const baseHeight = imageAspect > BANNER_ASPECT ? imageHeight : imageWidth / BANNER_ASPECT
-  const cropWidth = baseWidth / zoom
-  const cropHeight = baseHeight / zoom
-  const maxOffsetX = Math.max(0, (imageWidth - cropWidth) / 2)
-  const maxOffsetY = Math.max(0, (imageHeight - cropHeight) / 2)
-  const centerX = imageWidth / 2 + (positionX / 100) * maxOffsetX
-  const centerY = imageHeight / 2 + (positionY / 100) * maxOffsetY
-  const sourceX = Math.min(Math.max(0, centerX - cropWidth / 2), imageWidth - cropWidth)
-  const sourceY = Math.min(Math.max(0, centerY - cropHeight / 2), imageHeight - cropHeight)
-
-  return { sourceX, sourceY, cropWidth, cropHeight }
-}
 
 function toDateInputValue(date: Date): string {
   const y = date.getFullYear()
@@ -75,15 +57,7 @@ export default function AnuncioWizard({ onCreated }: AnuncioWizardProps) {
   const [preview, setPreview] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [mounted, setMounted] = useState(false)
-
-  const [cropOpen, setCropOpen] = useState(false)
-  const [cropSource, setCropSource] = useState('')
-  const [cropZoom, setCropZoom] = useState(1)
-  const [cropX, setCropX] = useState(0)
-  const [cropY, setCropY] = useState(0)
-  const cropImageRef = useRef<HTMLImageElement | null>(null)
-  const cropCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const [cropFile, setCropFile] = useState<File | null>(null)
 
   const today = toDateInputValue(new Date())
 
@@ -95,10 +69,6 @@ export default function AnuncioWizard({ onCreated }: AnuncioWizardProps) {
   ]
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  useEffect(() => {
     if (!imagen) {
       setPreview('')
       return
@@ -108,80 +78,19 @@ export default function AnuncioWizard({ onCreated }: AnuncioWizardProps) {
     return () => URL.revokeObjectURL(url)
   }, [imagen])
 
-  useEffect(() => {
-    return () => {
-      if (cropSource) URL.revokeObjectURL(cropSource)
-    }
-  }, [cropSource])
-
-  const drawCropPreview = () => {
-    const image = cropImageRef.current
-    const canvas = cropCanvasRef.current
-    if (!image || !canvas || !image.naturalWidth) return
-
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    const { sourceX, sourceY, cropWidth, cropHeight } = getCropRect(image, cropZoom, cropX, cropY)
-    canvas.width = BANNER_WIDTH
-    canvas.height = BANNER_HEIGHT
-    ctx.clearRect(0, 0, BANNER_WIDTH, BANNER_HEIGHT)
-    ctx.drawImage(image, sourceX, sourceY, cropWidth, cropHeight, 0, 0, BANNER_WIDTH, BANNER_HEIGHT)
-  }
-
-  useEffect(() => {
-    drawCropPreview()
-  }, [cropZoom, cropX, cropY, cropSource, cropOpen])
-
   const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] || null
     setError('')
     event.target.value = ''
     if (!file) return
-
-    if (cropSource) URL.revokeObjectURL(cropSource)
-    setCropSource(URL.createObjectURL(file))
-    setCropZoom(1)
-    setCropX(0)
-    setCropY(0)
-    setCropOpen(true)
+    setCropFile(file)
   }
 
-  const confirmCrop = async () => {
-    const image = cropImageRef.current
-    if (!image || !image.naturalWidth) return
-
-    const canvas = document.createElement('canvas')
-    canvas.width = BANNER_WIDTH
-    canvas.height = BANNER_HEIGHT
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    const { sourceX, sourceY, cropWidth, cropHeight } = getCropRect(image, cropZoom, cropX, cropY)
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, 0, BANNER_WIDTH, BANNER_HEIGHT)
-    ctx.drawImage(image, sourceX, sourceY, cropWidth, cropHeight, 0, 0, BANNER_WIDTH, BANNER_HEIGHT)
-
-    const toBlob = (type: string, quality: number) =>
-      new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, quality))
-
-    let type = 'image/webp'
-    let ext = 'webp'
-    let blob = await toBlob(type, 0.82)
-    if (!blob || blob.type !== type) {
-      type = 'image/jpeg'
-      ext = 'jpg'
-      blob = await toBlob(type, 0.85)
-    }
-    if (blob && blob.size > 1.5 * 1024 * 1024) {
-      const smaller = await toBlob(type, 0.6)
-      if (smaller) blob = smaller
-    }
-    if (!blob) return
-
-    const file = new File([blob], `anuncio-${Date.now()}.${ext}`, { type: blob.type })
+  const handleCropConfirm = (file: File, previewUrl: string) => {
+    // The cropper's own preview URL is not needed; the wizard builds its own
+    URL.revokeObjectURL(previewUrl)
     setImagen(file)
-    setCropOpen(false)
+    setCropFile(null)
   }
 
   const reset = () => {
@@ -442,86 +351,18 @@ export default function AnuncioWizard({ onCreated }: AnuncioWizardProps) {
         )}
       </div>
 
-      {mounted && cropOpen && cropSource &&
-        createPortal(
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4">
-            <div className="w-full max-w-xl max-h-full overflow-y-auto rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl p-4 sm:p-5">
-              <div className="flex items-start justify-between gap-3 mb-4">
-                <div>
-                  <h2 className="text-lg font-bold text-slate-900 dark:text-white">Ajustar imagen</h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Salida final: 2048 x 640 px</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCropOpen(false)}
-                  aria-label="Cerrar"
-                  className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                >
-                  <span className="material-symbols-outlined text-lg">close</span>
-                </button>
-              </div>
-
-              <img ref={cropImageRef} src={cropSource} alt="" className="hidden" onLoad={drawCropPreview} />
-
-              <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900">
-                <canvas ref={cropCanvasRef} className="block w-full aspect-[3.2/1]" />
-              </div>
-
-              <div className="mt-4 space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Zoom</label>
-                    <span className="text-xs text-slate-400">{cropZoom.toFixed(1)}x</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="1"
-                    max="3"
-                    step="0.05"
-                    value={cropZoom}
-                    onChange={(e) => setCropZoom(Number(e.target.value))}
-                    className="w-full accent-primary min-h-[44px]"
-                  />
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">Mover horizontal</label>
-                    <input
-                      type="range"
-                      min="-100"
-                      max="100"
-                      value={cropX}
-                      onChange={(e) => setCropX(Number(e.target.value))}
-                      className="w-full accent-primary min-h-[44px]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1.5">Mover vertical</label>
-                    <input
-                      type="range"
-                      min="-100"
-                      max="100"
-                      value={cropY}
-                      onChange={(e) => setCropY(Number(e.target.value))}
-                      className="w-full accent-primary min-h-[44px]"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 mt-5">
-                <button type="button" onClick={() => setCropOpen(false)} className={secondaryBtn}>
-                  Cancelar
-                </button>
-                <button type="button" onClick={confirmCrop} className={`${primaryBtn} flex-none`}>
-                  Usar recorte
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
+      {cropFile && (
+        <ImageCropper
+          file={cropFile}
+          aspect={BANNER_ASPECT}
+          outputWidth={BANNER_WIDTH}
+          outputHeight={BANNER_HEIGHT}
+          maxBytes={1.5 * 1024 * 1024}
+          fillBackground="#ffffff"
+          onConfirm={handleCropConfirm}
+          onCancel={() => setCropFile(null)}
+        />
+      )}
     </div>
   )
 }

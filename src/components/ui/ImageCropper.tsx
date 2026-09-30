@@ -6,13 +6,20 @@ import { createPortal } from 'react-dom'
 interface ImageCropperProps {
   file: File
   aspect?: number
+  /** Exact output size in px; when both are set the MAX_SIDE rule is skipped */
+  outputWidth?: number
+  outputHeight?: number
+  /** Max encoded size in bytes (default 2 MB) */
+  maxBytes?: number
+  /** Backdrop painted before drawing (default white) */
+  fillBackground?: string
   onConfirm: (file: File, previewUrl: string) => void
   onCancel: () => void
 }
 
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp']
 const MAX_SIDE = 800
-const MAX_BYTES = 2 * 1024 * 1024
+const DEFAULT_MAX_BYTES = 2 * 1024 * 1024
 const MAX_ZOOM = 4
 
 interface Loaded {
@@ -26,7 +33,7 @@ function toBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promi
   return new Promise(resolve => canvas.toBlob(resolve, type, quality))
 }
 
-async function encode(canvas: HTMLCanvasElement): Promise<{ blob: Blob; ext: string } | null> {
+async function encode(canvas: HTMLCanvasElement, maxBytes: number): Promise<{ blob: Blob; ext: string } | null> {
   let type = 'image/webp'
   let ext = 'webp'
   let quality = 0.82
@@ -38,15 +45,24 @@ async function encode(canvas: HTMLCanvasElement): Promise<{ blob: Blob; ext: str
     blob = await toBlob(canvas, type, quality)
   }
   if (!blob) return null
-  if (blob.size > MAX_BYTES) {
+  if (blob.size > maxBytes) {
     const smaller = await toBlob(canvas, type, 0.6)
     if (smaller) blob = smaller
   }
-  if (blob.size > MAX_BYTES) return null
+  if (blob.size > maxBytes) return null
   return { blob, ext }
 }
 
-export default function ImageCropper({ file, aspect = 1, onConfirm, onCancel }: ImageCropperProps) {
+export default function ImageCropper({
+  file,
+  aspect = 1,
+  outputWidth,
+  outputHeight,
+  maxBytes = DEFAULT_MAX_BYTES,
+  fillBackground = '#ffffff',
+  onConfirm,
+  onCancel,
+}: ImageCropperProps) {
   const frameRef = useRef<HTMLDivElement>(null)
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const pinchDist = useRef(0)
@@ -94,11 +110,11 @@ export default function ImageCropper({ file, aspect = 1, onConfirm, onCancel }: 
   }, [file, validType])
 
   useEffect(() => {
-    const update = () => setFrameW(Math.max(200, Math.min(320, window.innerWidth - 80)))
+    const update = () => setFrameW(Math.max(200, Math.min(aspect > 2 ? 400 : 320, window.innerWidth - 80)))
     update()
     window.addEventListener('resize', update)
     return () => window.removeEventListener('resize', update)
-  }, [])
+  }, [aspect])
 
   // Scale at zoom 1 so the image just covers the frame
   const baseScale = loaded ? Math.max(frameW / loaded.w, frameH / loaded.h) : 1
@@ -185,10 +201,17 @@ export default function ImageCropper({ file, aspect = 1, onConfirm, onCancel }: 
       const srcX = loaded.w / 2 - offset.x / scale - srcW / 2
       const srcY = loaded.h / 2 - offset.y / scale - srcH / 2
 
-      const longSide = Math.max(srcW, srcH)
-      const ratio = Math.min(1, MAX_SIDE / longSide)
-      const outW = Math.max(1, Math.round(srcW * ratio))
-      const outH = Math.max(1, Math.round(srcH * ratio))
+      let outW: number
+      let outH: number
+      if (outputWidth && outputHeight) {
+        outW = Math.round(outputWidth)
+        outH = Math.round(outputHeight)
+      } else {
+        const longSide = Math.max(srcW, srcH)
+        const ratio = Math.min(1, MAX_SIDE / longSide)
+        outW = Math.max(1, Math.round(srcW * ratio))
+        outH = Math.max(1, Math.round(srcH * ratio))
+      }
 
       const canvas = document.createElement('canvas')
       canvas.width = outW
@@ -196,13 +219,14 @@ export default function ImageCropper({ file, aspect = 1, onConfirm, onCancel }: 
       const ctx = canvas.getContext('2d')
       if (!ctx) throw new Error('canvas')
       // White backdrop so transparent PNGs do not turn black when exported as JPEG
-      ctx.fillStyle = '#ffffff'
+      ctx.fillStyle = fillBackground
       ctx.fillRect(0, 0, outW, outH)
       ctx.drawImage(loaded.img, srcX, srcY, srcW, srcH, 0, 0, outW, outH)
 
-      const result = await encode(canvas)
+      const result = await encode(canvas, maxBytes)
       if (!result) {
-        setError('La imagen sigue pesando más de 2 MB. Probá con otra o hacele más zoom.')
+        const limit = Number((maxBytes / (1024 * 1024)).toFixed(1))
+        setError(`La imagen sigue pesando más de ${limit} MB. Probá con otra o hacele más zoom.`)
         return
       }
       const base = file.name.replace(/\.[^.]+$/, '') || 'imagen'
@@ -229,7 +253,7 @@ export default function ImageCropper({ file, aspect = 1, onConfirm, onCancel }: 
       >
         <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-700">
           <h2 className="text-lg font-bold text-slate-900 dark:text-white">Ajustá la imagen</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">Arrastrala para moverla y usá el zoom para acercarla.</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Arrastrá para ajustar · rueda o pellizco para zoom</p>
         </div>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
