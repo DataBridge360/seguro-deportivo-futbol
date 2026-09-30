@@ -4,21 +4,103 @@ import { getMessagingIfSupported } from '@/lib/firebase';
 import { registerFCMToken } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 
-async function fetchFCMToken(): Promise<string | null> {
-  const messaging = await getMessagingIfSupported();
-  if (!messaging) return null;
+const FCM_TOKEN_KEY = 'fcm-token';
+const FCM_LAST_ERROR_KEY = 'fcm-last-error';
+const SW_ACTIVATION_TIMEOUT_MS = 15000;
 
-  const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-  await navigator.serviceWorker.ready;
-
-  const fcmToken = await getToken(messaging, {
-    vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
-    serviceWorkerRegistration: registration,
-  });
-  return fcmToken || null;
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err ?? '');
 }
 
-// Silently re-registers the FCM token on app open when permission was already granted.
+function stepError(step: string, err?: unknown): Error {
+  const detail = err === undefined ? '' : errorMessage(err);
+  return new Error(`Falló el paso "${step}"${detail ? `: ${detail}` : ''}`);
+}
+
+// Waits until this specific registration has an active worker (not just any SW of the origin).
+function waitForActive(registration: ServiceWorkerRegistration): Promise<void> {
+  if (registration.active) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const worker = registration.installing || registration.waiting;
+    const timer = setTimeout(
+      () => reject(new Error('el service worker no se activó en 15 segundos')),
+      SW_ACTIVATION_TIMEOUT_MS,
+    );
+    if (!worker) {
+      clearTimeout(timer);
+      reject(new Error('no hay service worker instalándose'));
+      return;
+    }
+    worker.addEventListener('statechange', () => {
+      if (worker.state === 'activated') {
+        clearTimeout(timer);
+        resolve();
+      } else if (worker.state === 'redundant') {
+        clearTimeout(timer);
+        reject(new Error('el service worker quedó descartado'));
+      }
+    });
+  });
+}
+
+// Full registration: messaging support -> service worker -> Firebase token -> backend.
+// Throws an Error naming the failed step. Writes the token to localStorage on success.
+async function registerDevice(): Promise<string> {
+  const messaging = await getMessagingIfSupported().catch((err) => {
+    throw stepError('soporte', err);
+  });
+  if (!messaging) throw stepError('soporte', new Error('este navegador no soporta notificaciones push'));
+
+  let registration: ServiceWorkerRegistration;
+  try {
+    registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+    await waitForActive(registration);
+  } catch (err) {
+    throw stepError('service worker', err);
+  }
+
+  let fcmToken: string;
+  try {
+    fcmToken = await getToken(messaging, {
+      vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+      serviceWorkerRegistration: registration,
+    });
+  } catch (err) {
+    throw stepError('token de Firebase', err);
+  }
+  if (!fcmToken) throw stepError('token de Firebase', new Error('Firebase no devolvió un token'));
+
+  try {
+    await registerFCMToken(fcmToken);
+  } catch (err) {
+    throw stepError('servidor', err);
+  }
+
+  localStorage.setItem(FCM_TOKEN_KEY, fcmToken);
+  localStorage.removeItem(FCM_LAST_ERROR_KEY);
+  return fcmToken;
+}
+
+export function getLastFCMError(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem(FCM_LAST_ERROR_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function hasRegisteredFCMToken(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return !!localStorage.getItem(FCM_TOKEN_KEY);
+  } catch {
+    return false;
+  }
+}
+
+// Re-registers the device on app open when permission was already granted.
+// No UI here: failures are stored in localStorage so the banner can show them.
 export function useSilentFCMRegistration() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const hasHydrated = useAuthStore((s) => s._hasHydrated);
@@ -31,12 +113,11 @@ export function useSilentFCMRegistration() {
     let cancelled = false;
     (async () => {
       try {
-        const fcmToken = await fetchFCMToken();
-        if (!fcmToken || cancelled) return;
-        await registerFCMToken(fcmToken);
-        localStorage.setItem('fcm-token', fcmToken);
-      } catch {
-        // Silent path: never surface errors.
+        await registerDevice();
+        if (!cancelled) window.dispatchEvent(new Event('fcm:status'));
+      } catch (err) {
+        localStorage.setItem(FCM_LAST_ERROR_KEY, errorMessage(err));
+        if (!cancelled) window.dispatchEvent(new Event('fcm:status'));
       }
     })();
 
@@ -58,6 +139,7 @@ export function useFCMToken() {
     }
   }, []);
 
+  // Returns true only after the backend stored the token.
   const requestPermission = async () => {
     if (!('Notification' in window)) {
       setError('Este navegador no soporta notificaciones');
@@ -66,7 +148,7 @@ export function useFCMToken() {
 
     if (Notification.permission === 'denied') {
       setPermission('denied');
-      setError('Las notificaciones estan bloqueadas en el navegador para este sitio');
+      setError('Las notificaciones están bloqueadas en el navegador para este sitio');
       return false;
     }
 
@@ -78,41 +160,20 @@ export function useFCMToken() {
       setPermission(result);
 
       if (result !== 'granted') {
-        setError('Permiso de notificaciones no otorgado');
+        setError('No diste permiso para las notificaciones');
         return false;
       }
 
-      if (Notification.permission !== 'granted') {
-        setPermission(Notification.permission);
-        setError('El navegador no dejo habilitado el permiso de notificaciones');
-        return false;
-      }
-
-      const messaging = await getMessagingIfSupported();
-      if (!messaging) {
-        setError('Mensajeria no soportada en este navegador');
-        return false;
-      }
-
-      const fcmToken = await fetchFCMToken();
-
-      if (fcmToken) {
-        setToken(fcmToken);
-        await registerFCMToken(fcmToken);
-        localStorage.setItem('fcm-token', fcmToken);
-        return true;
-      } else {
-        setError('No se pudo obtener el token FCM');
-        return false;
-      }
-    } catch (err: any) {
-      const message = String(err?.message ?? '');
-      if (message.toLowerCase().includes('denied') || message.toLowerCase().includes('permission')) {
-        setPermission(Notification.permission);
-        setError('El navegador rechazo la suscripcion push. Revisar permisos del sitio.');
-      } else {
-        setError(message || 'Error desconocido');
-      }
+      const fcmToken = await registerDevice();
+      setToken(fcmToken);
+      window.dispatchEvent(new Event('fcm:status'));
+      return true;
+    } catch (err) {
+      const message = errorMessage(err) || 'Error desconocido';
+      localStorage.setItem(FCM_LAST_ERROR_KEY, message);
+      setPermission(Notification.permission);
+      setError(message);
+      window.dispatchEvent(new Event('fcm:status'));
       return false;
     } finally {
       setLoading(false);

@@ -1,22 +1,125 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useFCMToken } from '@/hooks/useFCMToken';
+import { useCallback, useEffect, useState } from 'react';
+import { getLastFCMError, hasRegisteredFCMToken, useFCMToken } from '@/hooks/useFCMToken';
+
+const DENIED_DISMISS_KEY = 'fcm-denied-dismissed';
+// Give the silent registration time to finish before declaring a failure.
+const SILENT_GRACE_MS = 8000;
 
 export default function NotificationPermissionBanner() {
   const { permission, loading, error, requestPermission } = useFCMToken();
   const [dismissed, setDismissed] = useState(false);
+  const [deniedDismissed, setDeniedDismissed] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [supported, setSupported] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
+  const [registered, setRegistered] = useState(false);
+  const [graceOver, setGraceOver] = useState(false);
 
-  useEffect(() => {
-    const standalone =
-      window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as any).standalone === true;
-    setIsStandalone(standalone);
+  const readStatus = useCallback(() => {
+    setLastError(getLastFCMError());
+    setRegistered(hasRegisteredFCMToken());
   }, []);
 
-  if (permission === 'granted' || permission === 'denied' || dismissed || !('Notification' in window)) {
-    return null;
+  useEffect(() => {
+    setSupported('Notification' in window);
+    setIsStandalone(
+      window.matchMedia('(display-mode: standalone)').matches ||
+        (window.navigator as Navigator & { standalone?: boolean }).standalone === true,
+    );
+    try {
+      setDeniedDismissed(sessionStorage.getItem(DENIED_DISMISS_KEY) === '1');
+    } catch {
+      // sessionStorage unavailable: notice stays dismissible for this render only
+    }
+    readStatus();
+    const timer = setTimeout(() => {
+      readStatus();
+      setGraceOver(true);
+    }, SILENT_GRACE_MS);
+    window.addEventListener('fcm:status', readStatus);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('fcm:status', readStatus);
+    };
+  }, [readStatus]);
+
+  const retry = async () => {
+    const ok = await requestPermission();
+    readStatus();
+    if (ok) setDismissed(false);
+  };
+
+  if (!supported || dismissed) return null;
+
+  // Blocked: small, dismissible notice (not a blocker)
+  if (permission === 'denied') {
+    if (deniedDismissed) return null;
+    return (
+      <div className="fixed bottom-24 left-1/2 z-[90] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-lg dark:border-amber-500/30 dark:bg-slate-800">
+        <div className="flex items-start gap-3">
+          <span className="material-symbols-outlined text-2xl text-amber-600 dark:text-amber-400">notifications_off</span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-slate-900 dark:text-white">Tenés las notificaciones bloqueadas</p>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+              Tocá el candado junto a la dirección, entrá a <strong>Notificaciones</strong>, elegí <strong>Permitir</strong> y recargá la página.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              setDeniedDismissed(true);
+              try {
+                sessionStorage.setItem(DENIED_DISMISS_KEY, '1');
+              } catch {
+                // ignore
+              }
+            }}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:bg-white/10"
+            aria-label="Cerrar"
+          >
+            <span className="material-symbols-outlined text-xl">close</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Granted but the device is not registered: show the real error with a retry
+  if (permission === 'granted') {
+    const failed = !!error || !!lastError || (graceOver && !registered);
+    if (!failed || (registered && !error && !lastError)) return null;
+    const detail = error || lastError || 'No se pudo confirmar el registro del dispositivo.';
+    return (
+      <div className="fixed bottom-24 left-1/2 z-[90] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-red-200 bg-white p-4 shadow-lg dark:border-red-500/30 dark:bg-slate-800">
+        <div className="flex items-start gap-3">
+          <span className="material-symbols-outlined text-2xl text-red-500">error</span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-slate-900 dark:text-white">No pudimos activar las notificaciones en este dispositivo</p>
+            <p className="mt-1 break-words text-xs text-red-600 dark:text-red-300">{detail}</p>
+            <button
+              onClick={retry}
+              disabled={loading}
+              className="mt-3 flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white disabled:opacity-60"
+            >
+              {loading ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              ) : (
+                <span className="material-symbols-outlined text-lg">refresh</span>
+              )}
+              Reintentar
+            </button>
+          </div>
+          <button
+            onClick={() => setDismissed(true)}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:bg-white/10"
+            aria-label="Cerrar"
+          >
+            <span className="material-symbols-outlined text-xl">close</span>
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const isIOS = /iPhone|iPad/.test(navigator.userAgent);
@@ -25,42 +128,35 @@ export default function NotificationPermissionBanner() {
     return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/60 backdrop-blur-md" />
-
-        <div className="relative w-full max-w-sm overflow-hidden rounded-3xl bg-white/90 dark:bg-slate-900/80 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-2xl">
-          <div className="absolute -top-20 -right-16 w-56 h-56 rounded-full bg-primary/40 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-20 -left-16 w-56 h-56 rounded-full bg-purple-500/30 blur-3xl pointer-events-none" />
-
+        <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/60 bg-white/90 shadow-2xl backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/80">
+          <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-primary/40 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-20 -left-16 h-56 w-56 rounded-full bg-purple-500/30 blur-3xl" />
           <button
             onClick={() => setDismissed(true)}
-            className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/60 dark:hover:bg-white/10 transition-colors"
+            className="absolute right-2 top-2 z-10 flex h-11 w-11 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-slate-100/60 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
             aria-label="Cerrar"
           >
             <span className="material-symbols-outlined text-xl">close</span>
           </button>
-
-          <div className="relative px-6 pt-8 pb-6 text-center">
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-xl shadow-primary/40 mb-4">
-              <span className="material-symbols-outlined text-white text-3xl">notifications_active</span>
+          <div className="relative px-6 pb-6 pt-8 text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/70 shadow-xl shadow-primary/40">
+              <span className="material-symbols-outlined text-3xl text-white">notifications_active</span>
             </div>
-
-            <h3 className="text-slate-900 dark:text-white font-bold text-lg tracking-tight">
-              Activa las notificaciones
-            </h3>
-            <p className="text-slate-600 dark:text-slate-300 text-sm mt-1.5">
-              Para recibir cupones y promociones, instala la app primero:
+            <h3 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">Activá las notificaciones</h3>
+            <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-300">
+              Para recibir cupones y promociones, instalá la app primero:
             </p>
-
             <div className="mt-5 space-y-2.5 text-left">
-              <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/60 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/40">
-                <div className="w-6 h-6 rounded-full bg-primary/15 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">1</div>
-                <p className="text-slate-700 dark:text-slate-200 text-sm">
-                  Toca el boton <strong>Compartir</strong>
+              <div className="flex items-center gap-3 rounded-xl border border-slate-200/60 bg-white/60 px-3 py-2.5 dark:border-slate-700/40 dark:bg-slate-800/40">
+                <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">1</div>
+                <p className="text-sm text-slate-700 dark:text-slate-200">
+                  Tocá el botón <strong>Compartir</strong>
                 </p>
               </div>
-              <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/60 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/40">
-                <div className="w-6 h-6 rounded-full bg-primary/15 text-primary text-xs font-bold flex items-center justify-center flex-shrink-0">2</div>
-                <p className="text-slate-700 dark:text-slate-200 text-sm">
-                  Elegi <strong>Agregar a pantalla de inicio</strong>
+              <div className="flex items-center gap-3 rounded-xl border border-slate-200/60 bg-white/60 px-3 py-2.5 dark:border-slate-700/40 dark:bg-slate-800/40">
+                <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">2</div>
+                <p className="text-sm text-slate-700 dark:text-slate-200">
+                  Elegí <strong>Agregar a pantalla de inicio</strong>
                 </p>
               </div>
             </div>
@@ -73,46 +169,37 @@ export default function NotificationPermissionBanner() {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-md" />
-
-      <div className="relative w-full max-w-sm overflow-hidden rounded-3xl bg-white/90 dark:bg-slate-900/80 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-2xl">
-        <div className="absolute -top-20 -right-16 w-56 h-56 rounded-full bg-primary/40 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-20 -left-16 w-56 h-56 rounded-full bg-purple-500/30 blur-3xl pointer-events-none" />
-
-        <div className="relative px-6 pt-8 pb-6 text-center">
-          <div className="relative w-16 h-16 mx-auto mb-4">
-            <div className="absolute inset-0 rounded-2xl bg-primary/30 blur-xl animate-pulse" />
-            <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-xl shadow-primary/40">
-              <span className="material-symbols-outlined text-white text-3xl">notifications_active</span>
+      <div className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-white/60 bg-white/90 shadow-2xl backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/80">
+        <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-primary/40 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 -left-16 h-56 w-56 rounded-full bg-purple-500/30 blur-3xl" />
+        <div className="relative px-6 pb-6 pt-8 text-center">
+          <div className="relative mx-auto mb-4 h-16 w-16">
+            <div className="absolute inset-0 animate-pulse rounded-2xl bg-primary/30 blur-xl" />
+            <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-primary/70 shadow-xl shadow-primary/40">
+              <span className="material-symbols-outlined text-3xl text-white">notifications_active</span>
             </div>
           </div>
-
-          <h3 className="text-slate-900 dark:text-white font-bold text-lg tracking-tight">
-            Activa las notificaciones
-          </h3>
-          <p className="text-slate-600 dark:text-slate-300 text-sm mt-1.5 leading-relaxed">
-            Recibi cupones y promociones al instante
-          </p>
-
+          <h3 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">Activá las notificaciones</h3>
+          <p className="mt-1.5 text-sm leading-relaxed text-slate-600 dark:text-slate-300">Recibí cupones y promociones al instante</p>
           {error && (
-            <p className="text-red-500 dark:text-red-300 text-xs mt-3 px-3 py-2 rounded-lg bg-red-50/80 dark:bg-red-500/10 border border-red-200/60 dark:border-red-500/20">
+            <p className="mt-3 rounded-lg border border-red-200/60 bg-red-50/80 px-3 py-2 text-xs text-red-500 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
               {error}
             </p>
           )}
-
           <button
-            onClick={requestPermission}
+            onClick={retry}
             disabled={loading}
-            className="mt-6 w-full relative overflow-hidden group bg-gradient-to-r from-primary to-primary/80 hover:from-primary/95 hover:to-primary/70 text-white py-3 rounded-xl font-semibold text-sm shadow-lg shadow-primary/30 hover:shadow-primary/40 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="group relative mt-6 flex min-h-11 w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-primary to-primary/80 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/30 transition-all hover:from-primary/95 hover:to-primary/70 hover:shadow-primary/40 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <span className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <span className="absolute inset-0 bg-white/10 opacity-0 transition-opacity group-hover:opacity-100" />
             {loading ? (
               <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                 <span className="relative">Activando...</span>
               </>
             ) : (
               <>
-                <span className="material-symbols-outlined text-lg relative">notifications_active</span>
+                <span className="material-symbols-outlined relative text-lg">notifications_active</span>
                 <span className="relative">Activar notificaciones</span>
               </>
             )}
