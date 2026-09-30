@@ -2088,3 +2088,50 @@ export async function registrarCompra(body: RegistrarCompraBody): Promise<Regist
   })
   return res.data
 }
+
+// ========================================
+// Cantina: caja history (every registered sale)
+// ========================================
+
+export interface CompraCajaItem {
+  id: string
+  created_at: string
+  monto_compra: number
+  monto_descuento: number
+  monto_total: number
+  puntos_acreditados: number
+  dni_mascara: string | null
+  jugador: { nombre: string; apellido: string } | null
+  cupon: { titulo: string } | null
+  cantina: { id: string; nombre: string }
+}
+
+export interface CajaTotales {
+  cantidad: number
+  total_vendido: number
+  total_descuentos: number
+  total_cobrado: number
+  puntos_dados: number
+  ventas_sin_app: number
+}
+
+export interface ListarComprasData {
+  items: CompraCajaItem[]
+  total_count: number
+  totales: CajaTotales
+}
+
+export async function listarCompras(params: {
+  desde: string
+  hasta: string
+  limit?: number
+  offset?: number
+  cantina_id?: string
+}): Promise<ListarComprasData> {
+  const qs = new URLSearchParams({ desde: params.desde, hasta: params.hasta })
+  if (params.limit !== undefined) qs.set('limit', String(params.limit))
+  if (params.offset !== undefined) qs.set('offset', String(params.offset))
+  if (params.cantina_id) qs.set('cantina_id', params.cantina_id)
+  const res = await apiFetch(`/compras?${qs.toString()}`)
+  return res.data
+}
