@@ -119,10 +119,18 @@ export default function NotificationPermissionBanner() {
           <h3 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">Activá las notificaciones</h3>
           <p className="mt-1.5 text-sm leading-relaxed text-slate-600 dark:text-slate-300">Recibí cupones y promociones al instante</p>
           {error && (
-            <p className="mt-3 rounded-lg border border-red-200/60 bg-red-50/80 px-3 py-2 text-xs text-red-500 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
-              {error}
+            <p className="mt-3 rounded-lg border border-red-200/60 bg-red-50/80 px-3 py-2 text-sm text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-300">
+              No pudimos activar las notificaciones.
             </p>
           )}
+          {error ? (
+            <button
+              onClick={() => setDismissed(true)}
+              className="mt-6 flex min-h-11 w-full items-center justify-center rounded-xl bg-primary py-3 text-sm font-semibold text-white shadow-lg shadow-primary/30"
+            >
+              Continuar
+            </button>
+          ) : (
           <button
             onClick={requestPermission}
             disabled={loading}
@@ -141,6 +149,7 @@ export default function NotificationPermissionBanner() {
               </>
             )}
           </button>
+          )}
         </div>
       </div>
     </div>
