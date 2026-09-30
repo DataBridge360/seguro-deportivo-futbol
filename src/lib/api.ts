@@ -2134,3 +2134,14 @@ export async function listarCompras(params: {
   const res = await apiFetch(`/compras?${qs.toString()}`)
   return res.data
 }
+
+export interface CantinaCaja {
+  id: string
+  nombre: string
+  activo: boolean
+}
+
+export async function getCantinasCaja(): Promise<CantinaCaja[]> {
+  const res = await apiFetch('/compras/cantinas')
+  return res.data
+}

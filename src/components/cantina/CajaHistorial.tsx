@@ -129,15 +129,22 @@ function SaleBadges({ c }: { c: CompraCajaItem }) {
 interface CajaHistorialProps {
   cantinaId?: string
   refreshKey?: number
+  showCantina?: boolean
 }
 
-export default function CajaHistorial({ cantinaId, refreshKey = 0 }: CajaHistorialProps) {
+export default function CajaHistorial({ cantinaId, refreshKey = 0, showCantina = false }: CajaHistorialProps) {
   const [preset, setPreset] = useState<Preset>('hoy')
   const [custom, setCustom] = useState<CustomRange>(() => {
     const today = toDateStr(new Date())
     return { desde: today, hasta: today, horaDesde: '00:00', horaHasta: '23:59' }
   })
   const [offset, setOffset] = useState(0)
+  // Switching cantina keeps the range but goes back to the first page.
+  const [prevCantinaId, setPrevCantinaId] = useState(cantinaId)
+  if (prevCantinaId !== cantinaId) {
+    setPrevCantinaId(cantinaId)
+    setOffset(0)
+  }
   const [data, setData] = useState<ListarComprasData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -344,6 +351,7 @@ export default function CajaHistorial({ cantinaId, refreshKey = 0 }: CajaHistori
                               </p>
                               <p className="text-base font-semibold text-slate-900 dark:text-white truncate">{cli.main}</p>
                               {cli.sub && <p className="text-xs text-slate-500 dark:text-slate-400">{cli.sub}</p>}
+                              {showCantina && <p className="text-xs font-medium text-primary">{c.cantina.nombre}</p>}
                             </div>
                             <p className="text-lg font-bold text-slate-900 dark:text-white shrink-0">{money(c.monto_total)}</p>
                           </div>
@@ -379,6 +387,7 @@ export default function CajaHistorial({ cantinaId, refreshKey = 0 }: CajaHistori
                               <td className="px-4 py-3 text-slate-900 dark:text-white">
                                 {cli.main}
                                 {cli.sub && <span className="block text-xs text-slate-500 dark:text-slate-400">{cli.sub}</span>}
+                                {showCantina && <span className="block text-xs font-medium text-primary">{c.cantina.nombre}</span>}
                               </td>
                               <td className="px-4 py-3">
                                 <div className="flex flex-wrap gap-2">

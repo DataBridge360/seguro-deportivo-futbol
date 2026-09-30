@@ -26,6 +26,13 @@ export const navigationItems: NavItem[] = [
     roles: ['admin']
   },
   {
+    label: 'Cajas',
+    href: '/dashboard/admin/cajas',
+    icon: 'ScanLine',
+    materialIcon: 'point_of_sale',
+    roles: ['admin']
+  },
+  {
     label: 'Configuración',
     href: '/dashboard/admin/configuracion',
     icon: 'Settings',
@@ -104,6 +111,13 @@ export const navigationItems: NavItem[] = [
     href: '/dashboard/club/puntos',
     icon: 'Star',
     materialIcon: 'stars',
+    roles: ['club']
+  },
+  {
+    label: 'Cajas',
+    href: '/dashboard/club/cajas',
+    icon: 'ScanLine',
+    materialIcon: 'point_of_sale',
     roles: ['club']
   },
   {
