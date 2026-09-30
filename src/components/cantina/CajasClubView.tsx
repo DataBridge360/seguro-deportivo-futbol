@@ -3,12 +3,41 @@
 import { useEffect, useState } from 'react'
 import { getCantinasCaja, type CantinaCaja } from '@/lib/api'
 import CajaHistorial from '@/components/cantina/CajaHistorial'
+import { useAuthStore } from '@/stores/authStore'
+
+// Selected cantina chip ('' = Todas), stored per logged-in user
+function selectionKey(): string {
+  const userId = useAuthStore.getState().user?.id
+  return `caja-cantina:${userId ? String(userId) : 'anon'}`
+}
 
 export default function CajasClubView() {
   const [cantinas, setCantinas] = useState<CantinaCaja[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selected, setSelected] = useState('')
+  const [storedSelected, setStoredSelected] = useState('')
+
+  // Read after mount to avoid hydration mismatches; only written on user click
+  useEffect(() => {
+    try {
+      const v = window.localStorage.getItem(selectionKey())
+      if (typeof v === 'string') setStoredSelected(v)
+    } catch {
+      // Storage unavailable: keep the default
+    }
+  }, [])
+
+  // If the stored cantina no longer exists, fall back to Todas
+  const selected = cantinas.some((c) => c.id === storedSelected) ? storedSelected : ''
+
+  const select = (id: string) => {
+    setStoredSelected(id)
+    try {
+      window.localStorage.setItem(selectionKey(), id)
+    } catch {
+      // Best-effort persistence
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -61,14 +90,14 @@ export default function CajasClubView() {
       ) : (
         <>
           <div className="flex flex-wrap gap-2" role="group" aria-label="Elegir cantina">
-            <button type="button" onClick={() => setSelected('')} aria-pressed={selected === ''} className={chipClass(selected === '')}>
+            <button type="button" onClick={() => select('')} aria-pressed={selected === ''} className={chipClass(selected === '')}>
               Todas
             </button>
             {cantinas.map((c) => (
               <button
                 key={c.id}
                 type="button"
-                onClick={() => setSelected(c.id)}
+                onClick={() => select(c.id)}
                 aria-pressed={selected === c.id}
                 className={chipClass(selected === c.id)}
               >

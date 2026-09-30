@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { listarCompras, type CompraCajaItem, type ListarComprasData } from '@/lib/api'
 import DateTimePicker from '@/components/ui/DateTimePicker'
+import { useAuthStore } from '@/stores/authStore'
 
 const PAGE_SIZE = 20
 const POLL_MS = 30000
@@ -42,6 +43,54 @@ interface CustomRange {
   hasta: string
   horaDesde: string
   horaHasta: string
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/
+const isValidDate = (v: unknown): v is string => typeof v === 'string' && DATE_RE.test(v) && !Number.isNaN(new Date(`${v}T00:00:00`).getTime())
+const isValidTime = (v: unknown): v is string => typeof v === 'string' && TIME_RE.test(v)
+
+// One stored range per logged-in user (the range is what matters, not the cantina)
+function storageKey(): string {
+  const userId = useAuthStore.getState().user?.id
+  return `caja-historial:${userId ? String(userId) : 'anon'}`
+}
+
+function readStoredRange(): { preset: Preset; custom: CustomRange | null } | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(storageKey())
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { preset?: unknown; custom?: Record<string, unknown> }
+    const preset = PRESETS.find((p) => p.id === parsed.preset)?.id
+    if (!preset) return null
+    const c = parsed.custom
+    let custom: CustomRange | null = null
+    if (
+      c &&
+      isValidDate(c.desde) &&
+      isValidDate(c.hasta) &&
+      isValidTime(c.horaDesde) &&
+      isValidTime(c.horaHasta) &&
+      toLocalDateTimeValue(c.desde, c.horaDesde) <= toLocalDateTimeValue(c.hasta, c.horaHasta)
+    ) {
+      custom = { desde: c.desde, hasta: c.hasta, horaDesde: c.horaDesde, horaHasta: c.horaHasta }
+    }
+    // A stored custom preset without valid custom values falls back to Hoy
+    if (preset === 'custom' && !custom) return { preset: 'hoy', custom: null }
+    return { preset, custom }
+  } catch {
+    return null
+  }
+}
+
+function writeStoredRange(preset: Preset, custom: CustomRange) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(storageKey(), JSON.stringify({ preset, custom }))
+  } catch {
+    // Storage may be unavailable (private mode / quota); persistence is best-effort
+  }
 }
 
 // Resolve the selected preset into absolute dates (evaluated at fetch time so "Hoy" rolls over at midnight)
@@ -138,6 +187,19 @@ export default function CajaHistorial({ cantinaId, refreshKey = 0, showCantina =
     const today = toDateStr(new Date())
     return { desde: today, hasta: today, horaDesde: '00:00', horaHasta: '23:59' }
   })
+  // The stored range is read after mount (avoids hydration mismatches); nothing is written or fetched before that
+  const [hydrated, setHydrated] = useState(false)
+  useEffect(() => {
+    const stored = readStoredRange()
+    if (stored) {
+      setPreset(stored.preset)
+      if (stored.custom) setCustom(stored.custom)
+    }
+    setHydrated(true)
+  }, [])
+  useEffect(() => {
+    if (hydrated) writeStoredRange(preset, custom)
+  }, [hydrated, preset, custom])
   const [offset, setOffset] = useState(0)
   // Switching cantina keeps the range but goes back to the first page.
   const [prevCantinaId, setPrevCantinaId] = useState(cantinaId)
@@ -213,6 +275,7 @@ export default function CajaHistorial({ cantinaId, refreshKey = 0, showCantina =
 
   // Load on range/page change (or refreshKey bump, silently) + poll every 30s while visible
   useEffect(() => {
+    if (!hydrated) return
     const silent = lastRefreshRef.current !== refreshKey
     lastRefreshRef.current = refreshKey
     load(!silent)
@@ -227,7 +290,7 @@ export default function CajaHistorial({ cantinaId, refreshKey = 0, showCantina =
       clearInterval(poll)
       document.removeEventListener('visibilitychange', onVisible)
     }
-  }, [load, refreshKey])
+  }, [load, refreshKey, hydrated])
 
   const { inicio, fin } = resolveRange(preset, custom)
   const multiDay = toDateStr(inicio) !== toDateStr(fin)
