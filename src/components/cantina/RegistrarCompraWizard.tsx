@@ -38,10 +38,11 @@ function isExpired(cupon: CuponResponse): boolean {
   return cupon.fecha_vencimiento.slice(0, 10) < today
 }
 
-function calcDescuento(cupon: CuponResponse | null, monto: number): number {
-  if (!cupon || monto <= 0) return 0
-  if (cupon.tipo_descuento === 'porcentaje') return Math.round(((monto * cupon.valor_descuento) / 100) * 100) / 100
-  return Math.min(cupon.valor_descuento, monto)
+// The discount is computed over the amount the coupon applies to (base), not the whole purchase
+function calcDescuento(cupon: CuponResponse | null, base: number): number {
+  if (!cupon || base <= 0) return 0
+  if (cupon.tipo_descuento === 'porcentaje') return Math.round(((base * cupon.valor_descuento) / 100) * 100) / 100
+  return Math.min(cupon.valor_descuento, base)
 }
 
 interface Props {
@@ -74,6 +75,7 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
   const [cupon, setCupon] = useState<CuponResponse | null>(null)
   const [cuponLoading, setCuponLoading] = useState(false)
   const [cuponError, setCuponError] = useState('')
+  const [montoAplicable, setMontoAplicable] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<RegistrarCompraData | null>(null)
@@ -94,6 +96,7 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
     setCuponLoading(true)
     setCuponError('')
     setCupon(null)
+    setMontoAplicable('')
     try {
       setCupon(await buscarCupon(value))
     } catch (err) {
@@ -124,6 +127,7 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
     setCupon(null)
     setCuponLoading(false)
     setCuponError('')
+    setMontoAplicable('')
     setSubmitting(false)
     setError('')
     setResult(null)
@@ -185,7 +189,15 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
   }, [cupon, montoNum, dni, dniValido, sinDni])
 
   const cuponAplicado = cuponOn && !!cupon && !cuponProblem ? cupon : null
-  const descuento = calcDescuento(cuponAplicado, montoNum)
+  const aplicableNum = parseMonto(montoAplicable)
+  const aplicableValid = aplicableNum > 0 && aplicableNum <= montoNum
+  const aplicableError =
+    montoAplicable && aplicableNum <= 0
+      ? 'Ingresá un monto mayor a cero'
+      : aplicableNum > montoNum
+        ? `No puede superar el monto de la compra (${formatMoney(montoNum)})`
+        : ''
+  const descuento = calcDescuento(cuponAplicado, aplicableValid ? aplicableNum : 0)
   const total = Math.max(0, Math.round((montoNum - descuento) * 100) / 100)
   // Points are automatic: credited whenever the DNI is a registered player.
   const puntosFinal = puedeSumarPuntos
@@ -213,12 +225,13 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
       setCodigo('')
       setCupon(null)
       setCuponError('')
+      setMontoAplicable('')
     } else {
       setCuponOn(true)
     }
   }
 
-  const extrasBlocked = cuponOn && (!cupon || !!cuponProblem || cuponLoading)
+  const extrasBlocked = cuponOn && (!cupon || !!cuponProblem || cuponLoading || !aplicableValid)
 
   const handleSubmit = async () => {
     if (!montoNum) {
@@ -231,7 +244,7 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
       const data = await registrarCompra({
         monto_compra: montoNum,
         ...(!sinDni && dniValido ? { dni } : {}),
-        ...(cuponAplicado?.codigo ? { cupon_codigo: cuponAplicado.codigo } : {}),
+        ...(cuponAplicado?.codigo ? { cupon_codigo: cuponAplicado.codigo, monto_aplicable: aplicableNum } : {}),
       })
       setResult(data)
       setStep('resultado')
@@ -446,6 +459,7 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
                           setCodigo(e.target.value.toUpperCase())
                           setCupon(null)
                           setCuponError('')
+                          setMontoAplicable('')
                         }}
                         onKeyDown={(e) => e.key === 'Enter' && searchCupon(codigo)}
                         placeholder="Ej: CUP-ABC123"
@@ -499,40 +513,46 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
                         {cuponProblem ? (
                           <p className="text-base text-red-500 dark:text-red-400">{cuponProblem}</p>
                         ) : (
-                          <>
-                            <p className="text-base text-green-600 dark:text-green-400">
-                              Descuento: -{formatMoney(calcDescuento(cupon, montoNum))}
+                          <div className="space-y-2 pt-1">
+                            <label htmlFor="rc-aplicable" className="block text-base font-semibold text-slate-900 dark:text-white">
+                              ¿Sobre cuánto se aplica el descuento?
+                            </label>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">
+                              Ingresá el precio de los productos del cupón «{cupon.titulo}» (ej. solo las hamburguesas)
                             </p>
-                            <p className="text-base font-bold text-slate-900 dark:text-white">
-                              Total a cobrar: {formatMoney(Math.max(0, montoNum - calcDescuento(cupon, montoNum)))}
-                            </p>
-                          </>
+                            <div className="relative">
+                              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-bold text-slate-400">$</span>
+                              <input
+                                id="rc-aplicable"
+                                type="text"
+                                inputMode="decimal"
+                                value={montoAplicable}
+                                onChange={(e) => {
+                                  const v = e.target.value
+                                  if (/^\d*[.,]?\d{0,2}$/.test(v)) setMontoAplicable(v)
+                                }}
+                                aria-invalid={!!aplicableError}
+                                placeholder="0"
+                                className={`${inputClass} pl-9`}
+                              />
+                            </div>
+                            {aplicableError && <p className="text-sm text-red-500 dark:text-red-400">{aplicableError}</p>}
+                            {aplicableValid && (
+                              <>
+                                <p className="text-base text-green-600 dark:text-green-400">
+                                  Descuento: -{formatMoney(descuento)}
+                                </p>
+                                <p className="text-base font-bold text-slate-900 dark:text-white">
+                                  Total a cobrar: {formatMoney(total)}
+                                </p>
+                              </>
+                            )}
+                          </div>
                         )}
                       </div>
                     )}
                   </div>
                 )}
-              </div>
-
-              {/* Points info (automatic, not an option) */}
-              <div
-                className={`rounded-xl border-2 min-h-[72px] px-4 py-3 flex items-center gap-3 ${
-                  puntosFinal ? 'border-primary bg-primary/5' : 'border-slate-300 dark:border-slate-600'
-                }`}
-              >
-                <span className="material-symbols-outlined text-3xl text-primary">stars</span>
-                <span className="flex-1">
-                  <span className="block text-base font-semibold text-slate-900 dark:text-white">
-                    {puntosFinal ? 'Los puntos se suman solos' : 'Esta compra no suma puntos'}
-                  </span>
-                  {!puntosFinal && (
-                    <span className="block text-sm text-slate-500 dark:text-slate-400">
-                      {!puntosActivos
-                        ? 'El club no tiene puntos activos'
-                        : 'Para sumar puntos hace falta un DNI registrado en la app'}
-                    </span>
-                  )}
-                </span>
               </div>
             </div>
           )}
@@ -547,7 +567,7 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
                 </div>
                 {cuponAplicado && (
                   <div className="flex justify-between gap-3 text-base">
-                    <span className="text-slate-500 dark:text-slate-400">Descuento ({cuponAplicado.titulo})</span>
+                    <span className="text-slate-500 dark:text-slate-400">Descuento ({cuponAplicado.titulo}) sobre {formatMoney(aplicableNum)}</span>
                     <span className="text-green-600 dark:text-green-400 font-medium shrink-0">
                       -{formatMoney(descuento)}
                     </span>
@@ -567,10 +587,12 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
                       ? `DNI ${dni} (sin registrar en la app)`
                       : 'Sin DNI'}
                 </p>
-                <p className="text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                  <span className="material-symbols-outlined text-xl text-slate-400">stars</span>
-                  Puntos: {puntosFinal ? 'Sí, se suman' : 'No'}
-                </p>
+                {puntosFinal && (
+                  <p className="text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-xl text-slate-400">stars</span>
+                    Suma puntos
+                  </p>
+                )}
               </div>
               {error && <p className="text-base text-red-500 dark:text-red-400">{error}</p>}
             </div>

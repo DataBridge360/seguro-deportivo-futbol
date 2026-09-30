@@ -2067,6 +2067,8 @@ export interface RegistrarCompraBody {
   monto_compra: number
   dni?: string
   cupon_codigo?: string
+  // Amount the coupon applies to (e.g. only the burgers); defaults to monto_compra
+  monto_aplicable?: number
 }
 
 export interface RegistrarCompraData {
