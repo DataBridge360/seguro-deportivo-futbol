@@ -1,11 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { getLastFCMError, hasRegisteredFCMToken, useFCMToken } from '@/hooks/useFCMToken';
+import { useEffect, useState } from 'react';
+import { useFCMToken } from '@/hooks/useFCMToken';
 
 const DENIED_DISMISS_KEY = 'fcm-denied-dismissed';
-// Give the silent registration time to finish before declaring a failure.
-const SILENT_GRACE_MS = 8000;
 
 export default function NotificationPermissionBanner() {
   const { permission, loading, error, requestPermission } = useFCMToken();
@@ -13,14 +11,6 @@ export default function NotificationPermissionBanner() {
   const [deniedDismissed, setDeniedDismissed] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
   const [supported, setSupported] = useState(false);
-  const [lastError, setLastError] = useState<string | null>(null);
-  const [registered, setRegistered] = useState(false);
-  const [graceOver, setGraceOver] = useState(false);
-
-  const readStatus = useCallback(() => {
-    setLastError(getLastFCMError());
-    setRegistered(hasRegisteredFCMToken());
-  }, []);
 
   useEffect(() => {
     setSupported('Notification' in window);
@@ -33,25 +23,9 @@ export default function NotificationPermissionBanner() {
     } catch {
       // sessionStorage unavailable: notice stays dismissible for this render only
     }
-    readStatus();
-    const timer = setTimeout(() => {
-      readStatus();
-      setGraceOver(true);
-    }, SILENT_GRACE_MS);
-    window.addEventListener('fcm:status', readStatus);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('fcm:status', readStatus);
-    };
-  }, [readStatus]);
+  }, []);
 
-  const retry = async () => {
-    const ok = await requestPermission();
-    readStatus();
-    if (ok) setDismissed(false);
-  };
-
-  if (!supported || dismissed) return null;
+  if (!supported || dismissed || permission === 'granted') return null;
 
   // Blocked: small, dismissible notice (not a blocker)
   if (permission === 'denied') {
@@ -75,43 +49,6 @@ export default function NotificationPermissionBanner() {
                 // ignore
               }
             }}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:bg-white/10"
-            aria-label="Cerrar"
-          >
-            <span className="material-symbols-outlined text-xl">close</span>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Granted but the device is not registered: show the real error with a retry
-  if (permission === 'granted') {
-    const failed = !!error || !!lastError || (graceOver && !registered);
-    if (!failed || (registered && !error && !lastError)) return null;
-    const detail = error || lastError || 'No se pudo confirmar el registro del dispositivo.';
-    return (
-      <div className="fixed bottom-24 left-1/2 z-[90] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-2xl border border-red-200 bg-white p-4 shadow-lg dark:border-red-500/30 dark:bg-slate-800">
-        <div className="flex items-start gap-3">
-          <span className="material-symbols-outlined text-2xl text-red-500">error</span>
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-slate-900 dark:text-white">No pudimos activar las notificaciones en este dispositivo</p>
-            <p className="mt-1 break-words text-xs text-red-600 dark:text-red-300">{detail}</p>
-            <button
-              onClick={retry}
-              disabled={loading}
-              className="mt-3 flex min-h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white disabled:opacity-60"
-            >
-              {loading ? (
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              ) : (
-                <span className="material-symbols-outlined text-lg">refresh</span>
-              )}
-              Reintentar
-            </button>
-          </div>
-          <button
-            onClick={() => setDismissed(true)}
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:bg-white/10"
             aria-label="Cerrar"
           >
@@ -187,7 +124,7 @@ export default function NotificationPermissionBanner() {
             </p>
           )}
           <button
-            onClick={retry}
+            onClick={requestPermission}
             disabled={loading}
             className="group relative mt-6 flex min-h-11 w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-primary to-primary/80 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/30 transition-all hover:from-primary/95 hover:to-primary/70 hover:shadow-primary/40 disabled:cursor-not-allowed disabled:opacity-60"
           >

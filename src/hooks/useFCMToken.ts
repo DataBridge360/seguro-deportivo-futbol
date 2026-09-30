@@ -5,7 +5,6 @@ import { registerFCMToken } from '@/lib/api';
 import { useAuthStore } from '@/stores/authStore';
 
 const FCM_TOKEN_KEY = 'fcm-token';
-const FCM_LAST_ERROR_KEY = 'fcm-last-error';
 const SW_ACTIVATION_TIMEOUT_MS = 15000;
 
 function errorMessage(err: unknown): string {
@@ -77,30 +76,10 @@ async function registerDevice(): Promise<string> {
   }
 
   localStorage.setItem(FCM_TOKEN_KEY, fcmToken);
-  localStorage.removeItem(FCM_LAST_ERROR_KEY);
   return fcmToken;
 }
 
-export function getLastFCMError(): string | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    return localStorage.getItem(FCM_LAST_ERROR_KEY);
-  } catch {
-    return null;
-  }
-}
-
-export function hasRegisteredFCMToken(): boolean {
-  if (typeof window === 'undefined') return false;
-  try {
-    return !!localStorage.getItem(FCM_TOKEN_KEY);
-  } catch {
-    return false;
-  }
-}
-
-// Re-registers the device on app open when permission was already granted.
-// No UI here: failures are stored in localStorage so the banner can show them.
+// Silently re-registers the device on app open when permission was already granted.
 export function useSilentFCMRegistration() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const hasHydrated = useAuthStore((s) => s._hasHydrated);
@@ -110,20 +89,9 @@ export function useSilentFCMRegistration() {
     if (typeof window === 'undefined' || !('Notification' in window)) return;
     if (Notification.permission !== 'granted') return;
 
-    let cancelled = false;
-    (async () => {
-      try {
-        await registerDevice();
-        if (!cancelled) window.dispatchEvent(new Event('fcm:status'));
-      } catch (err) {
-        localStorage.setItem(FCM_LAST_ERROR_KEY, errorMessage(err));
-        if (!cancelled) window.dispatchEvent(new Event('fcm:status'));
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
+    registerDevice().catch(() => {
+      // Silent path: no UI on failure.
+    });
   }, [hasHydrated, isAuthenticated]);
 }
 
@@ -166,14 +134,10 @@ export function useFCMToken() {
 
       const fcmToken = await registerDevice();
       setToken(fcmToken);
-      window.dispatchEvent(new Event('fcm:status'));
       return true;
     } catch (err) {
-      const message = errorMessage(err) || 'Error desconocido';
-      localStorage.setItem(FCM_LAST_ERROR_KEY, message);
       setPermission(Notification.permission);
-      setError(message);
-      window.dispatchEvent(new Event('fcm:status'));
+      setError(errorMessage(err) || 'Error desconocido');
       return false;
     } finally {
       setLoading(false);
