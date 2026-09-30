@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { changePassword } from '@/lib/api'
+import { useAuthStore } from '@/stores/authStore'
 import { getPasswordIssues } from '@/lib/passwordRules'
 import NotificationModal from '@/components/ui/NotificationModal'
 
@@ -56,7 +57,8 @@ export default function CambiarContrasenaPage() {
 
     try {
       setSaving(true)
-      await changePassword(currentPassword, newPassword)
+      const res = await changePassword(currentPassword, newPassword)
+      if (res.data?.token) useAuthStore.getState().setToken(res.data.token)
       setNotification({
         open: true,
         title: 'Contraseña actualizada',

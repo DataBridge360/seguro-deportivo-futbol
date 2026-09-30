@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { User } from '@/types'
-import { loginWithUsuario, loginWithDNI } from '@/lib/api'
+import { loginWithUsuario, loginWithDNI, removeFCMToken } from '@/lib/api'
 import { clearAuthCookie, hasAuthCookie, setAuthCookie } from '@/lib/authCookie'
 import { registerJugador, RegisterJugadorPayload } from '@/lib/registroApi'
 
@@ -30,6 +30,7 @@ interface AuthState {
   loginDNI: (dni: string, password: string) => Promise<boolean>
   register: (data: RegisterJugadorPayload) => Promise<boolean>
   logout: () => void
+  setToken: (token: string) => void
   clearError: () => void
   setHasHydrated: (val: boolean) => void
   markDatosCompletos: (email?: string | null) => void
@@ -119,7 +120,20 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
+      setToken: (token: string) => {
+        localStorage.setItem('token', token)
+        set({ token })
+      },
+
       logout: () => {
+        // Fire the FCM cleanup BEFORE clearing the auth token: apiFetch builds
+        // the Authorization header synchronously, so the request is already
+        // authenticated by the time the token is removed below.
+        const fcmToken = localStorage.getItem('fcm-token')
+        if (fcmToken) {
+          removeFCMToken(fcmToken).catch(() => {})
+          localStorage.removeItem('fcm-token')
+        }
         localStorage.removeItem('token')
         clearAuthCookie()
         set({ user: null, token: null, isAuthenticated: false, error: null })

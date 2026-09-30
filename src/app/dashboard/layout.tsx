@@ -9,6 +9,8 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { getNoLeidasCount } from '@/lib/api'
 import NotificationPermissionBanner from '@/components/NotificationPermissionBanner'
+import { useSessionRefresh } from '@/hooks/useSessionRefresh'
+import { useSilentFCMRegistration } from '@/hooks/useFCMToken'
 import FCMMessageListener from '@/components/FCMMessageListener'
 
 // Mobile nav items for jugador
@@ -70,6 +72,8 @@ export default function DashboardLayout({
   const pathname = usePathname()
   const { user, isAuthenticated, logout, _hasHydrated } = useAuthStore()
   useThemeStore()
+  useSessionRefresh()
+  useSilentFCMRegistration()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const backRoute = getBackRoute(pathname)

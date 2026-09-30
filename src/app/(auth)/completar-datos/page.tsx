@@ -96,6 +96,7 @@ export default function CompletarDatosPage() {
         password,
         password_confirmacion: passwordConfirm,
       })
+      if (result.token) useAuthStore.getState().setToken(result.token)
       markDatosCompletos(result.email)
       const { user: currentUser } = useAuthStore.getState()
       window.location.replace(getDefaultRouteForRole(currentUser?.role ?? 'jugador'))

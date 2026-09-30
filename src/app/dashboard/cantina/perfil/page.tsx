@@ -68,7 +68,8 @@ export default function CantinaPerfilPage() {
 
     try {
       setSubmitting(true)
-      await changePassword(currentPassword, newPassword)
+      const res = await changePassword(currentPassword, newPassword)
+      if (res.data?.token) useAuthStore.getState().setToken(res.data.token)
       setShowCambiarPassword(false)
       setNotification({
         open: true,

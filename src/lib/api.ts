@@ -364,7 +364,7 @@ export async function completarDatos(body: {
   email?: string
   password: string
   password_confirmacion: string
-}): Promise<{ debe_cambiar_password: boolean; email: string }> {
+}): Promise<{ debe_cambiar_password: boolean; email: string; token?: string }> {
   const res = await apiFetch('/auth/completar-datos', {
     method: 'POST',
     body: JSON.stringify(body),
@@ -1101,7 +1101,10 @@ export async function verificarJugadorDNI(dni: string): Promise<VerificacionJuga
 
 // Auth API Functions
 
-export async function changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message: string }> {
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ success: boolean; message: string; data?: { token?: string } }> {
   return apiFetch('/auth/change-password', {
     method: 'POST',
     body: JSON.stringify({ currentPassword, newPassword }),
@@ -2038,4 +2041,20 @@ export async function getMiSaldoConPromocion(): Promise<MiSaldoConPromocionRespo
       ? { id: p.id, titulo: p.titulo, multiplicador: Number(p.multiplicador) || 1 }
       : null,
   }
+}
+
+// ========================================
+// Sliding session + FCM cleanup
+// ========================================
+
+export async function refreshSession(): Promise<string> {
+  const res = await apiFetch('/auth/refresh', { method: 'POST' })
+  return res.data.token as string
+}
+
+export async function removeFCMToken(token: string): Promise<void> {
+  await apiFetch('/fcm/token', {
+    method: 'DELETE',
+    body: JSON.stringify({ token }),
+  })
 }
