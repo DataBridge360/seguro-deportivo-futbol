@@ -10,6 +10,12 @@ export const metadata: Metadata = {
   title: 'Club Plaza',
   description: 'Club Plaza - Gestión deportiva',
   manifest: '/manifest.json',
+  icons: {
+    icon: [
+      { url: '/favicon.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
