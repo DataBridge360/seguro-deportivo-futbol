@@ -64,6 +64,8 @@ export default function ImageCropper({
   onCancel,
 }: ImageCropperProps) {
   const frameRef = useRef<HTMLDivElement>(null)
+  const prevFrameW = useRef(0)
+  const [containerEl, setContainerEl] = useState<HTMLDivElement | null>(null)
   const pointers = useRef(new Map<number, { x: number; y: number }>())
   const pinchDist = useRef(0)
 
@@ -109,12 +111,31 @@ export default function ImageCropper({
     }
   }, [file, validType])
 
+  // Size the frame from the real container width, capped by aspect and by ~55% of the viewport height
   useEffect(() => {
-    const update = () => setFrameW(Math.max(200, Math.min(aspect > 2 ? 400 : 320, window.innerWidth - 80)))
+    if (!containerEl) return
+    const update = () => {
+      const cap = aspect > 1.2 ? 720 : 420
+      const maxByHeight = window.innerHeight * 0.55 * aspect
+      const next = Math.round(Math.max(120, Math.min(cap, containerEl.clientWidth, maxByHeight)))
+      const prev = prevFrameW.current
+      prevFrameW.current = next
+      if (prev && prev !== next) {
+        // Keep the same relative pan position when the on-screen size changes
+        const ratio = next / prev
+        setOffset(o => ({ x: o.x * ratio, y: o.y * ratio }))
+      }
+      setFrameW(next)
+    }
     update()
+    const ro = new ResizeObserver(update)
+    ro.observe(containerEl)
     window.addEventListener('resize', update)
-    return () => window.removeEventListener('resize', update)
-  }, [aspect])
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', update)
+    }
+  }, [aspect, containerEl])
 
   // Scale at zoom 1 so the image just covers the frame
   const baseScale = loaded ? Math.max(frameW / loaded.w, frameH / loaded.h) : 1
@@ -244,12 +265,12 @@ export default function ImageCropper({
   const message = !validType ? 'Solo se aceptan imágenes JPG, PNG o WEBP.' : loadError
 
   return createPortal(
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-2 sm:p-4">
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Recortar imagen"
-        className="flex max-h-[90dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-xl dark:bg-slate-800"
+        className={`flex max-h-[92dvh] w-full ${aspect > 1.2 ? 'max-w-3xl' : 'max-w-md'} flex-col overflow-hidden rounded-2xl bg-white shadow-xl dark:bg-slate-800`}
       >
         <div className="border-b border-slate-200 px-5 py-4 dark:border-slate-700">
           <h2 className="text-lg font-bold text-slate-900 dark:text-white">Ajustá la imagen</h2>
@@ -267,7 +288,7 @@ export default function ImageCropper({
             </div>
           ) : (
             <>
-              <div className="flex justify-center">
+              <div ref={setContainerEl} className="flex w-full justify-center">
                 <div
                   ref={frameRef}
                   onPointerDown={onPointerDown}
