@@ -213,9 +213,20 @@ export default function PuntosHome() {
           {loading ? (
             <Skeleton />
           ) : data && data.recompensas.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-base text-slate-600 dark:border-slate-600 dark:text-slate-300">
-              Pronto vas a ver recompensas acá
-            </p>
+            <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-slate-300 px-6 py-8 text-center dark:border-slate-600">
+              <span
+                className="material-symbols-outlined text-5xl text-primary"
+                style={{ fontVariationSettings: "'FILL' 1" }}
+                aria-hidden
+              >
+                redeem
+              </span>
+              <p className="text-lg font-bold text-slate-900 dark:text-white">Próximamente</p>
+              <p className="text-base text-slate-600 dark:text-slate-300">
+                Muy pronto vas a poder canjear tus puntos por recompensas. Mientras tanto, seguí sumando: cada compra en
+                la cantina te da puntos.
+              </p>
+            </div>
           ) : data && filtered.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-base text-slate-600 dark:border-slate-600 dark:text-slate-300">
               No encontramos recompensas con esa búsqueda
