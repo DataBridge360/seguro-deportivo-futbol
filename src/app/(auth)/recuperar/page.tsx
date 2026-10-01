@@ -173,6 +173,10 @@ export default function RecuperarPage() {
                       {resultado.email_enmascarado}
                     </span>
                   </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Va a llegar de <span className="font-semibold">Club Plaza</span> (no-responder@databridge360.dev).
+                    Si no lo ves, revisá la carpeta de spam o correo no deseado.
+                  </p>
 
                   {sendError && (
                     <div
@@ -242,7 +246,9 @@ export default function RecuperarPage() {
                 Si el DNI está registrado y tiene correo, te enviamos un link para restablecer la contraseña.
               </p>
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                Revisá también la carpeta de spam. El link vence en 30 minutos.
+                Va a llegar de <span className="font-semibold">Club Plaza</span>{' '}
+                <span className="break-all">(no-responder@databridge360.dev)</span>. Si no lo ves en unos minutos,
+                revisá la carpeta de spam o correo no deseado. El link vence en 30 minutos.
               </p>
 
               <a
