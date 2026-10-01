@@ -6,12 +6,14 @@ import CategoriasSection from '@/components/club/puntos/CategoriasSection'
 import PromocionesSection from '@/components/club/puntos/PromocionesSection'
 import CanjesSection from '@/components/club/puntos/CanjesSection'
 import EquivalenciaSection from '@/components/club/puntos/EquivalenciaSection'
+import CompetenciasSection from '@/components/club/puntos/CompetenciasSection'
 
 const TABS = [
   { id: 'recompensas', label: 'Recompensas' },
   { id: 'categorias', label: 'Categorías' },
   { id: 'promociones', label: 'Puntos dobles' },
   { id: 'canjes', label: 'Canjes' },
+  { id: 'competencias', label: 'Competencias' },
   { id: 'equivalencia', label: 'Equivalencia' },
 ] as const
 
@@ -47,6 +49,7 @@ export default function ClubPuntosPage() {
       {tab === 'categorias' && <CategoriasSection />}
       {tab === 'promociones' && <PromocionesSection />}
       {tab === 'canjes' && <CanjesSection />}
+      {tab === 'competencias' && <CompetenciasSection />}
       {tab === 'equivalencia' && <EquivalenciaSection />}
     </div>
   )

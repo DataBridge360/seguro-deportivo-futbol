@@ -1897,9 +1897,20 @@ export interface RankingEquipoPuntos {
   posicion: number
 }
 
+export type EstadoCompetenciaRanking = 'abierta' | 'pausada' | 'finalizada'
+
+export interface RankingCompetenciaPuntos {
+  id: string
+  inicio: string
+  fin: string
+  estado: EstadoCompetenciaRanking
+}
+
 export interface RankingTorneoPuntos {
   torneo_id: string
   torneo_nombre: string
+  /** Current competition of the torneo; only its supports count. */
+  competencia: RankingCompetenciaPuntos | null
   equipos: RankingEquipoPuntos[]
 }
 
@@ -1933,6 +1944,14 @@ export function normalizeRankingTorneosPuntos(torneos: unknown): RankingTorneoPu
   return torneos.map((t: RankingTorneoPuntos) => ({
     torneo_id: t.torneo_id,
     torneo_nombre: t.torneo_nombre ?? '',
+    competencia: t.competencia
+      ? {
+          id: t.competencia.id,
+          inicio: t.competencia.inicio,
+          fin: t.competencia.fin,
+          estado: t.competencia.estado,
+        }
+      : null,
     equipos: (Array.isArray(t.equipos) ? t.equipos : []).map((e: RankingEquipoPuntos) => ({
       torneo_equipo_id: e.torneo_equipo_id,
       equipo_nombre: e.equipo_nombre ?? '',
@@ -1978,6 +1997,58 @@ export async function apoyarEquipoPuntos(torneoEquipoId: string, puntos: number)
     total_equipo: Number(res.total_equipo) || 0,
     equipo_nombre: res.equipo_nombre ?? '',
   }
+}
+
+// Team support competitions per torneo (club)
+
+export type EstadoCompetencia = 'programada' | 'abierta' | 'pausada' | 'finalizada'
+
+export interface PuntosCompetencia {
+  id: string
+  torneo_id: string
+  inicio: string
+  fin: string
+  habilitada: boolean
+  estado: EstadoCompetencia
+}
+
+export interface CompetenciasTorneo {
+  torneo_id: string
+  torneo_nombre: string
+  competencias: PuntosCompetencia[]
+}
+
+export interface CompetenciasResponse {
+  hoy: string
+  torneos: CompetenciasTorneo[]
+}
+
+export async function getPuntosCompetencias(): Promise<CompetenciasResponse> {
+  const res = await apiFetch('/puntos/competencias')
+  return {
+    hoy: res.hoy ?? '',
+    torneos: Array.isArray(res.torneos) ? res.torneos : [],
+  }
+}
+
+export async function crearPuntosCompetencia(body: {
+  torneo_id: string
+  inicio: string
+  fin: string
+  habilitada?: boolean
+}): Promise<PuntosCompetencia> {
+  return apiFetch('/puntos/competencias', { method: 'POST', body: JSON.stringify(body) })
+}
+
+export async function actualizarPuntosCompetencia(
+  id: string,
+  body: { inicio?: string; fin?: string; habilitada?: boolean }
+): Promise<PuntosCompetencia> {
+  return apiFetch(`/puntos/competencias/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
+}
+
+export async function eliminarPuntosCompetencia(id: string): Promise<void> {
+  await apiFetch(`/puntos/competencias/${id}`, { method: 'DELETE' })
 }
 
 // ========================================
