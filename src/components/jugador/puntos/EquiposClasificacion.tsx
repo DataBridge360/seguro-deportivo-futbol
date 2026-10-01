@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getApoyarPuntos, type RankingEquipoPuntos, type RankingTorneoPuntos } from '@/lib/api'
 import { useRankingStream } from '@/hooks/useRankingStream'
-import { fmt } from '@/components/club/puntos/ui'
+import { fmt, formatDate } from '@/components/club/puntos/ui'
 import ApoyarEquipoModal from './ApoyarEquipoModal'
 import { AnimatedNumber } from './AnimatedNumber'
 import TeamLogo from './TeamLogo'
@@ -69,7 +69,7 @@ function PodiumItem({
   equipo: RankingEquipoPuntos
   place: number
   highlight: boolean
-  onApoyar: (e: RankingEquipoPuntos) => void
+  onApoyar?: (e: RankingEquipoPuntos) => void
 }) {
   const s = PODIUM[place]
   return (
@@ -94,7 +94,7 @@ function PodiumItem({
       <p className="text-base font-bold tabular-nums text-slate-700 dark:text-slate-200">
         <AnimatedNumber value={equipo.total} /> <span className="text-xs font-semibold">pts</span>
       </p>
-      <ApoyarButton equipo={equipo} onApoyar={onApoyar} className={s.btn} />
+      {onApoyar && <ApoyarButton equipo={equipo} onApoyar={onApoyar} className={s.btn} />}
     </article>
   )
 }
@@ -106,7 +106,7 @@ function Podium({
 }: {
   equipos: RankingEquipoPuntos[]
   highlightId: string | null
-  onApoyar: (e: RankingEquipoPuntos) => void
+  onApoyar?: (e: RankingEquipoPuntos) => void
 }) {
   // Visual order is 2nd, 1st, 3rd
   const order = [1, 0, 2].filter(i => equipos[i])
@@ -135,7 +135,7 @@ function Row({
 }: {
   equipo: RankingEquipoPuntos
   highlight: boolean
-  onApoyar: (e: RankingEquipoPuntos) => void
+  onApoyar?: (e: RankingEquipoPuntos) => void
 }) {
   return (
     <li
@@ -158,7 +158,7 @@ function Row({
       <p className="shrink-0 text-base font-bold tabular-nums text-slate-800 dark:text-slate-100">
         <AnimatedNumber value={equipo.total} /> <span className="text-xs font-semibold">pts</span>
       </p>
-      <ApoyarButton equipo={equipo} onApoyar={onApoyar} className={SOFT_BTN} />
+      {onApoyar && <ApoyarButton equipo={equipo} onApoyar={onApoyar} className={SOFT_BTN} />}
     </li>
   )
 }
@@ -174,16 +174,32 @@ function Slide({
 }) {
   const top = torneo.equipos.slice(0, 3)
   const rest = torneo.equipos.slice(3)
+  const c = torneo.competencia
+  // Supporting is only possible while the torneo's competition is open
+  const apoyar = c?.estado === 'abierta' ? onApoyar : undefined
   return (
     <section
       aria-label={torneo.torneo_nombre}
       className="w-full shrink-0 snap-center snap-always space-y-3 self-start px-2"
     >
+      {c && (
+        <p
+          className={`rounded-xl px-3 py-2 text-center text-sm font-semibold ${
+            c.estado === 'abierta'
+              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300'
+              : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300'
+          }`}
+        >
+          {c.estado === 'abierta' && `Competencia en curso hasta el ${formatDate(c.fin)}`}
+          {c.estado === 'finalizada' && `Competencia finalizada el ${formatDate(c.fin)}. Así quedó la clasificación.`}
+          {c.estado === 'pausada' && 'Competencia pausada. Por ahora no se puede apoyar.'}
+        </p>
+      )}
       {torneo.equipos.length === 0 ? (
         <p className="py-6 text-center text-base text-slate-600 dark:text-slate-300">Todavía no hay equipos en este torneo</p>
       ) : (
         <>
-          <Podium equipos={top} highlightId={highlightId} onApoyar={onApoyar} />
+          <Podium equipos={top} highlightId={highlightId} onApoyar={apoyar} />
           {rest.length > 0 && (
             <div className="mt-6">
               <h2 className="text-sm font-semibold text-slate-500 dark:text-slate-400">
@@ -191,7 +207,7 @@ function Slide({
               </h2>
               <ul className="mt-1 divide-y divide-slate-200 border-t border-slate-200 dark:divide-slate-700 dark:border-slate-700">
                 {rest.map(e => (
-                  <Row key={e.torneo_equipo_id} equipo={e} highlight={highlightId === e.torneo_equipo_id} onApoyar={onApoyar} />
+                  <Row key={e.torneo_equipo_id} equipo={e} highlight={highlightId === e.torneo_equipo_id} onApoyar={apoyar} />
                 ))}
               </ul>
             </div>
@@ -222,6 +238,7 @@ export default function EquiposClasificacion() {
     torneos.findIndex(t => t.torneo_id === activeId)
   )
   const multi = torneos.length > 1
+  const hayAbierta = torneos.some(t => t.competencia?.estado === 'abierta')
 
   useEffect(() => {
     let cancelled = false
@@ -283,13 +300,23 @@ export default function EquiposClasificacion() {
         </p>
       )}
 
+      {ranking && !hayAbierta && (
+        <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-slate-300 px-6 py-6 text-center dark:border-slate-600">
+          <span className="material-symbols-outlined text-4xl text-primary" aria-hidden>
+            emoji_events
+          </span>
+          <p className="text-base font-semibold text-slate-900 dark:text-white">
+            En este momento no hay ninguna competencia en curso.
+          </p>
+          <p className="text-base text-slate-600 dark:text-slate-300">
+            Guardá tus puntos o seguí sumando para cuando se abra la competencia.
+          </p>
+        </div>
+      )}
+
       {!ranking ? (
         <div className="h-64 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" aria-hidden />
-      ) : torneos.length === 0 ? (
-        <p className="py-6 text-center text-base text-slate-600 dark:text-slate-300">
-          Cuando haya torneos en curso vas a poder apoyar a los equipos.
-        </p>
-      ) : (
+      ) : torneos.length === 0 ? null : (
         <>
           {multi ? (
             <div
