@@ -156,6 +156,19 @@ export default function JugadorEquipoDetailPage() {
     try {
       setSaliendo(true)
       await desinscribirseEquipo(torneoId, equipoId)
+      if (esDelegado) {
+        // Leaving the roster keeps delegado status: stay on the team page.
+        setShowConfirmSalir(false)
+        setSaliendo(false)
+        setNotification({
+          open: true,
+          title: 'Saliste de la lista de jugadores',
+          message: 'Seguís siendo delegado de este equipo. Si querés dejar de serlo, comunicate con el club.',
+          type: 'success',
+        })
+        await fetchData()
+        return
+      }
       router.push('/dashboard/jugador/torneos')
     } catch (err: any) {
       setShowConfirmSalir(false)
@@ -351,7 +364,11 @@ export default function JugadorEquipoDetailPage() {
     )
   }
 
-  const puedeSalir = abierto && equipo.jugadores.some(j => j.id === jugadorId)
+  // Same club switch that lets delegados remove players; open inscriptions
+  // are not required. Teams blocked for debt cannot change their roster.
+  const puedeSalir = !!torneo?.delegados_pueden_eliminar
+    && !equipo.inhabilitado_por_deuda
+    && equipo.jugadores.some(j => j.id === jugadorId)
   const busquedaNorm = busquedaRoster.trim()
   const busquedaDigitos = busquedaRoster.replace(/\D/g, '')
   const jugadoresFiltrados = equipo.jugadores.filter(j => {
@@ -908,6 +925,11 @@ export default function JugadorEquipoDetailPage() {
                 <p className="text-sm text-slate-500 dark:text-slate-400 text-center mb-6">
                   Vas a dejar de figurar en la lista de buena fe. Para volver, el delegado te tiene que agregar de nuevo.
                 </p>
+                {esDelegado && (
+                  <p className="text-sm text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 rounded-xl px-3 py-2 text-center -mt-3 mb-6">
+                    Vas a seguir siendo delegado. Si querés dejar de serlo, comunicate con el club.
+                  </p>
+                )}
                 <div className="flex gap-3">
                   <button
                     onClick={() => setShowConfirmSalir(false)}
