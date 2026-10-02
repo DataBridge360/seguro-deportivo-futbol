@@ -8,6 +8,7 @@ import { usePWA } from '@/hooks/usePWA'
 import { useAuthStore } from '@/stores/authStore'
 import InstallAppButton from '@/components/ui/InstallAppButton'
 import BallsBackground from '@/components/auth/BallsBackground'
+import ThemeToggle from '@/components/ui/ThemeToggle'
 
 // Icons on this screen are inline SVG (lucide) instead of the Material Symbols
 // font: it is the first screen a new visitor sees, with nothing cached, and the
@@ -41,6 +42,7 @@ export default function HomePage() {
       <BallsBackground />
 
       <div className="relative z-10 w-full max-w-md bg-white/90 dark:bg-slate-900/85 backdrop-blur-xl rounded-2xl shadow-2xl shadow-blue-950/40 ring-1 ring-white/60 dark:ring-slate-700/50 overflow-hidden football-pattern animate-slide-up">
+        <ThemeToggle className="absolute top-4 right-4 z-10" />
         {/* Header */}
         <div className="pt-8 pb-6 flex flex-col items-center px-6">
           <Image

@@ -5,12 +5,13 @@
 import Link from 'next/link'
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
+import { switchTheme } from '@/lib/themeTransition'
 import InstallAppButton from '@/components/ui/InstallAppButton'
 import { buildAsistenciaWhatsappUrl } from '@/lib/constants'
 
 export default function JugadorPerfilPage() {
   const { user, logout } = useAuthStore()
-  const { theme, toggleTheme } = useThemeStore()
+  const { theme } = useThemeStore()
 
   const handleLogout = () => {
     document.cookie = 'auth-storage=; path=/; max-age=0'
@@ -60,7 +61,7 @@ export default function JugadorPerfilPage() {
             </div>
           </div>
           <button
-            onClick={toggleTheme}
+            onClick={() => switchTheme()}
             className={`relative w-14 h-8 rounded-full transition-colors ${theme === 'dark' ? 'bg-primary' : 'bg-slate-300'}`}
           >
             <div

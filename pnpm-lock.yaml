@@ -32,9 +32,15 @@ importers:
       jsqr:
         specifier: ^1.4.0
         version: 1.4.0
+      lucide:
+        specifier: 0.312.0
+        version: 0.312.0
       lucide-react:
         specifier: ^0.312.0
         version: 0.312.0(react@18.3.1)
+      morphicons:
+        specifier: 1.7.1
+        version: 1.7.1(react@18.3.1)
       next:
         specifier: ^16.1.6
         version: 16.2.6(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1224,6 +1230,9 @@ packages:
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0
 
+  lucide@0.312.0:
+    resolution: {integrity: sha512-55fRrT/HuYDJqhLEfxmbIT91GiYNg8eB2tnPrI3gsFgHMgCAMXpPSYl9YYffQUz4t2OreO1SLn74JWTLr9J43A==}
+
   merge2@1.4.1:
     resolution: {integrity: sha512-8q7VEgMJW4J8tcfVPy8g09NcQwZdbwFEqhe/WZkoIzjn/3TGDwtOCYtXGxA3O8tPzpczCCDgv+P2P5y00ZJOOg==}
     engines: {node: '>= 8'}
@@ -1238,6 +1247,26 @@ packages:
 
   minimatch@3.1.5:
     resolution: {integrity: sha512-VgjWUsnnT6n+NUk6eZq77zeFdpW2LWDzP6zFGrCbHXiYNul5Dzqk2HHQ5uFH2DNW5Xbp8+jVzaeNt94ssEEl4w==}
+
+  morphicons@1.7.1:
+    resolution: {integrity: sha512-q5ylxy5/d7vBg0OAzanlooXf05PekovMYDuuQVpr6vAQZxl99lrJbaIi+jJ32PXQf9WEEaDO2pbNBsx1ZhEnFQ==}
+    peerDependencies:
+      react: '>=18'
+      react-native: '>=0.71'
+      react-native-svg: '>=14'
+      svelte: '>=5'
+      vue: '>=3.3'
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-native:
+        optional: true
+      react-native-svg:
+        optional: true
+      svelte:
+        optional: true
+      vue:
+        optional: true
 
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
@@ -2829,6 +2858,8 @@ snapshots:
     dependencies:
       react: 18.3.1
 
+  lucide@0.312.0: {}
+
   merge2@1.4.1: {}
 
   micromatch@4.0.8:
@@ -2843,6 +2874,10 @@ snapshots:
   minimatch@3.1.5:
     dependencies:
       brace-expansion: 1.1.15
+
+  morphicons@1.7.1(react@18.3.1):
+    optionalDependencies:
+      react: 18.3.1
 
   ms@2.1.3: {}
 

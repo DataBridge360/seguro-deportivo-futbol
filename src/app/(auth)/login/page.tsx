@@ -7,6 +7,7 @@ import { getPostLoginRoute } from '@/lib/navigation'
 import { clearAuthCookie, setAuthCookie } from '@/lib/authCookie'
 import InstallAppButton from '@/components/ui/InstallAppButton'
 import BallsBackground from '@/components/auth/BallsBackground'
+import ThemeToggle from '@/components/ui/ThemeToggle'
 import { buildAsistenciaWhatsappUrl } from '@/lib/constants'
 
 type LoginMode = 'usuario' | 'dni'
@@ -86,6 +87,7 @@ export default function LoginPage() {
       </div>
 
       <div className="relative z-10 w-full max-w-md bg-white/90 dark:bg-slate-900/85 backdrop-blur-xl rounded-2xl shadow-2xl shadow-blue-950/40 ring-1 ring-white/60 dark:ring-slate-700/50 overflow-hidden football-pattern animate-slide-up">
+        <ThemeToggle className="absolute top-4 right-4 z-10" />
         {/* Header */}
         <div className="pt-8 pb-4 flex flex-col items-center px-6">
           <div className="mb-3">

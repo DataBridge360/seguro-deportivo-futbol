@@ -12,6 +12,7 @@ import NotificationPermissionBanner from '@/components/NotificationPermissionBan
 import { useSessionRefresh } from '@/hooks/useSessionRefresh'
 import { useSilentFCMRegistration } from '@/hooks/useFCMToken'
 import FCMMessageListener from '@/components/FCMMessageListener'
+import ThemeToggle from '@/components/ui/ThemeToggle'
 
 // Mobile nav items for jugador
 const jugadorNavItems = [
@@ -174,18 +175,21 @@ export default function DashboardLayout({
                 })}
               </nav>
 
-              <Link
-                href="/dashboard/notificaciones"
-                aria-label={unreadCount > 0 ? `Notificaciones, ${unreadCount} sin leer` : 'Notificaciones'}
-                className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary hover:bg-primary/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 transition-colors relative"
-              >
-                <span className="material-symbols-outlined text-[20px]">notifications</span>
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white ring-2 ring-white dark:ring-slate-900">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </Link>
+              <div className="flex items-center gap-2">
+                <ThemeToggle />
+                <Link
+                  href="/dashboard/notificaciones"
+                  aria-label={unreadCount > 0 ? `Notificaciones, ${unreadCount} sin leer` : 'Notificaciones'}
+                  className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary hover:bg-primary/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/20 transition-colors relative"
+                >
+                  <span className="material-symbols-outlined text-[20px]">notifications</span>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white ring-2 ring-white dark:ring-slate-900">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </Link>
+              </div>
             </div>
 
             {/* Back button - below navbar */}
@@ -254,7 +258,8 @@ export default function DashboardLayout({
                 </div>
               </div>
             )}
-            <div className="flex shrink-0 items-center justify-end">
+            <div className="flex shrink-0 items-center justify-end gap-2">
+              <ThemeToggle />
               <Link
                 href="/dashboard/notificaciones"
                 aria-label={unreadCount > 0 ? `Notificaciones, ${unreadCount} sin leer` : 'Notificaciones'}
@@ -417,6 +422,7 @@ export default function DashboardLayout({
                 <p className="text-sm font-bold truncate text-slate-900 dark:text-white">{user.name}</p>
                 <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
               </div>
+              <ThemeToggle variant="plain" />
               <button
                 onClick={handleLogout}
                 className="material-symbols-outlined text-slate-400 text-lg cursor-pointer hover:text-primary transition-colors"
@@ -452,6 +458,7 @@ export default function DashboardLayout({
               <p className="text-[10px] text-primary font-bold">Plaza Huincul</p>
             </div>
           </div>
+          <ThemeToggle variant="plain" className="ml-auto" />
         </header>
 
         {/* Page content */}

@@ -3,12 +3,13 @@
 import { useState } from 'react'
 import { useAuthStore } from '@/stores/authStore'
 import { useThemeStore } from '@/stores/themeStore'
+import { switchTheme } from '@/lib/themeTransition'
 import { changePassword } from '@/lib/api'
 import NotificationModal from '@/components/ui/NotificationModal'
 
 export default function ClubPerfilPage() {
   const { user, logout } = useAuthStore()
-  const { theme, toggleTheme } = useThemeStore()
+  const { theme } = useThemeStore()
 
   const [showCambiarPassword, setShowCambiarPassword] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
@@ -137,7 +138,7 @@ export default function ClubPerfilPage() {
             </div>
           </div>
           <button
-            onClick={toggleTheme}
+            onClick={() => switchTheme()}
             className={`relative w-14 h-8 rounded-full transition-colors ${theme === 'dark' ? 'bg-primary' : 'bg-slate-600'}`}
           >
             <div
