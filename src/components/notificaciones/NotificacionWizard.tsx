@@ -53,6 +53,16 @@ function getCouponColor(value: CouponColor) {
   return couponColorOptions.find(option => option.value === value) || couponColorOptions[0]
 }
 
+// Argentina has no DST, so a fixed -03:00 offset is the club's local time.
+function toInstant(date: string, time: string): string {
+  return `${date}T${time}:00-03:00`
+}
+
+function formatVentana(date: string, time: string): string {
+  const [, m, d] = date.split('-')
+  return `${d}/${m} ${time}`
+}
+
 function formatDescuento(tipo: 'porcentaje' | 'monto_fijo', valor: number): string {
   if (tipo === 'porcentaje') return `${Math.min(Math.round(valor), 100)}%`
   return `$${Math.round(valor).toLocaleString('es-AR')}`
@@ -94,7 +104,12 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
   const [tipoCupon, setTipoCupon] = useState<'porcentaje' | 'monto_fijo'>('porcentaje')
   const [valorCupon, setValorCupon] = useState('')
   const [tituloCupon, setTituloCupon] = useState('')
-  const [fechaVencimiento, setFechaVencimiento] = useState('')
+  const [fechaDesde, setFechaDesde] = useState('')
+  const [horaDesde, setHoraDesde] = useState('00:00')
+  const [fechaHasta, setFechaHasta] = useState('')
+  const [horaHasta, setHoraHasta] = useState('23:59')
+  const [stockCupon, setStockCupon] = useState('')
+  const [soloNuevos, setSoloNuevos] = useState(false)
   const [colorCupon, setColorCupon] = useState<CouponColor>('amber')
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState('')
@@ -129,6 +144,19 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
 
   const selectedFilterName = filterItems.find(i => String(i.id) === filtroId)?.nombre
 
+  const ventanaCompleta = !!(fechaDesde && horaDesde && fechaHasta && horaHasta)
+  const desdeMs = ventanaCompleta ? new Date(toInstant(fechaDesde, horaDesde)).getTime() : 0
+  const hastaMs = ventanaCompleta ? new Date(toInstant(fechaHasta, horaHasta)).getTime() : 0
+  const vigenciaError = !incluirCupon
+    ? ''
+    : !ventanaCompleta
+    ? 'Indicá desde y hasta cuándo vale el cupón'
+    : hastaMs <= desdeMs
+    ? 'El fin tiene que ser después del inicio'
+    : hastaMs <= Date.now()
+    ? 'El fin ya pasó'
+    : ''
+
   // Same validations as the previous form, split by step
   const errors = {
     tipoDestinatario: !tipoDestinatario ? 'Elegí a quién le vas a escribir' : '',
@@ -137,12 +165,12 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
     mensaje: !mensaje.trim() ? 'El mensaje es obligatorio' : '',
     tituloCupon: incluirCupon && !tituloCupon.trim() ? 'El título del cupón es obligatorio' : '',
     valorCupon: incluirCupon && (!valorCupon || parseFloat(valorCupon) <= 0) ? 'El valor del cupón es obligatorio' : '',
-    fechaVencimiento: incluirCupon && !fechaVencimiento ? 'La fecha de vencimiento es obligatoria' : '',
+    vigencia: vigenciaError,
   }
   const stepValid = [
     !errors.tipoDestinatario && !errors.filtroId,
     !errors.asunto && !errors.mensaje,
-    !errors.tituloCupon && !errors.valorCupon && !errors.fechaVencimiento,
+    !errors.tituloCupon && !errors.valorCupon && !errors.vigencia,
     true,
   ]
   const shown = (field: keyof typeof errors) => (touched[field] ? errors[field] : '')
@@ -150,9 +178,14 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
 
   const cuponValorNum = valorCupon ? parseInt(valorCupon, 10) : 0
   const cuponValorTexto = cuponValorNum > 0 ? formatDescuento(tipoCupon, cuponValorNum) : '—'
-  const cuponFechaTexto = fechaVencimiento
-    ? new Date(fechaVencimiento + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })
-    : 'sin fecha'
+  const cuponFechaTexto = ventanaCompleta
+    ? `Del ${formatVentana(fechaDesde, horaDesde)} al ${formatVentana(fechaHasta, horaHasta)}`
+    : 'Sin vigencia'
+  const stockNum = stockCupon ? parseInt(stockCupon, 10) : 0
+  const cuponExtrasTexto = [
+    stockNum > 0 ? `${stockNum.toLocaleString('es-AR')} disponibles` : '',
+    soloNuevos ? 'Solo nuevos registros' : '',
+  ].filter(Boolean).join(' · ')
   const cuponColor = getCouponColor(colorCupon)
 
   const audienceSummary = audience
@@ -165,7 +198,7 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
     if (!stepValid[step]) {
       if (step === 0) { touch('tipoDestinatario'); touch('filtroId') }
       if (step === 1) { touch('asunto'); touch('mensaje') }
-      if (step === 2) { touch('tituloCupon'); touch('valorCupon'); touch('fechaVencimiento') }
+      if (step === 2) { touch('tituloCupon'); touch('valorCupon'); touch('vigencia') }
       return
     }
     setStep(s => Math.min(3, s + 1))
@@ -187,7 +220,12 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
     setTipoCupon('porcentaje')
     setValorCupon('')
     setTituloCupon('')
-    setFechaVencimiento('')
+    setFechaDesde('')
+    setHoraDesde('00:00')
+    setFechaHasta('')
+    setHoraHasta('23:59')
+    setStockCupon('')
+    setSoloNuevos(false)
     setColorCupon('amber')
     setSendError('')
     setSentCount(null)
@@ -211,8 +249,11 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
           titulo: tituloCupon.trim(),
           tipo_descuento: tipoCupon,
           valor_descuento: parseFloat(valorCupon),
-          fecha_vencimiento: fechaVencimiento,
+          valido_desde: toInstant(fechaDesde, horaDesde),
+          valido_hasta: toInstant(fechaHasta, horaHasta),
           color: colorCupon,
+          ...(stockNum > 0 ? { stock: stockNum } : {}),
+          ...(soloNuevos ? { solo_nuevos_registros: true } : {}),
         }
       }
       const result = await createNotificacion(data)
@@ -243,7 +284,9 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
         </div>
         <h2 className="text-xl font-bold text-slate-900 dark:text-white">¡Listo, enviada!</h2>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto leading-relaxed">
-          {sentCount !== null
+          {incluirCupon && soloNuevos
+            ? 'Lo van a ver los jugadores que se registren desde el inicio del cupón.'
+            : sentCount !== null
             ? `La notificación le llegó a ${sentCount} ${sentCount === 1 ? 'jugador' : 'jugadores'}.`
             : 'La notificación ya está en camino.'}
           {incluirCupon && ' Cada código del cupón se genera cuando el jugador lo abre.'}
@@ -551,16 +594,76 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
                   </div>
 
                   <div>
-                    <label className={labelClass}>Vencimiento</label>
-                    <DatePicker
-                      value={fechaVencimiento}
-                      onChange={(val) => { setFechaVencimiento(val); touch('fechaVencimiento') }}
-                      placeholder="dd/mm/aaaa"
-                      hasError={!!shown('fechaVencimiento')}
+                    <label className={labelClass}>Stock (opcional)</label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={stockCupon ? parseInt(stockCupon, 10).toLocaleString('es-AR') : ''}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/\D/g, '').slice(0, 6)
+                        setStockCupon(digits && parseInt(digits, 10) > 0 ? String(Math.min(parseInt(digits, 10), 100000)) : '')
+                      }}
+                      placeholder="Sin límite"
+                      className={`${inputBase} ${inputBorderOk}`}
                     />
-                    <FieldError message={shown('fechaVencimiento')} />
                   </div>
                 </div>
+
+                <div>
+                  <label className={labelClass}>Válido desde</label>
+                  <div className="grid grid-cols-[1fr_auto] gap-2">
+                    <DatePicker
+                      value={fechaDesde}
+                      onChange={(val) => { setFechaDesde(val); touch('vigencia') }}
+                      placeholder="dd/mm/aaaa"
+                      hasError={!!shown('vigencia') && !fechaDesde}
+                    />
+                    <input
+                      type="time"
+                      value={horaDesde}
+                      onChange={(e) => { setHoraDesde(e.target.value); touch('vigencia') }}
+                      aria-label="Hora de inicio"
+                      className={`${inputBase} w-28 ${inputBorderOk}`}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className={labelClass}>Válido hasta</label>
+                  <div className="grid grid-cols-[1fr_auto] gap-2">
+                    <DatePicker
+                      value={fechaHasta}
+                      onChange={(val) => { setFechaHasta(val); touch('vigencia') }}
+                      placeholder="dd/mm/aaaa"
+                      hasError={!!shown('vigencia') && !fechaHasta}
+                    />
+                    <input
+                      type="time"
+                      value={horaHasta}
+                      onChange={(e) => { setHoraHasta(e.target.value); touch('vigencia') }}
+                      aria-label="Hora de fin"
+                      className={`${inputBase} w-28 ${inputBorderOk}`}
+                    />
+                  </div>
+                  <FieldError message={shown('vigencia')} />
+                </div>
+
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={soloNuevos}
+                  onClick={() => setSoloNuevos(v => !v)}
+                  className="w-full min-h-[56px] flex items-center gap-3 rounded-xl border border-slate-200/70 dark:border-slate-700/50 bg-white/40 dark:bg-slate-900/30 px-3 py-2.5 text-left"
+                >
+                  <span className="material-symbols-outlined text-2xl text-slate-500 dark:text-slate-400">person_add</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block text-sm font-semibold text-slate-900 dark:text-white">Solo nuevos registros</span>
+                    <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5">Lo ven solo quienes se registren desde el inicio. No se envía push.</span>
+                  </span>
+                  <span className={`relative w-12 h-7 rounded-full transition-colors flex-shrink-0 ${soloNuevos ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                    <span className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-md transition-all duration-200 ${soloNuevos ? 'left-6' : 'left-1'}`} />
+                  </span>
+                </button>
 
                 <div>
                   <label className={labelClass}>Color del cupón</label>
@@ -591,6 +694,7 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
                     title={tituloCupon}
                     dateText={cuponFechaTexto}
                     valueText={cuponValorTexto}
+                    extraText={cuponExtrasTexto}
                   />
                 </div>
               </div>
@@ -623,6 +727,7 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
                     title={tituloCupon.trim()}
                     dateText={cuponFechaTexto}
                     valueText={cuponValorTexto}
+                    extraText={cuponExtrasTexto}
                   />
                 </div>
               ) : (
@@ -683,7 +788,7 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
   )
 }
 
-function CouponPreview({ gradient, title, dateText, valueText }: { gradient: string; title: string; dateText: string; valueText: string }) {
+function CouponPreview({ gradient, title, dateText, valueText, extraText }: { gradient: string; title: string; dateText: string; valueText: string; extraText?: string }) {
   return (
     <div className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${gradient} p-4 text-white shadow-lg`}>
       <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white/10 blur-2xl" />
@@ -695,7 +800,8 @@ function CouponPreview({ gradient, title, dateText, valueText }: { gradient: str
         <div className="flex-1 min-w-0">
           <p className="text-xs uppercase tracking-wider opacity-80">Cupón</p>
           <p className="font-bold text-sm truncate">{title || 'Título del cupón'}</p>
-          <p className="text-xs opacity-90 mt-0.5">Vence el {dateText}</p>
+          <p className="text-xs opacity-90 mt-0.5">{dateText}</p>
+          {extraText && <p className="text-xs opacity-90 mt-0.5">{extraText}</p>}
         </div>
         <div className="text-right flex-shrink-0">
           <p className="font-extrabold text-2xl leading-none tracking-tight">{valueText}</p>

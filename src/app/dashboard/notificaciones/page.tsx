@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   getMisNotificaciones,
   marcarNotificacionLeida,
@@ -33,6 +34,7 @@ export default function NotificacionesPage() {
   const [totalPages, setTotalPages] = useState(1)
   const initialLoadDone = useRef(false)
   const requestSeq = useRef(0)
+  const router = useRouter()
 
   const fetchNotificaciones = useCallback(async (p: number, f: Filtro) => {
     const seq = requestSeq.current + 1
@@ -286,12 +288,14 @@ export default function NotificacionesPage() {
               {selected.notificaciones.con_cupon && (
                 <button
                   onClick={() => {
+                    const notificacionId = selected.notificaciones.id
                     setSelected(null)
+                    router.push(`/dashboard/jugador/cupones?notificacion=${notificacionId}`)
                   }}
                   className="w-full py-3 bg-primary hover:bg-primary/90 text-white rounded-xl text-sm font-bold transition-colors flex items-center justify-center gap-2"
                 >
                   <span className="material-symbols-outlined text-base">confirmation_number</span>
-                  Entendido
+                  Ver cupón
                 </button>
               )}
 

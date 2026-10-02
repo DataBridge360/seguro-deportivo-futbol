@@ -4,24 +4,13 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { generarCodigoCupon, getMisCupones, CuponResponse } from '@/lib/api'
 import NotificationModal from '@/components/ui/NotificationModal'
-
-type Estado = 'disponible' | 'usado' | 'vencido'
-
-function getEstado(cupon: CuponResponse): Estado {
-  if (cupon.usado) return 'usado'
-  if (cupon.fecha_vencimiento && cupon.fecha_vencimiento.slice(0, 10) < todayDate()) return 'vencido'
-  return 'disponible'
-}
-
-function formatDate(dateStr: string): string {
-  const d = new Date(dateStr.slice(0, 10) + 'T00:00:00')
-  return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
-
-function todayDate() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+import {
+  CuponEstado as Estado,
+  getCuponEstado as getEstado,
+  isCuponPendiente,
+  formatCuponVigencia,
+  formatCuponInicio,
+} from '@/lib/cupones'
 
 
 const tabs: { key: Estado; label: string }[] = [
@@ -32,27 +21,22 @@ const tabs: { key: Estado; label: string }[] = [
 
 const couponColorStyles = {
   amber: {
-    accent: 'bg-amber-500',
     iconBg: 'bg-amber-500/10 dark:bg-amber-500/15',
     text: 'text-amber-600 dark:text-amber-400',
   },
   blue: {
-    accent: 'bg-blue-500',
     iconBg: 'bg-blue-500/10 dark:bg-blue-500/15',
     text: 'text-blue-600 dark:text-blue-400',
   },
   green: {
-    accent: 'bg-green-500',
     iconBg: 'bg-green-500/10 dark:bg-green-500/15',
     text: 'text-green-600 dark:text-green-400',
   },
   red: {
-    accent: 'bg-red-500',
     iconBg: 'bg-red-500/10 dark:bg-red-500/15',
     text: 'text-red-600 dark:text-red-400',
   },
   purple: {
-    accent: 'bg-purple-500',
     iconBg: 'bg-purple-500/10 dark:bg-purple-500/15',
     text: 'text-purple-600 dark:text-purple-400',
   },
@@ -165,9 +149,18 @@ export default function CuponesPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const openCupon = async (cupon: CuponResponse) => {
+  const openCupon = useCallback(async (cupon: CuponResponse) => {
     if (getEstado(cupon) !== 'disponible' || cupon.codigo) {
       setSelected(cupon)
+      return
+    }
+
+    if (cupon.valido_desde && isCuponPendiente(cupon)) {
+      setUsedModal({
+        open: true,
+        title: 'Todavía no está habilitado',
+        message: `Vas a poder usar "${cupon.titulo}" desde el ${formatCuponInicio(cupon.valido_desde)}.`,
+      })
       return
     }
 
@@ -185,21 +178,39 @@ export default function CuponesPage() {
       })
       setSelected(generado)
     } catch (err) {
-      // Sold out or not eligible: drop the template so it can't be tapped again.
-      setCupones(prev => {
-        const next = prev.filter(c => c.id !== cupon.id)
-        cuponesRef.current = next
-        return next
-      })
       setUsedModal({
         open: true,
         title: 'Cupón no disponible',
         message: err instanceof Error ? err.message : 'No se pudo generar el cupón',
       })
+      // Sold out or no longer eligible: the backend drops it from the list.
+      fetchCupones()
     } finally {
       setGeneratingId(null)
     }
-  }
+  }, [fetchCupones])
+
+  // Opened from a notification: /dashboard/jugador/cupones?notificacion=<id>
+  const deepLinkHandled = useRef(false)
+  useEffect(() => {
+    if (loading || deepLinkHandled.current) return
+    const notificacionId = new URLSearchParams(window.location.search).get('notificacion')
+    if (!notificacionId) return
+    deepLinkHandled.current = true
+    window.history.replaceState(null, '', window.location.pathname)
+
+    const cupon = cupones.find(c => c.notificacion_id === notificacionId)
+    if (!cupon) {
+      setUsedModal({
+        open: true,
+        title: 'Cupón no disponible',
+        message: 'Este cupón ya no está disponible.',
+      })
+      return
+    }
+    setActiveTab(getEstado(cupon))
+    openCupon(cupon)
+  }, [loading, cupones, openCupon])
 
   if (loading) {
     return (
@@ -269,12 +280,6 @@ export default function CuponesPage() {
             const isDisponible = estado === 'disponible'
             const colorStyle = getCouponStyle(cupon)
 
-            const accentBg = isDisponible
-              ? colorStyle.accent
-              : estado === 'usado'
-              ? 'bg-slate-300 dark:bg-slate-600'
-              : 'bg-red-300 dark:bg-red-700'
-
             const iconBg = isDisponible
               ? colorStyle.iconBg
               : estado === 'usado'
@@ -303,9 +308,6 @@ export default function CuponesPage() {
                 }`}
               >
                 <div className="flex items-stretch">
-                  {/* Left accent strip */}
-                  <div className={`w-1.5 shrink-0 ${accentBg}`} />
-
                   {/* Icon */}
                   <div className={`w-14 shrink-0 flex items-center justify-center ${iconBg}`}>
                     <span
@@ -332,12 +334,7 @@ export default function CuponesPage() {
                         {estado === 'usado' ? 'check_circle' : 'calendar_today'}
                       </span>
                       <span className="text-[11px] text-slate-400 dark:text-slate-500">
-                        {estado === 'usado'
-                          ? 'Utilizado'
-                          : cupon.fecha_vencimiento
-                          ? `Vence el ${formatDate(cupon.fecha_vencimiento)}`
-                          : 'Sin vencimiento'
-                        }
+                        {estado === 'usado' ? 'Utilizado' : formatCuponVigencia(cupon)}
                       </span>
                     </div>
                   </div>
@@ -432,10 +429,10 @@ export default function CuponesPage() {
                     {getEstado(selected) === 'disponible' ? 'Disponible' : getEstado(selected) === 'usado' ? 'Usado' : 'Vencido'}
                   </span>
                 </div>
-                {selected.fecha_vencimiento && (
-                  <div className="flex justify-between">
-                    <span className="text-slate-500 dark:text-slate-400">Vencimiento</span>
-                    <span className="text-slate-900 dark:text-white">{formatDate(selected.fecha_vencimiento)}</span>
+                {(selected.fecha_vencimiento || selected.valido_hasta) && (
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-500 dark:text-slate-400">Vigencia</span>
+                    <span className="text-slate-900 dark:text-white text-right">{formatCuponVigencia(selected)}</span>
                   </div>
                 )}
                 {selected.usado && selected.usado_at && (

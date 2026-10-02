@@ -70,6 +70,13 @@ self.addEventListener('notificationclick', (event) => {
           return client.focus();
         }
       }
+      // Si la app está abierta en otra pantalla, llevarla al destino
+      const appClient = windowClients.find(
+        (client) => new URL(client.url).origin === self.location.origin && 'navigate' in client
+      );
+      if (appClient) {
+        return appClient.navigate(fullUrl).then((client) => (client || appClient).focus());
+      }
       // Si no, abrir nueva ventana
       if (clients.openWindow) {
         return clients.openWindow(fullUrl);

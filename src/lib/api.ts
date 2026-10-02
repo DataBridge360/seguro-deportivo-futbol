@@ -1157,6 +1157,11 @@ export interface CreateNotificacionData {
     tipo_descuento: 'porcentaje' | 'monto_fijo'
     valor_descuento: number
     fecha_vencimiento?: string
+    /** ISO instants of the validity window. */
+    valido_desde?: string
+    valido_hasta?: string
+    stock?: number
+    solo_nuevos_registros?: boolean
     color?: CouponColor
   }
 }
@@ -1231,6 +1236,8 @@ export interface CuponResponse {
   color?: CouponColor
   monto_minimo_compra: number | null
   fecha_vencimiento: string | null
+  valido_desde?: string | null
+  valido_hasta?: string | null
   usado: boolean
   usado_at: string | null
   monto_compra: number | null

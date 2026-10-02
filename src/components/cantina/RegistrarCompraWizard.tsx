@@ -11,6 +11,7 @@ import {
   type RegistrarCompraData,
 } from '@/lib/api'
 import { useQrScanner } from './useQrScanner'
+import { isCuponVencido } from '@/lib/cupones'
 
 type Step = 'monto' | 'cliente' | 'extras' | 'confirmar' | 'resultado'
 type Lookup = 'idle' | 'loading' | 'found' | 'notfound' | 'error'
@@ -29,13 +30,6 @@ const formatMoney = (n: number) => moneyFmt.format(n)
 function parseMonto(value: string): number {
   const n = parseFloat(value.replace(',', '.'))
   return Number.isFinite(n) && n > 0 ? n : 0
-}
-
-function isExpired(cupon: CuponResponse): boolean {
-  if (!cupon.fecha_vencimiento) return false
-  const d = new Date()
-  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  return cupon.fecha_vencimiento.slice(0, 10) < today
 }
 
 // The discount is computed over the amount the coupon applies to (base), not the whole purchase
@@ -178,7 +172,7 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
   const cuponProblem = useMemo(() => {
     if (!cupon) return ''
     if (cupon.usado) return 'Este cupón ya fue utilizado.'
-    if (isExpired(cupon)) return 'Este cupón está vencido.'
+    if (isCuponVencido(cupon)) return 'Este cupón está vencido.'
     if (cupon.monto_minimo_compra && montoNum < cupon.monto_minimo_compra) {
       return `Este cupón requiere una compra mínima de ${formatMoney(cupon.monto_minimo_compra)}.`
     }

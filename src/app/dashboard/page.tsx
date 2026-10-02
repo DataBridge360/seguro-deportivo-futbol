@@ -8,6 +8,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import AnuncioBanner from '@/components/anuncios/AnuncioBanner'
 import { getMisAnuncios, getMisCupones, AnuncioResponse, CuponResponse } from '@/lib/api'
+import { getCuponEstado, formatCuponVigencia } from '@/lib/cupones'
 import WalletCard from '@/components/jugador/WalletCard'
 import PuntosResumenCard from '@/components/jugador/PuntosResumenCard'
 
@@ -54,12 +55,6 @@ function QRModal({ isOpen, onClose, dni }: { isOpen: boolean; onClose: () => voi
       </div>
     </div>
   )
-}
-
-function getEstado(cupon: CuponResponse): 'disponible' | 'usado' | 'vencido' {
-  if (cupon.usado) return 'usado'
-  if (cupon.fecha_vencimiento && cupon.fecha_vencimiento.slice(0, 10) < todayDate()) return 'vencido'
-  return 'disponible'
 }
 
 function todayDate() {
@@ -128,7 +123,7 @@ function JugadorDashboard() {
     }
   }
 
-  const cuponesDisponibles = cupones.filter(c => getEstado(c) === 'disponible')
+  const cuponesDisponibles = cupones.filter(c => getCuponEstado(c) === 'disponible')
   const anunciosInicio = anuncios.filter(isAnuncioVisible)
 
   if (loading) {
@@ -291,9 +286,9 @@ function JugadorDashboard() {
                   {cupon.descripcion && (
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">{cupon.descripcion}</p>
                   )}
-                  {cupon.fecha_vencimiento && (
+                  {(cupon.fecha_vencimiento || cupon.valido_hasta) && (
                     <span className="inline-block mt-2 text-[10px] font-semibold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-500/10 px-2 py-0.5 rounded-full">
-                      Vence {new Date(cupon.fecha_vencimiento + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}
+                      {formatCuponVigencia(cupon)}
                     </span>
                   )}
                 </Link>
