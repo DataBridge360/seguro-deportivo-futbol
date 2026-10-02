@@ -69,6 +69,19 @@ html.dark body {
   background-image: radial-gradient(circle at 2px 2px, rgba(255, 255, 255, 0.04) 1px, transparent 0);
 }
 
+.balls-light-sky {
+  background: radial-gradient(closest-side, rgb(125 211 252 / 0.4) 35%, rgb(125 211 252 / 0.2) 62%, transparent 100%);
+}
+.dark .balls-light-sky {
+  background: radial-gradient(closest-side, rgb(14 165 233 / 0.2) 35%, rgb(14 165 233 / 0.1) 62%, transparent 100%);
+}
+.balls-light-emerald {
+  background: radial-gradient(closest-side, rgb(110 231 183 / 0.3) 35%, rgb(110 231 183 / 0.15) 62%, transparent 100%);
+}
+.dark .balls-light-emerald {
+  background: radial-gradient(closest-side, rgb(16 185 129 / 0.1) 35%, rgb(16 185 129 / 0.05) 62%, transparent 100%);
+}
+
 .grass-gradient {
   background: linear-gradient(to bottom, transparent, rgba(19, 146, 236, 0.03));
 }
@@ -223,8 +236,12 @@ html.dark body {
   animation-timing-function: var(--expo-out);
 }
 
+/* The original masks with an SVG circle + feGaussianBlur. Safari re-rasterizes
+   that filtered SVG on every frame as mask-size grows (8 fps in WebKit), so the
+   same soft-edged quarter circle is drawn with a radial gradient instead:
+   radius 45% of the mask box (18/40), edge feathered like the blur. */
 ::view-transition-new(root) {
-  mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><defs><filter id="blur"><feGaussianBlur stdDeviation="2"/></filter></defs><circle cx="0" cy="0" r="18" fill="white" filter="url(%23blur)"/></svg>') top left / 0 no-repeat;
+  mask: radial-gradient(100% 100% at 0 0, #000 35%, transparent 55%) top left / 0 no-repeat;
   mask-origin: content-box;
   animation: theme-circle-scale 1s;
   animation-fill-mode: both;
@@ -235,6 +252,16 @@ html.dark body {
 .dark::view-transition-old(root) {
   animation: none;
   z-index: -1;
+}
+
+/* While the circle grows, WebKit re-renders the live new view each frame; the
+   floating balls' blur/drop-shadow filters made that drop to ~30 fps. They are
+   switched off for the length of the transition and fade back afterwards. */
+html.theme-switching .registro-ball {
+  filter: none !important;
+}
+.registro-ball {
+  transition: filter 0.3s ease-out;
 }
 
 @keyframes theme-circle-scale {

@@ -19,5 +19,12 @@ export function switchTheme(next?: Theme) {
     return
   }
 
-  document.startViewTransition(apply)
+  const root = document.documentElement
+  const transition = document.startViewTransition(() => {
+    // Only the new (live) view drops the costly filters; the old view is a
+    // static snapshot taken before this callback runs.
+    root.classList.add('theme-switching')
+    apply()
+  })
+  transition.finished.finally(() => root.classList.remove('theme-switching'))
 }

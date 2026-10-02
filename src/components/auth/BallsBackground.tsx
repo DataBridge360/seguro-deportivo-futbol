@@ -134,9 +134,10 @@ export default function BallsBackground() {
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
       <style>{FLOAT_KEYFRAMES}</style>
 
-      {/* Luces */}
-      <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-sky-300/40 dark:bg-sky-500/20 blur-3xl" />
-      <div className="absolute -bottom-40 -right-24 h-[28rem] w-[28rem] rounded-full bg-emerald-300/30 dark:bg-emerald-500/10 blur-3xl" />
+      {/* Luces: radial gradients instead of blur-3xl. Same look, but no filter
+          for Safari to re-render on every frame of the theme View Transition. */}
+      <div className="balls-light-sky absolute -top-64 -left-64 h-[40rem] w-[40rem]" />
+      <div className="balls-light-emerald absolute -bottom-72 -right-56 h-[44rem] w-[44rem]" />
 
       {/* Líneas de cancha */}
       <svg
