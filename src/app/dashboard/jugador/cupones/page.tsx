@@ -184,6 +184,18 @@ export default function CuponesPage() {
         return next
       })
       setSelected(generado)
+    } catch (err) {
+      // Sold out or not eligible: drop the template so it can't be tapped again.
+      setCupones(prev => {
+        const next = prev.filter(c => c.id !== cupon.id)
+        cuponesRef.current = next
+        return next
+      })
+      setUsedModal({
+        open: true,
+        title: 'Cupón no disponible',
+        message: err instanceof Error ? err.message : 'No se pudo generar el cupón',
+      })
     } finally {
       setGeneratingId(null)
     }
