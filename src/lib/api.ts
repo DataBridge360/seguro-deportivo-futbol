@@ -1318,6 +1318,7 @@ export interface AnuncioResponse {
   imagen_url: string
   fecha_vencimiento: string
   activo: boolean
+  orden: number
   created_at: string
   updated_at: string
 }
@@ -1332,8 +1333,17 @@ export async function getAnuncio(id: string): Promise<AnuncioResponse> {
   return res.data
 }
 
-export async function getAnunciosCantina(): Promise<AnuncioResponse[]> {
-  const res = await apiFetch('/anuncios/cantina')
+export async function getAnunciosClub(): Promise<AnuncioResponse[]> {
+  const res = await apiFetch('/anuncios/club')
+  return res.data
+}
+
+// ids: every announcement of the club, first one shown first. Returns the new order.
+export async function reordenarAnuncios(ids: string[]): Promise<AnuncioResponse[]> {
+  const res = await apiFetch('/anuncios/orden', {
+    method: 'PATCH',
+    body: JSON.stringify({ ids }),
+  })
   return res.data
 }
 

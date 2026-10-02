@@ -121,6 +121,13 @@ export const navigationItems: NavItem[] = [
     roles: ['club']
   },
   {
+    label: 'Anuncios',
+    href: '/dashboard/club/anuncios',
+    icon: 'Megaphone',
+    materialIcon: 'campaign',
+    roles: ['club']
+  },
+  {
     label: 'Notificaciones',
     href: '/dashboard/club/notificaciones',
     icon: 'Bell',
@@ -171,13 +178,6 @@ export const navigationItems: NavItem[] = [
     href: '/dashboard/cantina/cupones',
     icon: 'ScanLine',
     materialIcon: 'point_of_sale',
-    roles: ['cantina']
-  },
-  {
-    label: 'Anuncios',
-    href: '/dashboard/cantina/anuncios',
-    icon: 'Megaphone',
-    materialIcon: 'campaign',
     roles: ['cantina']
   },
   {
