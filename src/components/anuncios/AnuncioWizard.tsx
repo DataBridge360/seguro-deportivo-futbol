@@ -1,6 +1,7 @@
 'use client'
 
 import { ChangeEvent, useEffect, useState } from 'react'
+import { ConfirmModal, Modal } from '@/components/club/puntos/ui'
 import ImageCropper from '@/components/ui/ImageCropper'
 import SafeImage from '@/components/ui/SafeImage'
 import { AnuncioResponse, crearAnuncio } from '@/lib/api'
@@ -37,18 +38,18 @@ function formatLongDate(value: string): string {
 const inputBase =
   'w-full px-4 min-h-[44px] py-2.5 bg-white/60 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-700/60 rounded-xl text-slate-900 dark:text-white text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50'
 const labelClass = 'block text-slate-700 dark:text-slate-300 text-xs font-semibold mb-1.5 uppercase tracking-wide'
-const cardClass =
-  'relative bg-white/70 dark:bg-slate-800/40 backdrop-blur-2xl border border-white/60 dark:border-white/5 rounded-2xl p-5 sm:p-6 shadow-xl shadow-slate-200/40 dark:shadow-black/30'
 const primaryBtn =
   'flex-1 min-h-[48px] px-5 rounded-xl bg-gradient-to-r from-primary to-primary/80 text-white text-sm font-semibold shadow-lg shadow-primary/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2'
 const secondaryBtn =
   'min-h-[48px] px-5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm font-semibold transition-colors flex items-center justify-center gap-1 disabled:opacity-50'
 
 interface AnuncioWizardProps {
-  onCreated?: (anuncio: AnuncioResponse) => void
+  onCreated: (anuncio: AnuncioResponse) => void
+  onClose: () => void
 }
 
-export default function AnuncioWizard({ onCreated }: AnuncioWizardProps) {
+/** "Nuevo anuncio" modal. Publishing closes it; leaving with unsaved input asks first. */
+export default function AnuncioWizard({ onCreated, onClose }: AnuncioWizardProps) {
   const [step, setStep] = useState(0)
   const [titulo, setTitulo] = useState('')
   const [descripcion, setDescripcion] = useState('')
@@ -58,6 +59,7 @@ export default function AnuncioWizard({ onCreated }: AnuncioWizardProps) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [cropFile, setCropFile] = useState<File | null>(null)
+  const [confirmExit, setConfirmExit] = useState(false)
 
   const today = toDateInputValue(new Date())
 
@@ -93,14 +95,13 @@ export default function AnuncioWizard({ onCreated }: AnuncioWizardProps) {
     setCropFile(null)
   }
 
-  const reset = () => {
-    setStep(0)
-    setTitulo('')
-    setDescripcion('')
-    setFechaVencimiento('')
-    setImagen(null)
-    setPreview('')
-    setError('')
+  const dirty = !!imagen || titulo.trim() !== '' || descripcion.trim() !== '' || fechaVencimiento !== ''
+
+  // Backdrop click, Escape and the X all land here.
+  const requestClose = () => {
+    if (saving) return
+    if (dirty) setConfirmExit(true)
+    else onClose()
   }
 
   const handlePublish = async () => {
@@ -115,8 +116,7 @@ export default function AnuncioWizard({ onCreated }: AnuncioWizardProps) {
         imagen,
         fecha_vencimiento: fechaVencimiento,
       })
-      onCreated?.(nuevo)
-      setStep(4)
+      onCreated(nuevo)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo crear el anuncio')
     } finally {
@@ -124,29 +124,46 @@ export default function AnuncioWizard({ onCreated }: AnuncioWizardProps) {
     }
   }
 
-  // ---------- Success ----------
-  if (step === 4) {
-    return (
-      <div className={`${cardClass} text-center py-8`}>
-        <div className="w-16 h-16 rounded-full bg-green-500/15 text-green-600 dark:text-green-400 flex items-center justify-center mx-auto mb-4">
-          <span className="material-symbols-outlined text-4xl">check_circle</span>
-        </div>
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">¡Listo, publicado!</h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto leading-relaxed">
-          Los jugadores ya pueden ver el anuncio en su inicio.
-        </p>
-        <button type="button" onClick={reset} className={`${primaryBtn} w-full sm:w-auto sm:px-8 mx-auto mt-6`}>
-          <span className="material-symbols-outlined text-lg">add</span>
-          Publicar otro
+  const footer = (
+    <>
+      {step > 0 && (
+        <button type="button" onClick={() => setStep((s) => s - 1)} disabled={saving} className={secondaryBtn}>
+          <span className="material-symbols-outlined text-lg">arrow_back</span>
+          Volver
         </button>
-      </div>
-    )
-  }
+      )}
+      {step < 3 ? (
+        <button
+          type="button"
+          onClick={() => setStep((s) => Math.min(3, s + 1))}
+          disabled={!stepValid[step]}
+          className={primaryBtn}
+        >
+          Siguiente
+          <span className="material-symbols-outlined text-lg">arrow_forward</span>
+        </button>
+      ) : (
+        <button type="button" onClick={handlePublish} disabled={saving || !stepValid[3]} className={primaryBtn}>
+          {saving ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              Publicando...
+            </>
+          ) : (
+            <>
+              <span className="material-symbols-outlined text-lg">campaign</span>
+              Publicar anuncio
+            </>
+          )}
+        </button>
+      )}
+    </>
+  )
 
   return (
-    <div className={cardClass}>
+    <Modal title="Nuevo anuncio" onClose={requestClose} busy={saving} suspended={!!cropFile || confirmExit} footer={footer} wide>
       {/* Step indicator */}
-      <div className="mb-6">
+      <div>
         <ol className="flex items-center gap-2">
           {STEPS.map((label, i) => {
             const done = i < step
@@ -174,15 +191,24 @@ export default function AnuncioWizard({ onCreated }: AnuncioWizardProps) {
             </p>
           </div>
 
-          <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-900 w-full aspect-[3.2/1]">
-            <SafeImage src={preview} alt="Vista previa" icon="image" iconClassName="text-4xl" className="h-full w-full object-cover" />
-          </div>
-
-          <label className="flex items-center justify-center gap-2 min-h-[48px] px-4 rounded-xl border border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10 text-primary text-sm font-semibold cursor-pointer transition-colors">
-            <span className="material-symbols-outlined text-xl">{imagen ? 'edit' : 'add_a_photo'}</span>
-            {imagen ? 'Cambiar imagen' : 'Sacar foto o elegir imagen'}
-            <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImageChange} className="hidden" />
-          </label>
+          {preview ? (
+            <>
+              <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 w-full aspect-[3.2/1]">
+                <img src={preview} alt="Imagen elegida" className="h-full w-full object-cover" />
+              </div>
+              <label className="flex items-center justify-center gap-2 min-h-[48px] px-4 rounded-xl border border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10 text-primary text-sm font-semibold cursor-pointer transition-colors">
+                <span className="material-symbols-outlined text-xl">edit</span>
+                Cambiar imagen
+                <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImageChange} className="hidden" />
+              </label>
+            </>
+          ) : (
+            <label className="flex flex-col items-center justify-center gap-2 min-h-[160px] px-4 py-8 rounded-xl border-2 border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10 text-primary cursor-pointer transition-colors">
+              <span className="material-symbols-outlined text-4xl">add_a_photo</span>
+              <span className="text-sm font-semibold">Sacar foto o elegir imagen</span>
+              <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleImageChange} className="hidden" />
+            </label>
+          )}
           {error && <p className="text-sm text-red-500">{error}</p>}
         </section>
       )}
@@ -309,47 +335,8 @@ export default function AnuncioWizard({ onCreated }: AnuncioWizardProps) {
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={handlePublish}
-            disabled={saving || !stepValid[3]}
-            className={`${primaryBtn} w-full min-h-[52px]`}
-          >
-            {saving ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Publicando...
-              </>
-            ) : (
-              <>
-                <span className="material-symbols-outlined text-lg">campaign</span>
-                Publicar anuncio
-              </>
-            )}
-          </button>
         </section>
       )}
-
-      {/* Navigation */}
-      <div className="flex gap-3 mt-6">
-        {step > 0 && (
-          <button type="button" onClick={() => setStep((s) => s - 1)} disabled={saving} className={secondaryBtn}>
-            <span className="material-symbols-outlined text-lg">arrow_back</span>
-            Volver
-          </button>
-        )}
-        {step < 3 && (
-          <button
-            type="button"
-            onClick={() => setStep((s) => Math.min(3, s + 1))}
-            disabled={!stepValid[step]}
-            className={primaryBtn}
-          >
-            Siguiente
-            <span className="material-symbols-outlined text-lg">arrow_forward</span>
-          </button>
-        )}
-      </div>
 
       {cropFile && (
         <ImageCropper
@@ -363,6 +350,18 @@ export default function AnuncioWizard({ onCreated }: AnuncioWizardProps) {
           onCancel={() => setCropFile(null)}
         />
       )}
-    </div>
+
+      {confirmExit && (
+        <ConfirmModal
+          title="¿Seguro que querés salir?"
+          message="El anuncio todavía no se publicó. Si salís, se pierde lo que cargaste."
+          confirmLabel="Salir"
+          busy={false}
+          error=""
+          onConfirm={onClose}
+          onClose={() => setConfirmExit(false)}
+        />
+      )}
+    </Modal>
   )
 }

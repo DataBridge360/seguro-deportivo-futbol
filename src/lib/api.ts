@@ -1382,6 +1382,18 @@ export async function crearAnuncio(data: {
   return json.data
 }
 
+// An empty descripcion clears it; the image and dates cannot be edited.
+export async function actualizarAnuncio(
+  id: string,
+  data: { titulo?: string; descripcion?: string },
+): Promise<AnuncioResponse> {
+  const res = await apiFetch(`/anuncios/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  })
+  return res.data
+}
+
 export async function eliminarAnuncio(id: string): Promise<void> {
   await apiFetch(`/anuncios/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }
