@@ -36,13 +36,16 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
     },
   })
 
-  const json = await res.json()
+  // Nest sends an empty body when a handler returns null (e.g. a club with
+  // no puntos config yet), so res.json() would throw on valid responses.
+  const text = await res.text()
+  const json = text ? JSON.parse(text) : null
 
   if (!res.ok) {
     // El backend puede devolver errores en dos formatos:
     // 1. { success: false, error: { message, code, details, hint } }
     // 2. { message: '...' } (formato simple)
-    const errorMessage = json.error?.message || json.message || 'Error en la solicitud'
+    const errorMessage = json?.error?.message || json?.message || 'Error en la solicitud'
     const isLoginRequest = path.startsWith('/auth/login/')
     const isCredentialError =
       isLoginRequest ||
