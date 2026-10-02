@@ -1,179 +1,102 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+import { BellRing, ChevronRight, Globe, Loader2, MapPin } from 'lucide-react'
 import { usePWA } from '@/hooks/usePWA'
 import { useAuthStore } from '@/stores/authStore'
-import NotificationModal from '@/components/ui/NotificationModal'
+import InstallAppButton from '@/components/ui/InstallAppButton'
+import BallsBackground from '@/components/auth/BallsBackground'
+
+// Icons on this screen are inline SVG (lucide) instead of the Material Symbols
+// font: it is the first screen a new visitor sees, with nothing cached, and the
+// 3.9 MB icon font can take long enough that the browser shows the ligature
+// names ("smartphone", "language") as plain text.
+
+const BACKGROUND =
+  'relative min-h-screen flex flex-col items-center justify-center p-4 overflow-hidden bg-gradient-to-br from-sky-400 via-primary to-blue-900 dark:from-slate-900 dark:via-blue-950 dark:to-slate-950'
 
 export default function HomePage() {
   const router = useRouter()
-  const { isStandalone, isReady, canInstall, isIOS, promptInstall } = usePWA()
+  const { isStandalone, isReady } = usePWA()
   const { isAuthenticated } = useAuthStore()
-  const [showIOSModal, setShowIOSModal] = useState(false)
-  const [showInstallModal, setShowInstallModal] = useState<{ show: boolean; message: string }>({ show: false, message: '' })
 
   useEffect(() => {
-    if (!isReady) return
-
-    if (isStandalone) {
-      if (isAuthenticated) {
-        router.replace('/dashboard')
-      } else {
-        router.replace('/login')
-      }
-    }
+    if (!isReady || !isStandalone) return
+    router.replace(isAuthenticated ? '/dashboard' : '/login')
   }, [isStandalone, isAuthenticated, isReady, router])
 
-  if (!isReady) {
+  // Installed app: this screen only redirects.
+  if (!isReady || isStandalone) {
     return (
-      <div className="min-h-screen flex items-center justify-center pitch-pattern">
-        <span className="material-symbols-outlined text-4xl text-primary animate-spin">progress_activity</span>
+      <div className={BACKGROUND}>
+        <Loader2 className="w-10 h-10 text-white animate-spin" aria-label="Cargando" />
       </div>
     )
-  }
-
-  if (isStandalone) {
-    return (
-      <div className="min-h-screen flex items-center justify-center pitch-pattern">
-        <span className="material-symbols-outlined text-4xl text-primary animate-spin">progress_activity</span>
-      </div>
-    )
-  }
-
-  const handleMobileInstall = async () => {
-    if (isIOS) {
-      setShowIOSModal(true)
-    } else if (canInstall) {
-      await promptInstall()
-    } else {
-      setShowInstallModal({
-        show: true,
-        message: 'Para instalar, abrí el menú del navegador y seleccioná "Instalar aplicación" o "Agregar a pantalla de inicio"'
-      })
-    }
-  }
-
-  const handleWebVersion = () => {
-    router.push('/login')
   }
 
   return (
-    <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden pitch-pattern">
-      {/* Header */}
-      <div className="flex items-center p-6 justify-center">
-        <h2 className="text-[#111518] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">
-          Seguro Deportivo
-        </h2>
-      </div>
+    <div className={BACKGROUND}>
+      <BallsBackground />
 
-      {/* Main content */}
-      <div className="flex flex-col flex-1 px-6 justify-center pb-20">
-        <div className="py-6">
-          <div className="flex justify-center mb-4">
-            <div className="bg-primary/10 dark:bg-primary/20 p-6 rounded-2xl">
-              <span className="material-symbols-outlined text-6xl text-primary">shield</span>
-            </div>
-          </div>
-          <h1 className="text-[#111518] dark:text-white tracking-tight text-[32px] font-bold leading-tight text-center">
-            Seguro Deportivo
+      <div className="relative z-10 w-full max-w-md bg-white/90 dark:bg-slate-900/85 backdrop-blur-xl rounded-2xl shadow-2xl shadow-blue-950/40 ring-1 ring-white/60 dark:ring-slate-700/50 overflow-hidden football-pattern animate-slide-up">
+        {/* Header */}
+        <div className="pt-8 pb-6 flex flex-col items-center px-6">
+          <Image
+            src="/logo.png"
+            alt="Logo del Complejo Deportivo"
+            width={110}
+            height={110}
+            className="w-24 h-24 object-contain mb-3"
+            priority
+          />
+          <h1 className="text-lg font-bold text-slate-900 dark:text-white text-center leading-tight tracking-tight">
+            Complejo Deportivo <span className="text-primary">Plaza Huincul</span>
           </h1>
-          <p className="text-[#111518] dark:text-white/70 text-base font-normal leading-normal pt-2 px-8 text-center max-w-sm mx-auto">
-            Gestión de seguros para clubes deportivos
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 text-center">
+            ¿Cómo querés entrar?
           </p>
         </div>
 
-        <div className="flex flex-col gap-3 max-w-md mx-auto w-full">
-          {/* Mobile download */}
+        {/* Options */}
+        <div className="px-6 pb-8 space-y-3">
+          <InstallAppButton variant="hero" />
+
           <button
-            onClick={handleMobileInstall}
-            className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-14 rounded-xl shadow-lg shadow-primary/20 transition-all flex items-center justify-center gap-3"
+            onClick={() => router.push('/login')}
+            className="group w-full flex items-center gap-4 p-4 rounded-2xl bg-white dark:bg-slate-800 border-2 border-primary/30 hover:border-primary text-left transition-all active:scale-[0.98]"
           >
-            <span className="material-symbols-outlined">smartphone</span>
-            <span>Descargar para Celular</span>
+            <span className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 dark:bg-primary/20 text-primary flex-shrink-0">
+              <Globe className="w-6 h-6" aria-hidden="true" />
+            </span>
+            <span className="flex flex-col flex-1 min-w-0">
+              <span className="font-bold text-slate-900 dark:text-white">Usar versión web</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">Entrá desde el navegador, sin instalar nada</span>
+            </span>
+            <ChevronRight
+              className="w-5 h-5 text-primary/70 transition-transform group-hover:translate-x-0.5"
+              aria-hidden="true"
+            />
           </button>
 
-          {/* Web version */}
-          <button
-            onClick={handleWebVersion}
-            className="w-full bg-primary/10 dark:bg-primary/20 text-primary font-bold h-14 rounded-xl border border-primary/20 transition-all hover:bg-primary/15 flex items-center justify-center gap-3"
-          >
-            <span className="material-symbols-outlined">language</span>
-            <span>Usar Versión Web</span>
-          </button>
+          <p className="flex items-start gap-2 pt-2 text-xs text-slate-500 dark:text-slate-400">
+            <BellRing className="w-4 h-4 text-primary flex-shrink-0 mt-px" aria-hidden="true" />
+            Con la app instalada recibís las notificaciones del club en tu celular.
+          </p>
         </div>
 
-        <p className="text-center text-[#617989] text-xs mt-6">
-          La app instalada funciona sin conexión y ofrece mejor rendimiento
-        </p>
+        {/* Decorative Grass Base */}
+        <div className="h-2 w-full bg-primary grass-gradient"></div>
       </div>
 
-      {/* Bottom indicator */}
-      <div className="h-8 flex justify-center items-end pb-2">
-        <div className="w-32 h-1.5 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
-      </div>
-
-      {/* iOS Modal */}
-      {showIOSModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-md w-full relative animate-fade-in">
-            <button
-              onClick={() => setShowIOSModal(false)}
-              className="absolute top-4 right-4 text-[#617989] hover:text-[#111518] dark:hover:text-white"
-            >
-              <span className="material-symbols-outlined">close</span>
-            </button>
-
-            <h2 className="text-[#111518] dark:text-white text-xl font-bold mb-4">Instalar en iOS</h2>
-            <p className="text-[#617989] text-sm mb-4">
-              Safari no permite instalación automática. Seguí estos pasos:
-            </p>
-
-            <ol className="space-y-4">
-              <li className="flex items-start gap-3">
-                <span className="bg-primary text-white rounded-full w-7 h-7 flex items-center justify-center flex-shrink-0 text-sm font-bold">1</span>
-                <div>
-                  <p className="text-[#111518] dark:text-white">Tocá el botón <strong>Compartir</strong></p>
-                  <div className="bg-[#f6f7f8] dark:bg-slate-900 rounded-lg p-2 mt-2 inline-flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary">ios_share</span>
-                    <span className="text-sm text-[#617989]">Compartir</span>
-                  </div>
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="bg-primary text-white rounded-full w-7 h-7 flex items-center justify-center flex-shrink-0 text-sm font-bold">2</span>
-                <div>
-                  <p className="text-[#111518] dark:text-white">Deslizá y seleccioná <strong>&quot;Agregar a Inicio&quot;</strong></p>
-                  <div className="bg-[#f6f7f8] dark:bg-slate-900 rounded-lg p-2 mt-2 inline-flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[#617989]">add_box</span>
-                    <span className="text-sm text-[#617989]">Agregar a Inicio</span>
-                  </div>
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="bg-primary text-white rounded-full w-7 h-7 flex items-center justify-center flex-shrink-0 text-sm font-bold">3</span>
-                <p className="text-[#111518] dark:text-white">Tocá <strong>&quot;Agregar&quot;</strong> para confirmar</p>
-              </li>
-            </ol>
-
-            <button
-              onClick={() => setShowIOSModal(false)}
-              className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-14 rounded-xl shadow-lg shadow-primary/20 transition-all mt-6"
-            >
-              Entendido
-            </button>
-          </div>
+      {/* Footer */}
+      <footer className="relative z-10 mt-6 text-center px-4">
+        <div className="opacity-80 flex items-center justify-center gap-1 text-xs uppercase tracking-tighter text-white/80">
+          <MapPin className="w-3.5 h-3.5" aria-hidden="true" />
+          Plaza Huincul, Neuquén
         </div>
-      )}
-
-      {/* Modal de instalación */}
-      <NotificationModal
-        isOpen={showInstallModal.show}
-        onClose={() => setShowInstallModal({ show: false, message: '' })}
-        type="info"
-        title="Cómo instalar"
-        message={showInstallModal.message}
-      />
+      </footer>
     </div>
   )
 }

@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import Image from 'next/image'
+import { CheckCircle2, ChevronRight, Download, PlusSquare, Share, Smartphone, X } from 'lucide-react'
 import { usePWA } from '@/hooks/usePWA'
 import NotificationModal from './NotificationModal'
 
 interface InstallAppButtonProps {
   className?: string
-  variant?: 'default' | 'banner'
+  variant?: 'default' | 'banner' | 'hero'
 }
 
 export default function InstallAppButton({ className, variant = 'default' }: InstallAppButtonProps) {
@@ -30,7 +31,24 @@ export default function InstallAppButton({ className, variant = 'default' }: Ins
 
   return (
     <>
-      {variant === 'banner' ? (
+      {variant === 'hero' ? (
+        <button
+          onClick={handleInstall}
+          className={
+            className ??
+            'group w-full flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-blue-600 to-primary text-white text-left shadow-lg shadow-primary/25 transition-all hover:scale-[1.02] active:scale-[0.98]'
+          }
+        >
+          <span className="flex items-center justify-center w-12 h-12 rounded-xl bg-white/15 ring-1 ring-white/25 flex-shrink-0">
+            <Smartphone className="w-6 h-6" aria-hidden="true" />
+          </span>
+          <span className="flex flex-col flex-1 min-w-0">
+            <span className="font-bold">Descargar la app</span>
+            <span className="text-xs text-white/80">Instalala en tu celular y entrá con un toque</span>
+          </span>
+          <ChevronRight className="w-5 h-5 text-white/80 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+        </button>
+      ) : variant === 'banner' ? (
         <button
           onClick={handleInstall}
           className={
@@ -39,7 +57,7 @@ export default function InstallAppButton({ className, variant = 'default' }: Ins
           }
         >
           <span className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 dark:bg-primary/20 text-primary flex-shrink-0">
-            <span className="material-symbols-outlined">download</span>
+            <Download className="w-5 h-5" aria-hidden="true" />
           </span>
           <span className="flex flex-col items-start text-left">
             <span className="text-sm font-bold text-slate-900 dark:text-white">Descargá la app</span>
@@ -54,7 +72,7 @@ export default function InstallAppButton({ className, variant = 'default' }: Ins
             'w-full flex items-center justify-center gap-3 h-12 rounded-xl bg-primary/10 dark:bg-primary/20 text-primary font-bold border border-primary/20 hover:bg-primary/15 transition-all'
           }
         >
-          <span className="material-symbols-outlined">download</span>
+          <Download className="w-5 h-5" aria-hidden="true" />
           Descargar aplicación
         </button>
       )}
@@ -137,7 +155,7 @@ function IOSInstallSheet({
           aria-label="Cerrar"
           className="absolute top-4 right-4 text-[#617989] hover:text-[#111518] dark:hover:text-white"
         >
-          <span className="material-symbols-outlined">close</span>
+          <X className="w-6 h-6" aria-hidden="true" />
         </button>
 
         <h2 id="ios-install-title" className="text-[#111518] dark:text-white text-xl font-bold mb-4 pr-8">
@@ -171,7 +189,7 @@ function IOSInstallSheet({
                     Está en la barra de abajo en Safari. Si no lo ves, tocá ••• (Más) y después Compartir.
                   </p>
                   <div className="bg-[#f6f7f8] dark:bg-slate-900 rounded-lg p-2 mt-2 inline-flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary">ios_share</span>
+                    <Share className="w-5 h-5 text-primary" aria-hidden="true" />
                     <span className="text-sm text-[#617989]">Compartir</span>
                   </div>
                 </div>
@@ -185,7 +203,7 @@ function IOSInstallSheet({
                     Deslizá hacia abajo y tocá <strong>&quot;Agregar a pantalla de inicio&quot;</strong>
                   </p>
                   <div className="bg-[#f6f7f8] dark:bg-slate-900 rounded-lg p-2 mt-2 inline-flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[#617989]">add_box</span>
+                    <PlusSquare className="w-5 h-5 text-[#617989]" aria-hidden="true" />
                     <span className="text-sm text-[#617989]">Agregar a pantalla de inicio</span>
                   </div>
                 </div>
@@ -199,7 +217,7 @@ function IOSInstallSheet({
                     Activá <strong>&quot;Abrir como app web&quot;</strong> si aparece y tocá <strong>&quot;Agregar&quot;</strong>
                   </p>
                   <div className="bg-[#f6f7f8] dark:bg-slate-900 rounded-lg p-2 mt-2 inline-flex items-center gap-2">
-                    <span className="material-symbols-outlined text-primary">check_circle</span>
+                    <CheckCircle2 className="w-5 h-5 text-primary" aria-hidden="true" />
                     <span className="text-sm text-[#617989]">Agregar</span>
                   </div>
                 </div>
