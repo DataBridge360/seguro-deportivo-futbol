@@ -236,16 +236,22 @@ html.dark body {
   animation-timing-function: var(--expo-out);
 }
 
-/* The original masks with an SVG circle + feGaussianBlur. Safari re-rasterizes
-   that filtered SVG on every frame as mask-size grows (8 fps in WebKit), so the
-   same soft-edged quarter circle is drawn with a radial gradient instead:
-   radius 45% of the mask box (18/40), edge feathered like the blur. */
+/* The original masks with an SVG circle + feGaussianBlur and grows mask-size to
+   350vmax. On iPhone that mask image ends up ~9000px square (3x DPR) and is
+   re-rasterized every frame, so the reveal stutters as it reaches the bottom.
+   Here the mask stays viewport-sized and only the circle radius animates (a
+   registered custom property), so every frame costs the same. Geometry matches
+   the original: solid up to 64% of the radius, soft edge out to 192vmax. */
+@property --theme-reveal {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
 ::view-transition-new(root) {
-  mask: radial-gradient(100% 100% at 0 0, #000 35%, transparent 55%) top left / 0 no-repeat;
-  mask-origin: content-box;
-  animation: theme-circle-scale 1s;
+  mask: radial-gradient(circle at 0 0, #000 calc(var(--theme-reveal) * 0.64), transparent var(--theme-reveal)) no-repeat;
+  animation: theme-circle-reveal 1s;
   animation-fill-mode: both;
-  transform-origin: top left;
 }
 
 ::view-transition-old(root),
@@ -264,8 +270,11 @@ html.theme-switching .registro-ball {
   transition: filter 0.3s ease-out;
 }
 
-@keyframes theme-circle-scale {
+@keyframes theme-circle-reveal {
+  from {
+    --theme-reveal: 0px;
+  }
   to {
-    mask-size: 350vmax;
+    --theme-reveal: 192vmax;
   }
 }
