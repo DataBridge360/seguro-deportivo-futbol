@@ -17,9 +17,15 @@ import {
   Modal,
   Spinner,
   Toggle,
+  EmptyState,
+  ListSkeleton,
+  SectionHeader,
   cardCls,
+  compactSecondaryBtnCls,
   errMsg,
   formatDate,
+  iconBtnCls,
+  iconDangerBtnCls,
   labelCls,
   primaryBtnCls,
   secondaryBtnCls,
@@ -180,89 +186,86 @@ export default function CompetenciasSection() {
   }
 
   if (loading) {
-    return (
-      <div className="flex justify-center py-10 text-slate-500">
-        <Spinner />
-      </div>
-    )
+    return <ListSkeleton className="h-32" rows={2} />
   }
 
   return (
     <div className="space-y-4">
-      <p className="text-base text-slate-600 dark:text-slate-300">
-        Los jugadores solo pueden apoyar equipos mientras el torneo tiene una competencia en curso.
-      </p>
+      <SectionHeader description="Los jugadores solo pueden apoyar equipos mientras el torneo tiene una competencia en curso." />
       <ErrorNote message={error} />
 
       {torneos.length === 0 ? (
-        <p className={`${cardCls} text-center text-base text-slate-500 dark:text-slate-400`}>
-          No hay torneos en curso.
-        </p>
+        <EmptyState
+          icon="emoji_events"
+          title="No hay torneos en curso"
+          hint="Las competencias se crean dentro de un torneo que esté en curso."
+        />
       ) : (
-        torneos.map(t => (
-          <section key={t.torneo_id} className={`${cardCls} space-y-3`}>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white">{t.torneo_nombre}</h2>
-              <button
-                type="button"
-                onClick={() => setEditing({ torneo: t, item: null })}
-                className={secondaryBtnCls}
-              >
-                <span className="material-symbols-outlined text-lg" aria-hidden>
-                  add
-                </span>
-                Nueva competencia
-              </button>
-            </div>
+        <div className="grid gap-3 lg:grid-cols-2">
+          {torneos.map(t => (
+            <section key={t.torneo_id} className={`${cardCls} space-y-3`}>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="min-w-0 truncate text-base font-bold text-slate-900 dark:text-white">{t.torneo_nombre}</h2>
+                <button
+                  type="button"
+                  onClick={() => setEditing({ torneo: t, item: null })}
+                  className={`${compactSecondaryBtnCls} px-3`}
+                >
+                  <span className="material-symbols-outlined text-xl" aria-hidden>
+                    add
+                  </span>
+                  Nueva competencia
+                </button>
+              </div>
 
-            {t.competencias.length === 0 ? (
-              <p className="text-base text-slate-500 dark:text-slate-400">Sin competencias todavía.</p>
-            ) : (
-              <ul className="space-y-3">
-                {t.competencias.map(c => (
-                  <li
-                    key={c.id}
-                    className="space-y-2 rounded-xl border border-slate-200 p-3 dark:border-slate-700"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-base font-semibold text-slate-900 dark:text-white">
-                        Del {formatDate(c.inicio)} al {formatDate(c.fin)}
-                      </span>
-                      <EstadoPill estado={c.estado} />
-                    </div>
-                    {c.estado !== 'finalizada' && (
-                      <Toggle
-                        checked={c.habilitada}
-                        disabled={toggling === c.id}
-                        onChange={v => toggle(c, v)}
-                        label="Habilitada"
-                      />
-                    )}
-                    <div className="flex flex-wrap gap-2">
+              {t.competencias.length === 0 ? (
+                <p className="text-sm text-slate-500 dark:text-slate-400">Sin competencias todavía.</p>
+              ) : (
+                <ul className="divide-y divide-slate-100 dark:divide-slate-700">
+                  {t.competencias.map(c => (
+                    <li key={c.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 first:pt-0 last:pb-0">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                          Del {formatDate(c.inicio)} al {formatDate(c.fin)}
+                        </p>
+                        <EstadoPill estado={c.estado} />
+                      </div>
+                      {c.estado !== 'finalizada' && (
+                        <div className="w-36">
+                          <Toggle
+                            checked={c.habilitada}
+                            disabled={toggling === c.id}
+                            onChange={v => toggle(c, v)}
+                            label="Habilitada"
+                          />
+                        </div>
+                      )}
                       <button
                         type="button"
+                        aria-label={`Editar fechas de la competencia del ${formatDate(c.inicio)}`}
                         onClick={() => setEditing({ torneo: t, item: c })}
-                        className="h-11 rounded-xl px-4 text-base font-semibold text-primary hover:bg-primary/10"
+                        className={iconBtnCls}
                       >
-                        Editar fechas
+                        <span className="material-symbols-outlined text-xl">edit_calendar</span>
                       </button>
                       <button
                         type="button"
+                        aria-label={`Eliminar la competencia del ${formatDate(c.inicio)}`}
                         onClick={() => {
                           setDeleteError('')
                           setDeleting(c)
                         }}
-                        className="h-11 rounded-xl px-4 text-base font-semibold text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"
+                        className={iconDangerBtnCls}
                       >
-                        Eliminar
+                        <span className="material-symbols-outlined text-xl">delete</span>
                       </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        ))
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          ))}
+        </div>
       )}
 
       {editing && (

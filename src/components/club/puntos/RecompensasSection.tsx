@@ -20,9 +20,15 @@ import {
   Pill,
   Spinner,
   Toggle,
+  EmptyState,
+  ListSkeleton,
+  SectionHeader,
   cardCls,
+  compactPrimaryBtnCls,
   errMsg,
   fmt,
+  iconBtnCls,
+  iconDangerBtnCls,
   inputCls,
   labelCls,
   primaryBtnCls,
@@ -319,58 +325,61 @@ export default function RecompensasSection() {
 
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-base text-slate-500 dark:text-slate-400">
-          Premios que los jugadores pueden canjear con sus puntos.
-        </p>
-        <button type="button" onClick={() => setEditing('new')} className={`${primaryBtnCls} w-full sm:w-auto`}>
-          <span className="material-symbols-outlined">add</span>
-          Nueva recompensa
-        </button>
-      </div>
+      <SectionHeader
+        description="Premios que los jugadores pueden canjear con sus puntos."
+        action={
+          <button type="button" onClick={() => setEditing('new')} className={compactPrimaryBtnCls}>
+            <span className="material-symbols-outlined text-xl" aria-hidden>
+              add
+            </span>
+            Nueva recompensa
+          </button>
+        }
+      />
 
       {loading ? (
-        <div className="h-28 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" />
+        <ListSkeleton className="h-28" />
       ) : loadError ? (
         <ErrorNote message={loadError} />
       ) : items.length === 0 ? (
-        <p className={`${cardCls} text-center text-base text-slate-500 dark:text-slate-400`}>
-          Todavía no creaste recompensas.
-        </p>
+        <EmptyState
+          icon="redeem"
+          title="Todavía no hay recompensas"
+          hint="Creá la primera para que los jugadores tengan algo para canjear con sus puntos."
+        />
       ) : (
-        <ul className="space-y-3">
+        <ul className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
           {items.map(r => (
-            <li key={r.id} className={`${cardCls} flex items-center gap-3`}>
+            <li key={r.id} className={`${cardCls} flex gap-4 ${r.activo ? '' : 'opacity-70'}`}>
               <Thumb src={r.imagen_url} className="size-20 shrink-0 rounded-xl" />
-              <div className="min-w-0 flex-1 space-y-1">
-                <p className="text-base font-bold text-slate-900 dark:text-white">{r.titulo}</p>
-                <p className="text-sm text-slate-500 dark:text-slate-400">{r.categoria_nombre ?? 'Sin categoría'}</p>
-                <p className="text-base font-semibold text-primary">{fmt(r.costo_puntos)} puntos</p>
-                <div className="flex flex-wrap items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="line-clamp-2 text-base font-bold text-slate-900 dark:text-white">{r.titulo}</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">{r.categoria_nombre ?? 'Sin categoría'}</p>
+                  </div>
+                  <div className="-mr-2 -mt-2 flex shrink-0">
+                    <button type="button" aria-label={`Editar ${r.titulo}`} onClick={() => setEditing(r)} className={iconBtnCls}>
+                      <span className="material-symbols-outlined text-xl">edit</span>
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Eliminar ${r.titulo}`}
+                      onClick={() => {
+                        setDelError('')
+                        setDeleting(r)
+                      }}
+                      className={iconDangerBtnCls}
+                    >
+                      <span className="material-symbols-outlined text-xl">delete</span>
+                    </button>
+                  </div>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="text-base font-bold text-primary">{fmt(r.costo_puntos)} puntos</span>
                   <span className="text-sm text-slate-600 dark:text-slate-300">{stockLabel(r.stock)}</span>
                   <Pill active={r.activo} />
                 </div>
-              </div>
-              <div className="flex shrink-0 flex-col gap-1">
-                <button
-                  type="button"
-                  aria-label={`Editar ${r.titulo}`}
-                  onClick={() => setEditing(r)}
-                  className="flex size-12 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
-                >
-                  <span className="material-symbols-outlined">edit</span>
-                </button>
-                <button
-                  type="button"
-                  aria-label={`Eliminar ${r.titulo}`}
-                  onClick={() => {
-                    setDelError('')
-                    setDeleting(r)
-                  }}
-                  className="flex size-12 items-center justify-center rounded-full text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"
-                >
-                  <span className="material-symbols-outlined">delete</span>
-                </button>
               </div>
             </li>
           ))}

@@ -15,8 +15,14 @@ import {
   Pill,
   Spinner,
   Toggle,
+  EmptyState,
+  ListSkeleton,
+  SectionHeader,
   cardCls,
+  compactPrimaryBtnCls,
   errMsg,
+  iconBtnCls,
+  iconDangerBtnCls,
   inputCls,
   labelCls,
   primaryBtnCls,
@@ -168,42 +174,41 @@ export default function CategoriasSection() {
 
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-base text-slate-500 dark:text-slate-400">
-          Agrupá las recompensas para que el jugador las encuentre más fácil.
-        </p>
-        <button type="button" onClick={() => setEditing('new')} className={`${primaryBtnCls} w-full sm:w-auto`}>
-          <span className="material-symbols-outlined">add</span>
-          Nueva categoría
-        </button>
-      </div>
+      <SectionHeader
+        description="Agrupá las recompensas para que el jugador las encuentre más fácil."
+        action={
+          <button type="button" onClick={() => setEditing('new')} className={compactPrimaryBtnCls}>
+            <span className="material-symbols-outlined text-xl" aria-hidden>
+              add
+            </span>
+            Nueva categoría
+          </button>
+        }
+      />
 
       {loading ? (
-        <div className="h-20 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" />
+        <ListSkeleton className="h-16" rows={2} />
       ) : loadError ? (
         <ErrorNote message={loadError} />
       ) : items.length === 0 ? (
-        <p className={`${cardCls} text-center text-base text-slate-500 dark:text-slate-400`}>
-          Todavía no creaste categorías.
-        </p>
+        <EmptyState
+          icon="category"
+          title="Todavía no hay categorías"
+          hint="Por ejemplo: Cantina, Indumentaria, Entradas."
+        />
       ) : (
-        <ul className="space-y-3">
+        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {items.map(c => (
-            <li key={c.id} className={`${cardCls} flex items-center gap-3`}>
-              <span className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <span className="material-symbols-outlined text-3xl">{c.icono || 'redeem'}</span>
+            <li key={c.id} className={`${cardCls} flex items-center gap-3 py-3 ${c.activo ? '' : 'opacity-70'}`}>
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary dark:bg-primary/20">
+                <span className="material-symbols-outlined text-2xl">{c.icono || 'redeem'}</span>
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-base font-bold text-slate-900 dark:text-white">{c.nombre}</p>
                 <Pill active={c.activo} />
               </div>
-              <button
-                type="button"
-                aria-label={`Editar ${c.nombre}`}
-                onClick={() => setEditing(c)}
-                className="flex size-12 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
-              >
-                <span className="material-symbols-outlined">edit</span>
+              <button type="button" aria-label={`Editar ${c.nombre}`} onClick={() => setEditing(c)} className={iconBtnCls}>
+                <span className="material-symbols-outlined text-xl">edit</span>
               </button>
               <button
                 type="button"
@@ -212,9 +217,9 @@ export default function CategoriasSection() {
                   setDelError('')
                   setDeleting(c)
                 }}
-                className="flex size-12 items-center justify-center rounded-full text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10"
+                className={iconDangerBtnCls}
               >
-                <span className="material-symbols-outlined">delete</span>
+                <span className="material-symbols-outlined text-xl">delete</span>
               </button>
             </li>
           ))}

@@ -19,8 +19,54 @@ export const secondaryBtnCls =
 export const dangerBtnCls =
   'flex h-12 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 text-base font-bold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60'
 
-export const cardCls =
-  'rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800'
+// Club admin screens: lighter buttons for dense lists (the jugador app keeps the large ones)
+export const compactPrimaryBtnCls =
+  'flex h-11 items-center justify-center gap-2 rounded-xl bg-primary px-4 text-sm font-semibold text-white transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60'
+
+export const compactSecondaryBtnCls =
+  'flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+
+export const cardCls = 'rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800'
+
+// Square icon actions for list rows (44px touch target)
+export const iconBtnCls =
+  'flex size-11 shrink-0 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-white'
+
+export const iconDangerBtnCls =
+  'flex size-11 shrink-0 items-center justify-center rounded-xl text-red-500 transition-colors hover:bg-red-50 disabled:opacity-40 dark:text-red-400 dark:hover:bg-red-500/10'
+
+/** Section intro: what the tab is for, and its main action on the right. */
+export function SectionHeader({ description, action }: { description: string; action?: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm text-slate-500 dark:text-slate-400">{description}</p>
+      {action && <div className="shrink-0 [&>button]:w-full sm:[&>button]:w-auto">{action}</div>}
+    </div>
+  )
+}
+
+/** Empty list: says what is missing and, when there is one, the next step. */
+export function EmptyState({ icon, title, hint }: { icon: string; title: string; hint?: string }) {
+  return (
+    <div className="flex flex-col items-center rounded-2xl border border-dashed border-slate-300 px-6 py-10 text-center dark:border-slate-600">
+      <span className="material-symbols-outlined text-4xl text-slate-400 dark:text-slate-500" aria-hidden>
+        {icon}
+      </span>
+      <p className="mt-2 text-base font-semibold text-slate-800 dark:text-slate-100">{title}</p>
+      {hint && <p className="mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">{hint}</p>}
+    </div>
+  )
+}
+
+export function ListSkeleton({ rows = 3, className = 'h-20' }: { rows?: number; className?: string }) {
+  return (
+    <div className="space-y-3" aria-hidden>
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className={`animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800 ${className}`} />
+      ))}
+    </div>
+  )
+}
 
 export function Spinner() {
   return <span className="material-symbols-outlined animate-spin">progress_activity</span>

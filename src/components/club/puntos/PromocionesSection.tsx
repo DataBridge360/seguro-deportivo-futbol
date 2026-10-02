@@ -18,9 +18,15 @@ import {
   Pill,
   Spinner,
   Toggle,
+  EmptyState,
+  ListSkeleton,
+  SectionHeader,
   cardCls,
+  compactPrimaryBtnCls,
   errMsg,
   formatDate,
+  iconBtnCls,
+  iconDangerBtnCls,
   inputCls,
   labelCls,
   primaryBtnCls,
@@ -264,49 +270,76 @@ export default function PromocionesSection() {
 
   return (
     <section className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-base text-slate-500 dark:text-slate-400">
-          Multiplicá los puntos que suman las compras en días o fechas especiales.
-        </p>
-        <button type="button" onClick={() => setEditing('new')} className={`${primaryBtnCls} w-full sm:w-auto`}>
-          <span className="material-symbols-outlined">add</span>
-          Nueva promoción
-        </button>
-      </div>
+      <SectionHeader
+        description="Multiplicá los puntos que suman las compras en días o fechas especiales."
+        action={
+          <button type="button" onClick={() => setEditing('new')} className={compactPrimaryBtnCls}>
+            <span className="material-symbols-outlined text-xl" aria-hidden>
+              add
+            </span>
+            Nueva promoción
+          </button>
+        }
+      />
 
       {active && (
-        <p className="flex items-center gap-2 rounded-xl bg-amber-50 p-3 text-base font-medium text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
-          <span className="material-symbols-outlined">bolt</span>
+        <p className="flex items-center gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+          <span className="material-symbols-outlined text-xl" aria-hidden>
+            bolt
+          </span>
           Hoy rige: {active.titulo} ({fmtMult(active.multiplicador)})
         </p>
       )}
 
       {loading ? (
-        <div className="h-24 animate-pulse rounded-2xl bg-slate-100 dark:bg-slate-800" />
+        <ListSkeleton className="h-24" rows={2} />
       ) : loadError ? (
         <ErrorNote message={loadError} />
       ) : items.length === 0 ? (
-        <p className={`${cardCls} text-center text-base text-slate-500 dark:text-slate-400`}>
-          Todavía no creaste promociones.
-        </p>
+        <EmptyState
+          icon="bolt"
+          title="Todavía no hay promociones"
+          hint="Por ejemplo: los martes las compras suman el doble de puntos."
+        />
       ) : (
-        <ul className="space-y-3">
+        <ul className="grid gap-3 md:grid-cols-2">
           {items.map(p => {
             const isToday = active?.id === p.id
             return (
               <li
                 key={p.id}
-                className={`${cardCls} space-y-3 ${isToday ? '!border-amber-400 ring-2 ring-amber-300/60' : ''}`}
+                className={`${cardCls} flex gap-4 ${isToday ? '!border-amber-400 ring-2 ring-amber-300/50' : ''} ${
+                  p.activo ? '' : 'opacity-70'
+                }`}
               >
-                <div className="flex items-start gap-3">
-                  <span className="flex h-12 min-w-14 shrink-0 items-center justify-center rounded-xl bg-primary px-2 text-lg font-extrabold text-white">
-                    {fmtMult(p.multiplicador)}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-base font-bold text-slate-900 dark:text-white">{p.titulo}</p>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">{rangeText(p)}</p>
+                <span className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-lg font-extrabold text-primary dark:bg-primary/20">
+                  {fmtMult(p.multiplicador)}
+                </span>
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-base font-bold text-slate-900 dark:text-white">{p.titulo}</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">{rangeText(p)}</p>
+                    </div>
+                    <div className="-mr-2 -mt-2 flex shrink-0">
+                      <button type="button" aria-label={`Editar ${p.titulo}`} onClick={() => setEditing(p)} className={iconBtnCls}>
+                        <span className="material-symbols-outlined text-xl">edit</span>
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Eliminar ${p.titulo}`}
+                        onClick={() => {
+                          setDelError('')
+                          setDeleting(p)
+                        }}
+                        className={iconDangerBtnCls}
+                      >
+                        <span className="material-symbols-outlined text-xl">delete</span>
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <DayChips days={p.dias_semana} />
                     <Pill active={p.activo} />
                     {isToday && (
                       <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800 dark:bg-amber-500/20 dark:text-amber-300">
@@ -314,28 +347,6 @@ export default function PromocionesSection() {
                       </span>
                     )}
                   </div>
-                </div>
-                <DayChips days={p.dias_semana} />
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setEditing(p)}
-                    className={`${secondaryBtnCls} flex-1`}
-                  >
-                    <span className="material-symbols-outlined">edit</span>
-                    Editar
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`Eliminar ${p.titulo}`}
-                    onClick={() => {
-                      setDelError('')
-                      setDeleting(p)
-                    }}
-                    className="flex size-12 items-center justify-center rounded-xl border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-500/10"
-                  >
-                    <span className="material-symbols-outlined">delete</span>
-                  </button>
                 </div>
               </li>
             )
