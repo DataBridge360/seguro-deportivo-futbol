@@ -6,7 +6,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { QRCodeSVG } from 'qrcode.react'
 import Image from 'next/image'
 import Link from 'next/link'
-import SafeImage from '@/components/ui/SafeImage'
+import AnuncioBanner from '@/components/anuncios/AnuncioBanner'
 import { getMisAnuncios, getMisCupones, AnuncioResponse, CuponResponse } from '@/lib/api'
 import WalletCard from '@/components/jugador/WalletCard'
 import PuntosResumenCard from '@/components/jugador/PuntosResumenCard'
@@ -238,14 +238,9 @@ function JugadorDashboard() {
                 <Link
                   key={anuncio.id}
                   href={`/dashboard/jugador/anuncios/${anuncio.id}`}
-                  className="min-w-[300px] w-[300px] h-[94px] sm:min-w-[360px] sm:w-[360px] sm:h-[113px] bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden hover:border-primary transition-colors"
+                  className="shrink-0 rounded-xl [&>div]:hover:border-primary [&>div]:transition-colors"
                 >
-                  <SafeImage
-                    src={anuncio.imagen_url}
-                    alt={anuncio.titulo}
-                    icon="campaign"
-                    className="h-full w-full object-cover"
-                  />
+                  <AnuncioBanner src={anuncio.imagen_url} alt={anuncio.titulo} />
                 </Link>
               ))}
             </div>

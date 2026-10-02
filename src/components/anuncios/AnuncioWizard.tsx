@@ -3,7 +3,7 @@
 import { ChangeEvent, useEffect, useState } from 'react'
 import { ConfirmModal, Modal } from '@/components/club/puntos/ui'
 import ImageCropper from '@/components/ui/ImageCropper'
-import SafeImage from '@/components/ui/SafeImage'
+import AnuncioBanner from './AnuncioBanner'
 import { AnuncioResponse, crearAnuncio } from '@/lib/api'
 
 const BANNER_WIDTH = 2048
@@ -193,8 +193,9 @@ export default function AnuncioWizard({ onCreated, onClose }: AnuncioWizardProps
 
           {preview ? (
             <>
-              <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 w-full aspect-[3.2/1]">
-                <img src={preview} alt="Imagen elegida" className="h-full w-full object-cover" />
+              <div>
+                <p className={labelClass}>Así se ve en el inicio</p>
+                <AnuncioBanner src={preview} alt="Imagen elegida" />
               </div>
               <label className="flex items-center justify-center gap-2 min-h-[48px] px-4 rounded-xl border border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10 text-primary text-sm font-semibold cursor-pointer transition-colors">
                 <span className="material-symbols-outlined text-xl">edit</span>
@@ -292,11 +293,14 @@ export default function AnuncioWizard({ onCreated, onClose }: AnuncioWizardProps
         <section className="space-y-4">
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">Revisá y publicá</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Así lo van a ver los jugadores en su inicio.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              Así lo van a ver los jugadores en su inicio. Al tocarlo, se abre con el título y la descripción.
+            </p>
           </div>
 
-          <div className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-md">
-            <SafeImage src={preview} alt={titulo} icon="campaign" className="w-full aspect-[3.2/1] object-cover" />
+          <AnuncioBanner src={preview} alt={titulo} />
+
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
             <div className="p-4">
               <h3 className="font-bold text-slate-900 dark:text-white break-words">{titulo.trim()}</h3>
               {descripcion.trim() && (

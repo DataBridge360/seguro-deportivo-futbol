@@ -19,7 +19,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ArrowDown, ArrowUp, GripVertical, Megaphone, Pencil, Plus, Trash2 } from 'lucide-react'
-import SafeImage from '@/components/ui/SafeImage'
+import AnuncioBanner from '@/components/anuncios/AnuncioBanner'
 import AnuncioWizard from '@/components/anuncios/AnuncioWizard'
 import { ErrorNote, Modal, Spinner, inputCls, labelCls, primaryBtnCls, secondaryBtnCls } from '@/components/club/puntos/ui'
 import {
@@ -85,13 +85,13 @@ function AnuncioCard({ anuncio, index, total, enInicio, saving, onMove, onEdit, 
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`relative flex gap-2 sm:gap-3 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-3 shadow-sm ${
+      className={`relative flex flex-wrap md:flex-nowrap items-center gap-x-3 gap-y-2 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-3 shadow-sm ${
         isDragging ? 'z-10 shadow-xl ring-2 ring-primary/40' : ''
       }`}
     >
-      {/* Drag handle with the position number */}
-      <div className="flex shrink-0 flex-col items-center gap-1">
-        <span className="flex size-8 items-center justify-center rounded-full bg-primary/10 dark:bg-primary/20 text-primary text-sm font-bold">
+      {/* Drag handle with the position number. Phones: bottom row, left. */}
+      <div className="order-2 md:order-none flex shrink-0 items-center gap-1 md:flex-col md:gap-0">
+        <span className="flex size-7 items-center justify-center rounded-full bg-primary/10 dark:bg-primary/20 text-primary text-xs font-bold">
           {index + 1}
         </span>
         <button
@@ -107,24 +107,17 @@ function AnuncioCard({ anuncio, index, total, enInicio, saving, onMove, onEdit, 
         </button>
       </div>
 
-      {/* Mobile: banner on top of the text. Desktop: large image beside it. */}
-      <div className="min-w-0 flex-1 flex flex-col gap-3 md:flex-row">
-        <SafeImage
-          src={anuncio.imagen_url}
-          alt={anuncio.titulo}
-          icon="campaign"
-          className={`w-full md:w-80 aspect-[3.2/1] shrink-0 rounded-xl object-cover ${vigente ? '' : 'opacity-50 grayscale'}`}
-        />
+      {/* Same tile the jugador sees on the home, then the text. Phones: full-width first row. */}
+      <div className="order-1 md:order-none w-full md:w-auto min-w-0 md:flex-1 flex flex-col gap-2 md:flex-row md:items-center md:gap-4">
+        <AnuncioBanner src={anuncio.imagen_url} alt={anuncio.titulo} dimmed={!vigente} />
         <div className="min-w-0 flex-1">
-          <h3 className="text-base font-bold text-slate-900 dark:text-white break-words">{anuncio.titulo}</h3>
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white break-words line-clamp-1">{anuncio.titulo}</h3>
           {anuncio.descripcion ? (
-            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300 whitespace-pre-line break-words line-clamp-3">
-              {anuncio.descripcion}
-            </p>
+            <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300 break-words line-clamp-2">{anuncio.descripcion}</p>
           ) : (
-            <p className="mt-1 text-sm italic text-slate-400 dark:text-slate-500">Sin descripción</p>
+            <p className="mt-0.5 text-sm italic text-slate-400 dark:text-slate-500">Sin descripción</p>
           )}
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             {enInicio ? (
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-300">
                 En el inicio
@@ -145,8 +138,8 @@ function AnuncioCard({ anuncio, index, total, enInicio, saving, onMove, onEdit, 
         </div>
       </div>
 
-      {/* Actions: arrows are the alternative to dragging */}
-      <div className="flex shrink-0 flex-col items-center">
+      {/* Actions: phones put them on the bottom row, right; desktop a 2x2 grid. Arrows are the alternative to dragging. */}
+      <div className="order-3 md:order-none ml-auto flex md:grid md:grid-cols-2">
         <button
           type="button"
           onClick={() => onMove(index, -1)}
@@ -158,25 +151,25 @@ function AnuncioCard({ anuncio, index, total, enInicio, saving, onMove, onEdit, 
         </button>
         <button
           type="button"
-          onClick={() => onMove(index, 1)}
-          disabled={saving || index === total - 1}
-          className={iconBtnClass}
-          aria-label={`Bajar "${anuncio.titulo}"`}
-        >
-          <ArrowDown className="w-5 h-5" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
           onClick={() => onEdit(anuncio)}
-          className={iconBtnClass}
+          className={`${iconBtnClass} order-3 md:order-none`}
           aria-label={`Editar "${anuncio.titulo}"`}
         >
           <Pencil className="w-5 h-5" aria-hidden="true" />
         </button>
         <button
           type="button"
+          onClick={() => onMove(index, 1)}
+          disabled={saving || index === total - 1}
+          className={`${iconBtnClass} order-2 md:order-none`}
+          aria-label={`Bajar "${anuncio.titulo}"`}
+        >
+          <ArrowDown className="w-5 h-5" aria-hidden="true" />
+        </button>
+        <button
+          type="button"
           onClick={() => onDelete(anuncio)}
-          className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+          className="order-4 md:order-none min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
           aria-label={`Eliminar "${anuncio.titulo}"`}
         >
           <Trash2 className="w-5 h-5" aria-hidden="true" />
@@ -230,7 +223,10 @@ function EditarAnuncioModal({
         </>
       }
     >
-      <SafeImage src={anuncio.imagen_url} alt={anuncio.titulo} icon="campaign" className="w-full aspect-[3.2/1] rounded-xl object-cover" />
+      <div>
+        <p className={labelCls}>Así se ve en el inicio</p>
+        <AnuncioBanner src={anuncio.imagen_url} alt={anuncio.titulo} />
+      </div>
       <div>
         <label htmlFor="editar-titulo" className={labelCls}>
           Título
