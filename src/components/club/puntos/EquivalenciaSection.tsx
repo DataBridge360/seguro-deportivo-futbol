@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { getPuntosConfig, guardarPuntosConfig } from '@/lib/api'
+import { useAuthStore } from '@/stores/authStore'
 import { ErrorNote, Spinner, Toggle, fmt, inputCls, primaryBtnCls } from './ui'
 
 const MAX_MONTO = 100_000_000
@@ -26,6 +27,8 @@ function validate(montoRaw: string, puntosRaw: string): string | null {
 }
 
 export default function EquivalenciaSection() {
+  // The club administrator sees the equivalence but only the owner changes it
+  const readOnly = useAuthStore(state => state.user?.acceso_limitado === true)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [hasConfig, setHasConfig] = useState(false)
@@ -102,6 +105,24 @@ export default function EquivalenciaSection() {
         </div>
       ) : loadError ? (
         <ErrorNote message={loadError} />
+      ) : readOnly ? (
+        <>
+          <div className="rounded-xl bg-slate-50 p-4 text-base text-slate-700 dark:bg-slate-900/50 dark:text-slate-200">
+            {hasConfig && Number.isFinite(montoNum) && Number.isFinite(puntosNum) ? (
+              <p>
+                Cada <span className="font-bold">${fmt(montoNum)}</span> de compra suman{' '}
+                <span className="font-bold">{fmt(puntosNum)} puntos</span>
+                {activo ? '.' : ' (los puntos están pausados).'}
+              </p>
+            ) : (
+              <p>Todavía no hay una equivalencia configurada.</p>
+            )}
+          </div>
+          <p className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+            <span className="material-symbols-outlined text-lg">lock</span>
+            Solo el responsable del club puede cambiar la equivalencia.
+          </p>
+        </>
       ) : (
         <>
           {!hasConfig && (

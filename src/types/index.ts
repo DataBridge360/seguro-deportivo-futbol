@@ -6,6 +6,8 @@ export interface User {
   name: string
   role: UserRole
   debe_cambiar_password?: boolean
+  // Club administrator: no puntos equivalence and no cajas
+  acceso_limitado?: boolean
 }
 
 export interface AuthResponse {
@@ -19,4 +21,6 @@ export interface NavItem {
   icon: string
   materialIcon: string
   roles: UserRole[]
+  // Hidden for profiles with acceso_limitado
+  fullAccessOnly?: boolean
 }

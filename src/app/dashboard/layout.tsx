@@ -337,7 +337,7 @@ export default function DashboardLayout({
   }
 
   // Para admin, productor y club: layout con sidebar estilo mockup
-  const navigation = getNavigationForRole(user.role)
+  const navigation = getNavigationForRole(user.role, user.acceso_limitado === true)
 
   return (
     <div className="min-h-screen flex bg-background-light dark:bg-background-dark">

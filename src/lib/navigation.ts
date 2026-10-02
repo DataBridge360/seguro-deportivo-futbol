@@ -118,7 +118,8 @@ export const navigationItems: NavItem[] = [
     href: '/dashboard/club/cajas',
     icon: 'ScanLine',
     materialIcon: 'point_of_sale',
-    roles: ['club']
+    roles: ['club'],
+    fullAccessOnly: true
   },
   {
     label: 'Anuncios',
@@ -196,8 +197,8 @@ export const navigationItems: NavItem[] = [
   },
 ]
 
-export function getNavigationForRole(role: UserRole): NavItem[] {
-  return navigationItems.filter(item => item.roles.includes(role))
+export function getNavigationForRole(role: UserRole, accesoLimitado = false): NavItem[] {
+  return navigationItems.filter(item => item.roles.includes(role) && !(accesoLimitado && item.fullAccessOnly))
 }
 
 // Jugadores con debe_cambiar_password=true deben completar sus datos antes de
