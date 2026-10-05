@@ -3,11 +3,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
-  buscarCupon,
   getPuntosJugadorPorDni,
   registrarCompra,
   type CouponColor,
-  type CuponResponse,
   type PuntosJugadorResponse,
   type RegistrarCompraData,
 } from '@/lib/api'
@@ -17,7 +15,6 @@ import {
   registrarCompraConCuponId,
   type CuponDisponible,
 } from '@/lib/cuponesCaja'
-import { useQrScanner } from './useQrScanner'
 import { formatCuponVigencia, isCuponVencido } from '@/lib/cupones'
 
 type Step = 'monto' | 'cliente' | 'extras' | 'confirmar' | 'resultado'
@@ -40,24 +37,13 @@ function parseMonto(value: string): number {
 }
 
 // The discount is computed over the amount the coupon applies to (base), not the whole purchase
-function calcDescuento(cupon: Pick<CuponActivo, 'tipo_descuento' | 'valor_descuento'> | null, base: number): number {
+function calcDescuento(cupon: Pick<CuponDisponible, 'tipo_descuento' | 'valor_descuento'> | null, base: number): number {
   if (!cupon || base <= 0) return 0
   if (cupon.tipo_descuento === 'porcentaje') return Math.round(((base * cupon.valor_descuento) / 100) * 100) / 100
   return Math.min(cupon.valor_descuento, base)
 }
 
-// The coupon driving the discount: tapped from the player's list or found by code
-interface CuponActivo {
-  origen: 'lista' | 'codigo'
-  id: string
-  codigo: string | null
-  titulo: string
-  tipo_descuento: 'porcentaje' | 'monto_fijo'
-  valor_descuento: number
-  monto_minimo_compra: number | null
-}
-
-const descuentoLabel = (c: Pick<CuponActivo, 'tipo_descuento' | 'valor_descuento'>) =>
+const descuentoLabel = (c: Pick<CuponDisponible, 'tipo_descuento' | 'valor_descuento'>) =>
   c.tipo_descuento === 'porcentaje' ? `${c.valor_descuento}%` : formatMoney(c.valor_descuento)
 
 const cuponAccent: Record<CouponColor, { bar: string; badge: string }> = {
@@ -101,12 +87,6 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
   const [dispError, setDispError] = useState('')
   const [dispReload, setDispReload] = useState(0)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  // Fallback: type or scan a coupon code
-  const [codigoOn, setCodigoOn] = useState(false)
-  const [codigo, setCodigo] = useState('')
-  const [cupon, setCupon] = useState<CuponResponse | null>(null)
-  const [cuponLoading, setCuponLoading] = useState(false)
-  const [cuponError, setCuponError] = useState('')
   const [montoAplicable, setMontoAplicable] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -123,42 +103,10 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
 
   const clearCupon = () => {
     setSelectedId(null)
-    setCodigoOn(false)
-    setCodigo('')
-    setCupon(null)
-    setCuponLoading(false)
-    setCuponError('')
     setMontoAplicable('')
   }
-
-  const searchCupon = async (raw: string) => {
-    const value = raw.trim()
-    if (!value) {
-      setCuponError('Ingresá el código del cupón')
-      return
-    }
-    setCuponLoading(true)
-    setCuponError('')
-    setCupon(null)
-    setMontoAplicable('')
-    try {
-      setCupon(await buscarCupon(value))
-    } catch (err) {
-      setCuponError(err instanceof Error ? err.message : 'No pudimos buscar el cupón')
-    } finally {
-      setCuponLoading(false)
-    }
-  }
-
-  const scanner = useQrScanner((value) => {
-    const code = value.trim().toUpperCase()
-    setCodigo(code)
-    void searchCupon(code)
-  })
-  const stopScanner = scanner.stop
 
   const resetAll = () => {
-    stopScanner()
     setStep('monto')
     setMonto('')
     setDni('')
@@ -249,32 +197,16 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
     }
   }, [dniResuelto, dispReload])
 
-  const cuponLista = disponibles.find((c) => c.id === selectedId) ?? null
-  const cuponActivo: CuponActivo | null = cuponLista
-    ? { origen: 'lista', ...cuponLista, codigo: null }
-    : codigoOn && cupon
-      ? { ...cupon, origen: 'codigo' }
-      : null
+  const cuponActivo = disponibles.find((c) => c.id === selectedId) ?? null
 
-  // Coupon validity given the current amount / DNI
+  // Coupon validity given the current amount
   const cuponProblem = useMemo(() => {
     if (!cuponActivo) return ''
     if (cuponActivo.monto_minimo_compra && montoNum < cuponActivo.monto_minimo_compra) {
       return `Este cupón requiere una compra mínima de ${formatMoney(cuponActivo.monto_minimo_compra)}.`
     }
-    if (cuponLista) {
-      return isCuponVencido({ usado: false, valido_desde: null, ...cuponLista }) ? 'Este cupón está vencido.' : ''
-    }
-    if (!cupon) return ''
-    if (cupon.usado) return 'Este cupón ya fue utilizado.'
-    if (isCuponVencido(cupon)) return 'Este cupón está vencido.'
-    // Compare digits only, and only once the lookup answered for the DNI currently typed
-    const duenoDni = normalizarDni(cupon.jugadores?.dni)
-    if (duenoDni && !sinDni && (jugadorFound || dniNoRegistrado) && duenoDni !== normalizarDni(dni)) {
-      return 'El cupón no pertenece a ese DNI.'
-    }
-    return ''
-  }, [cuponActivo, cuponLista, cupon, montoNum, dni, sinDni, jugadorFound, dniNoRegistrado])
+    return isCuponVencido({ usado: false, valido_desde: null, ...cuponActivo }) ? 'Este cupón está vencido.' : ''
+  }, [cuponActivo, montoNum])
 
   const cuponAplicado = cuponActivo && !cuponProblem ? cuponActivo : null
   const aplicableNum = parseMonto(montoAplicable)
@@ -296,51 +228,31 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
 
   const handleClose = () => {
     if (submitting) return
-    stopScanner()
     onClose()
   }
 
   const goTo = (next: Step) => {
-    stopScanner()
     setError('')
     setStep(next)
   }
 
-  const quitarCupon = () => {
-    stopScanner()
-    clearCupon()
-  }
-
   // Tap to select, tap again to deselect. A new pick resets the amount the discount applies to.
   const toggleCuponLista = (id: string) => {
-    stopScanner()
-    setCodigoOn(false)
-    setCodigo('')
-    setCupon(null)
-    setCuponError('')
     setMontoAplicable('')
     setSelectedId((prev) => (prev === id ? null : id))
-  }
-
-  const abrirCodigo = () => {
-    setSelectedId(null)
-    setMontoAplicable('')
-    setCodigoOn(true)
   }
 
   const handleDniChange = (value: string) => {
     const next = normalizarDni(value).slice(0, 9)
     // Typing a dot or space leaves the same digits: keep the current coupons
     if (next === dni) return
-    stopScanner()
     clearCupon()
     setDisponibles([])
     setDni(next)
     setSinDni(false)
   }
 
-  const extrasBlocked =
-    (codigoOn && !cupon) || (!!cuponActivo && (!!cuponProblem || cuponLoading || !aplicableValid))
+  const extrasBlocked = !!cuponActivo && (!!cuponProblem || !aplicableValid)
 
   const handleSubmit = async () => {
     if (!montoNum) {
@@ -354,13 +266,9 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
         monto_compra: montoNum,
         ...(!sinDni && dniValido ? { dni } : {}),
       }
-      const data =
-        cuponAplicado?.origen === 'lista'
-          ? await registrarCompraConCuponId({ ...body, cupon_id: cuponAplicado.id, monto_aplicable: aplicableNum })
-          : await registrarCompra({
-              ...body,
-              ...(cuponAplicado?.codigo ? { cupon_codigo: cuponAplicado.codigo, monto_aplicable: aplicableNum } : {}),
-            })
+      const data = cuponAplicado
+        ? await registrarCompraConCuponId({ ...body, cupon_id: cuponAplicado.id, monto_aplicable: aplicableNum })
+        : await registrarCompra(body)
       setResult(data)
       setStep('resultado')
       onCompleted?.()
@@ -579,7 +487,6 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
               <button
                 type="button"
                 onClick={() => {
-                  stopScanner()
                   clearCupon()
                   setSinDni(true)
                   setDni('')
@@ -607,67 +514,12 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
             <div className="space-y-4">
               <p className="text-slate-700 dark:text-slate-200 text-lg font-semibold text-center">Cupón (opcional)</p>
 
-              {!cuponActivo && !codigoOn && (
+              {!cuponActivo && (
                 <p className="text-base text-slate-500 dark:text-slate-400 text-center">
                   {jugadorFound
                     ? 'No elegiste ningún cupón. Volvé para tocar uno de los del jugador.'
                     : 'Sin cupón en esta compra.'}
                 </p>
-              )}
-
-              {codigoOn && (
-                <div className="rounded-xl border-2 border-primary bg-primary/5 p-4 space-y-3">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={codigo}
-                      onChange={(e) => {
-                        setCodigo(e.target.value.toUpperCase())
-                        setCupon(null)
-                        setCuponError('')
-                        setMontoAplicable('')
-                      }}
-                      onKeyDown={(e) => e.key === 'Enter' && searchCupon(codigo)}
-                      placeholder="Ej: CUP-ABC123"
-                      className={`${inputClass} flex-1 min-w-0 font-mono`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => searchCupon(codigo)}
-                      disabled={cuponLoading || !codigo.trim()}
-                      aria-label="Buscar cupón"
-                      className="w-12 h-12 shrink-0 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center"
-                    >
-                      {cuponLoading ? (
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <span className="material-symbols-outlined text-2xl">search</span>
-                      )}
-                    </button>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => (scanner.active ? stopScanner() : void scanner.start())}
-                    className="w-full min-h-12 px-4 rounded-lg border border-slate-300 dark:border-slate-600 text-base font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
-                  >
-                    <span className="material-symbols-outlined text-2xl">
-                      {scanner.active ? 'close' : 'qr_code_scanner'}
-                    </span>
-                    {scanner.active ? 'Cerrar cámara' : 'Escanear QR'}
-                  </button>
-
-                  {scanner.active && (
-                    <div className="relative bg-black rounded-xl overflow-hidden aspect-square">
-                      <video ref={scanner.videoRef} className="w-full h-full object-cover" playsInline muted />
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <div className="w-40 h-40 border-4 border-primary/80 rounded-xl" />
-                      </div>
-                    </div>
-                  )}
-                  {scanner.error && <p className="text-base text-red-500 dark:text-red-400">{scanner.error}</p>}
-                  {cuponError && <p className="text-base text-red-500 dark:text-red-400">{cuponError}</p>}
-                </div>
               )}
 
               {cuponActivo && (
@@ -681,7 +533,7 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
                     </div>
                     <button
                       type="button"
-                      onClick={quitarCupon}
+                      onClick={clearCupon}
                       aria-label="Quitar cupón"
                       className="w-11 h-11 shrink-0 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500"
                     >
@@ -728,25 +580,6 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
                     </div>
                   )}
                 </div>
-              )}
-
-              {!codigoOn && !cuponLista && (
-                <button
-                  type="button"
-                  onClick={abrirCodigo}
-                  className="w-full min-h-12 text-base font-medium text-primary underline underline-offset-4"
-                >
-                  ¿Tiene un código?
-                </button>
-              )}
-              {codigoOn && !cupon && (
-                <button
-                  type="button"
-                  onClick={quitarCupon}
-                  className="w-full min-h-12 text-base font-medium text-slate-500 dark:text-slate-400 underline underline-offset-4"
-                >
-                  Cancelar código
-                </button>
               )}
             </div>
           )}
