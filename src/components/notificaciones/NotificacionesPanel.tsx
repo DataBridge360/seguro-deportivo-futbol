@@ -47,6 +47,7 @@ function tipoFiltroIcon(tipo: string): string {
 }
 
 export default function NotificacionesPanel({ showHeader = true }: { showHeader?: boolean }) {
+  const [showWizard, setShowWizard] = useState(false)
   const [deletingCouponId, setDeletingCouponId] = useState<string | null>(null)
   const [showNotification, setShowNotification] = useState(false)
   const [notifTitle, setNotifTitle] = useState('')
@@ -112,7 +113,18 @@ export default function NotificacionesPanel({ showHeader = true }: { showHeader?
         </div>
       )}
 
-      <NotificacionWizard onSent={refreshHistorial} />
+      {showWizard ? (
+        <NotificacionWizard onSent={refreshHistorial} onCancel={() => setShowWizard(false)} />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setShowWizard(true)}
+          className="w-full min-h-[56px] px-5 rounded-2xl bg-primary hover:bg-primary/90 text-white text-base font-semibold shadow-sm transition-colors active:scale-[0.98] flex items-center justify-center gap-2"
+        >
+          <span className="material-symbols-outlined text-2xl">campaign</span>
+          Nueva notificación
+        </button>
+      )}
 
       {/* Historial */}
       <div>

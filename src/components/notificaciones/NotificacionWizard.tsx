@@ -92,9 +92,11 @@ function FieldError({ message }: { message?: string }) {
 
 interface NotificacionWizardProps {
   onSent?: () => void
+  // Closes the wizard; when provided, a "Cancelar" button is shown in the action bar
+  onCancel?: () => void
 }
 
-export default function NotificacionWizard({ onSent }: NotificacionWizardProps) {
+export default function NotificacionWizard({ onSent, onCancel }: NotificacionWizardProps) {
   const [step, setStep] = useState<StepId>('audiencia')
   const searchRef = useRef<HTMLInputElement>(null)
   const wrapperRef = useRef<HTMLDivElement>(null)
@@ -269,6 +271,22 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
     setTouched({})
   }
 
+  // Anything the user typed that would be lost by closing the wizard
+  const hasProgress = !!(
+    asunto.trim() || mensaje.trim() || tituloCupon.trim() || valorCupon || stockCupon || fechaDesde || fechaHasta
+  )
+
+  const close = () => {
+    reset()
+    onCancel?.()
+  }
+
+  const handleCancel = () => {
+    if (sending) return
+    if (hasProgress && !window.confirm('¿Descartar esta notificación? Se pierde lo que escribiste.')) return
+    close()
+  }
+
   const handleSend = async () => {
     if (sending) return
     setSending(true)
@@ -333,6 +351,11 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
             <span className="material-symbols-outlined text-lg">add</span>
             Enviar otra
           </button>
+          {onCancel && (
+            <button type="button" onClick={close} className={`${secondaryBtn} w-full sm:w-auto sm:px-8 mx-auto mt-3`}>
+              Volver al listado
+            </button>
+          )}
         </div>
       </div>
     )
@@ -683,6 +706,7 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
                       value={fechaDesde}
                       onChange={(val) => { setFechaDesde(val); touch('vigencia') }}
                       placeholder="dd/mm/aaaa"
+                      size="responsive"
                       hasError={!!shown('vigencia') && !fechaDesde}
                     />
                     <input
@@ -690,7 +714,7 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
                       value={horaDesde}
                       onChange={(e) => { setHoraDesde(e.target.value); touch('vigencia') }}
                       aria-label="Hora de inicio"
-                      className={`${inputBase} w-28 ${inputBorderOk}`}
+                      className={`${inputBase} w-32 sm:w-28 ${inputBorderOk}`}
                     />
                   </div>
                 </div>
@@ -702,6 +726,7 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
                       value={fechaHasta}
                       onChange={(val) => { setFechaHasta(val); touch('vigencia') }}
                       placeholder="dd/mm/aaaa"
+                      size="responsive"
                       hasError={!!shown('vigencia') && !fechaHasta}
                     />
                     <input
@@ -709,7 +734,7 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
                       value={horaHasta}
                       onChange={(e) => { setHoraHasta(e.target.value); touch('vigencia') }}
                       aria-label="Hora de fin"
-                      className={`${inputBase} w-28 ${inputBorderOk}`}
+                      className={`${inputBase} w-32 sm:w-28 ${inputBorderOk}`}
                     />
                   </div>
                   <FieldError message={shown('vigencia')} />
@@ -816,15 +841,26 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
 
       {/* Navigation: fixed bottom bar on phones, inline from sm up */}
       <div className="max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:z-30 max-sm:border-t max-sm:border-slate-200 dark:max-sm:border-slate-700 max-sm:bg-white dark:max-sm:bg-slate-900 max-sm:px-4 max-sm:pt-3 max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pt-2">
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           {stepIndex > 0 && (
-            <button type="button" onClick={goBack} disabled={sending} className={secondaryBtn}>
+            <button
+              type="button"
+              onClick={goBack}
+              disabled={sending}
+              aria-label="Volver"
+              className={`${secondaryBtn} max-sm:w-12 max-sm:px-0`}
+            >
               <span className="material-symbols-outlined text-lg">arrow_back</span>
-              Volver
+              <span className="max-sm:hidden">Volver</span>
+            </button>
+          )}
+          {onCancel && (
+            <button type="button" onClick={handleCancel} disabled={sending} className={`${secondaryBtn} max-sm:px-3`}>
+              Cancelar
             </button>
           )}
           {step === 'cupon' && (
-            <button type="button" onClick={skipCoupon} className={secondaryBtn}>
+            <button type="button" onClick={skipCoupon} className={`${secondaryBtn} max-sm:px-3`}>
               Sin cupón
             </button>
           )}
@@ -833,13 +869,13 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
               type="button"
               onClick={goNext}
               disabled={!stepValid[step]}
-              className={primaryBtn}
+              className={`${primaryBtn} max-sm:min-w-[7.5rem]`}
             >
               Siguiente
               <span className="material-symbols-outlined text-lg">arrow_forward</span>
             </button>
           ) : (
-            <button type="button" onClick={handleSend} disabled={sending} className={primaryBtn}>
+            <button type="button" onClick={handleSend} disabled={sending} className={`${primaryBtn} max-sm:min-w-[7.5rem]`}>
               {sending ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -848,7 +884,7 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
               ) : (
                 <>
                   <span className="material-symbols-outlined text-lg">send</span>
-                  Enviar notificación
+                  Enviar<span className="max-sm:hidden"> notificación</span>
                 </>
               )}
             </button>
@@ -856,7 +892,7 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
         </div>
       </div>
       {/* Keeps the last content clear of the fixed bar */}
-      <div className="h-20 sm:hidden" aria-hidden="true" />
+      <div className={`${step === 'cupon' ? 'h-32' : 'h-20'} sm:hidden`} aria-hidden="true" />
     </div>
   )
 }
