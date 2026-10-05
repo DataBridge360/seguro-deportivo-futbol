@@ -5,10 +5,15 @@ import { getJugadores, getEquipos, type JugadorResponse } from '@/lib/api'
 import { type Equipo } from '@/types/club'
 import NotificationModal from '@/components/ui/NotificationModal'
 import { formatDateOnly } from '@/lib/utils'
+import { useAuthStore } from '@/stores/authStore'
+import JugadorHistorialSheet from '@/components/club/JugadorHistorialSheet'
 
 const PAGE_SIZE = 50
 
 export default function JugadoresSection() {
+  // Player accounting is only for the full-access club profile
+  const puedeVerHistorial = useAuthStore((state) => state.user?.acceso_limitado !== true)
+  const [historialDe, setHistorialDe] = useState<JugadorResponse | null>(null)
   const [jugadores, setJugadores] = useState<JugadorResponse[]>([])
   const [equipos, setEquipos] = useState<Equipo[]>([])
   const [loading, setLoading] = useState(true)
@@ -225,16 +230,39 @@ export default function JugadoresSection() {
                 ) : jugadores.map((jugador) => (
                   <tr
                     key={jugador.id}
-                    className="border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-100/50 dark:hover:bg-slate-700/30 transition-colors"
+                    {...(puedeVerHistorial
+                      ? {
+                          role: 'button',
+                          tabIndex: 0,
+                          'aria-label': `Ver historial de ${jugador.nombre_completo}`,
+                          onClick: () => setHistorialDe(jugador),
+                          onKeyDown: (e: React.KeyboardEvent) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              setHistorialDe(jugador)
+                            }
+                          },
+                        }
+                      : {})}
+                    className={`border-b border-slate-200/50 dark:border-slate-700/50 hover:bg-slate-100/50 dark:hover:bg-slate-700/30 transition-colors ${
+                      puedeVerHistorial ? 'cursor-pointer active:bg-slate-100 dark:active:bg-slate-700/50' : ''
+                    }`}
                   >
                     <td className="px-4 py-3">
-                      <div>
-                        <p className="font-medium text-slate-900 dark:text-white">
-                          {jugador.nombre_completo}
-                        </p>
-                        <p className="text-slate-500 dark:text-slate-400 text-xs md:hidden">
-                          {formatDateOnly(jugador.fecha_nacimiento)}
-                        </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="font-medium text-slate-900 dark:text-white">
+                            {jugador.nombre_completo}
+                          </p>
+                          <p className="text-slate-500 dark:text-slate-400 text-xs md:hidden">
+                            {formatDateOnly(jugador.fecha_nacimiento)}
+                          </p>
+                        </div>
+                        {puedeVerHistorial && (
+                          <span className="material-symbols-outlined text-lg text-slate-400 md:hidden" aria-hidden>
+                            chevron_right
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-slate-600 dark:text-slate-300 font-mono">
@@ -318,6 +346,10 @@ export default function JugadoresSection() {
             </div>
           )}
         </>
+      )}
+
+      {historialDe && puedeVerHistorial && (
+        <JugadorHistorialSheet jugador={historialDe} onClose={() => setHistorialDe(null)} />
       )}
 
       <NotificationModal
