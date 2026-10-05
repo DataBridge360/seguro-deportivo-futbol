@@ -21,7 +21,7 @@ import {
   ListSkeleton,
   SectionHeader,
   cardCls,
-  compactSecondaryBtnCls,
+  compactPrimaryBtnCls,
   errMsg,
   formatDate,
   iconBtnCls,
@@ -54,16 +54,21 @@ function EstadoPill({ estado }: { estado: EstadoCompetencia }) {
 }
 
 function CompetenciaModal({
-  torneo,
+  torneos,
+  torneo: initialTorneo,
   item,
   onClose,
   onSaved,
 }: {
-  torneo: CompetenciasTorneo
+  /** Tournaments the competencia can be created in (only used when creating). */
+  torneos: CompetenciasTorneo[]
+  /** Tournament of the competencia being edited; null when creating. */
+  torneo: CompetenciasTorneo | null
   item: PuntosCompetencia | null
   onClose: () => void
   onSaved: () => void
 }) {
+  const [torneoId, setTorneoId] = useState(initialTorneo?.torneo_id ?? '')
   const [inicio, setInicio] = useState(item?.inicio?.slice(0, 10) ?? '')
   const [fin, setFin] = useState(item?.fin?.slice(0, 10) ?? '')
   const [habilitada, setHabilitada] = useState(item?.habilitada ?? true)
@@ -71,6 +76,10 @@ function CompetenciaModal({
   const [error, setError] = useState('')
 
   const save = async () => {
+    if (!item && !torneoId) {
+      setError('Elegí el torneo de la competencia.')
+      return
+    }
     if (!inicio || !fin) {
       setError('Elegí la fecha de inicio y la de fin.')
       return
@@ -85,7 +94,7 @@ function CompetenciaModal({
       if (item) {
         await actualizarPuntosCompetencia(item.id, { inicio, fin, habilitada })
       } else {
-        await crearPuntosCompetencia({ torneo_id: torneo.torneo_id, inicio, fin, habilitada })
+        await crearPuntosCompetencia({ torneo_id: torneoId, inicio, fin, habilitada })
       }
       onSaved()
     } catch (e) {
@@ -111,9 +120,52 @@ function CompetenciaModal({
         </>
       }
     >
-      <p className="text-base text-slate-700 dark:text-slate-200">
-        Torneo: <span className="font-semibold">{torneo.torneo_nombre}</span>
-      </p>
+      {item ? (
+        <p className="break-words text-base text-slate-700 dark:text-slate-200">
+          Torneo: <span className="font-semibold">{initialTorneo?.torneo_nombre}</span>
+        </p>
+      ) : (
+        <div>
+          <span id="competencia-torneo-label" className={labelCls}>
+            Torneo
+          </span>
+          {torneos.length === 0 ? (
+            <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-500 dark:bg-slate-900/50 dark:text-slate-400">
+              No hay torneos en curso. Las competencias se crean dentro de un torneo que esté en curso.
+            </p>
+          ) : (
+            <div role="radiogroup" aria-labelledby="competencia-torneo-label" className="space-y-2">
+              {torneos.map(t => {
+                const selected = torneoId === t.torneo_id
+                return (
+                  <button
+                    key={t.torneo_id}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setTorneoId(t.torneo_id)}
+                    className={`flex min-h-12 w-full items-center gap-3 rounded-xl border-2 px-4 py-3 text-left transition-colors ${
+                      selected
+                        ? 'border-primary bg-primary/10'
+                        : 'border-slate-200 hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-700/50'
+                    }`}
+                  >
+                    <span
+                      className={`material-symbols-outlined shrink-0 text-2xl ${selected ? 'text-primary' : 'text-slate-400 dark:text-slate-500'}`}
+                      aria-hidden
+                    >
+                      {selected ? 'radio_button_checked' : 'radio_button_unchecked'}
+                    </span>
+                    <span className="min-w-0 flex-1 break-words text-base font-semibold text-slate-900 dark:text-white">
+                      {t.torneo_nombre}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
       <div>
         <span className={labelCls}>Inicio</span>
         <DatePicker value={inicio} onChange={setInicio} size="lg" />
@@ -135,7 +187,7 @@ export default function CompetenciasSection() {
   const [torneos, setTorneos] = useState<CompetenciasTorneo[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [editing, setEditing] = useState<{ torneo: CompetenciasTorneo; item: PuntosCompetencia | null } | null>(null)
+  const [editing, setEditing] = useState<{ torneo: CompetenciasTorneo | null; item: PuntosCompetencia | null } | null>(null)
   const [toggling, setToggling] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<PuntosCompetencia | null>(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
@@ -189,80 +241,89 @@ export default function CompetenciasSection() {
     return <ListSkeleton className="h-32" rows={2} />
   }
 
+  const withCompetencias = torneos.filter(t => t.competencias.length > 0)
+  const newButton = (
+    <button type="button" onClick={() => setEditing({ torneo: null, item: null })} className={compactPrimaryBtnCls}>
+      <span className="material-symbols-outlined text-xl" aria-hidden>
+        add
+      </span>
+      Nueva competencia
+    </button>
+  )
+
   return (
     <div className="space-y-4">
-      <SectionHeader description="Los jugadores solo pueden apoyar equipos mientras el torneo tiene una competencia en curso." />
+      <SectionHeader
+        description="Los jugadores solo pueden apoyar equipos mientras el torneo tiene una competencia en curso."
+        action={withCompetencias.length > 0 ? newButton : undefined}
+      />
       <ErrorNote message={error} />
 
-      {torneos.length === 0 ? (
-        <EmptyState
-          icon="emoji_events"
-          title="No hay torneos en curso"
-          hint="Las competencias se crean dentro de un torneo que esté en curso."
-        />
+      {withCompetencias.length === 0 ? (
+        <div className="space-y-4">
+          <EmptyState
+            icon="emoji_events"
+            title="Todavía no hay competencias"
+            hint="Una competencia define las fechas en las que los jugadores pueden apoyar equipos de un torneo."
+          />
+          <button
+            type="button"
+            onClick={() => setEditing({ torneo: null, item: null })}
+            className={`${primaryBtnCls} w-full sm:mx-auto sm:w-auto`}
+          >
+            <span className="material-symbols-outlined text-xl" aria-hidden>
+              add
+            </span>
+            Nueva competencia
+          </button>
+        </div>
       ) : (
         <div className="grid gap-3 lg:grid-cols-2">
-          {torneos.map(t => (
+          {withCompetencias.map(t => (
             <section key={t.torneo_id} className={`${cardCls} space-y-3`}>
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="min-w-0 truncate text-base font-bold text-slate-900 dark:text-white">{t.torneo_nombre}</h2>
-                <button
-                  type="button"
-                  onClick={() => setEditing({ torneo: t, item: null })}
-                  className={`${compactSecondaryBtnCls} px-3`}
-                >
-                  <span className="material-symbols-outlined text-xl" aria-hidden>
-                    add
-                  </span>
-                  Nueva competencia
-                </button>
-              </div>
+              <h2 className="break-words text-base font-bold text-slate-900 dark:text-white">{t.torneo_nombre}</h2>
 
-              {t.competencias.length === 0 ? (
-                <p className="text-sm text-slate-500 dark:text-slate-400">Sin competencias todavía.</p>
-              ) : (
-                <ul className="divide-y divide-slate-100 dark:divide-slate-700">
-                  {t.competencias.map(c => (
-                    <li key={c.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 first:pt-0 last:pb-0">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                          Del {formatDate(c.inicio)} al {formatDate(c.fin)}
-                        </p>
-                        <EstadoPill estado={c.estado} />
+              <ul className="divide-y divide-slate-100 dark:divide-slate-700">
+                {t.competencias.map(c => (
+                  <li key={c.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 first:pt-0 last:pb-0">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                        Del {formatDate(c.inicio)} al {formatDate(c.fin)}
+                      </p>
+                      <EstadoPill estado={c.estado} />
+                    </div>
+                    {c.estado !== 'finalizada' && (
+                      <div className="w-36">
+                        <Toggle
+                          checked={c.habilitada}
+                          disabled={toggling === c.id}
+                          onChange={v => toggle(c, v)}
+                          label="Habilitada"
+                        />
                       </div>
-                      {c.estado !== 'finalizada' && (
-                        <div className="w-36">
-                          <Toggle
-                            checked={c.habilitada}
-                            disabled={toggling === c.id}
-                            onChange={v => toggle(c, v)}
-                            label="Habilitada"
-                          />
-                        </div>
-                      )}
-                      <button
-                        type="button"
-                        aria-label={`Editar fechas de la competencia del ${formatDate(c.inicio)}`}
-                        onClick={() => setEditing({ torneo: t, item: c })}
-                        className={iconBtnCls}
-                      >
-                        <span className="material-symbols-outlined text-xl">edit_calendar</span>
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`Eliminar la competencia del ${formatDate(c.inicio)}`}
-                        onClick={() => {
-                          setDeleteError('')
-                          setDeleting(c)
-                        }}
-                        className={iconDangerBtnCls}
-                      >
-                        <span className="material-symbols-outlined text-xl">delete</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                    )}
+                    <button
+                      type="button"
+                      aria-label={`Editar fechas de la competencia del ${formatDate(c.inicio)}`}
+                      onClick={() => setEditing({ torneo: t, item: c })}
+                      className={iconBtnCls}
+                    >
+                      <span className="material-symbols-outlined text-xl">edit_calendar</span>
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Eliminar la competencia del ${formatDate(c.inicio)}`}
+                      onClick={() => {
+                        setDeleteError('')
+                        setDeleting(c)
+                      }}
+                      className={iconDangerBtnCls}
+                    >
+                      <span className="material-symbols-outlined text-xl">delete</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </section>
           ))}
         </div>
@@ -270,6 +331,7 @@ export default function CompetenciasSection() {
 
       {editing && (
         <CompetenciaModal
+          torneos={torneos}
           torneo={editing.torneo}
           item={editing.item}
           onClose={() => setEditing(null)}
