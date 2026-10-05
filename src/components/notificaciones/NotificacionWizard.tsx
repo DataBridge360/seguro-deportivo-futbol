@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   createNotificacion,
   getEquipos,
@@ -29,10 +29,10 @@ const audienceOptions: {
   { value: 'seguro_vencido', label: 'Con seguro vencido', helper: 'Los que tienen que renovar', icon: 'gpp_bad', needsFilter: false },
 ]
 
-const filterNoun: Record<string, { placeholder: string; empty: string; icon: string }> = {
-  equipo: { placeholder: 'Buscá un equipo', empty: 'No encontramos equipos', icon: 'sports_soccer' },
-  categoria: { placeholder: 'Buscá una categoría', empty: 'No encontramos categorías', icon: 'category' },
-  torneo: { placeholder: 'Buscá un torneo', empty: 'No encontramos torneos', icon: 'emoji_events' },
+const filterNoun: Record<string, { stepLabel: string; question: string; placeholder: string; empty: string; icon: string }> = {
+  equipo: { stepLabel: 'Equipo', question: '¿Qué equipo?', placeholder: 'Buscá un equipo', empty: 'No encontramos equipos', icon: 'sports_soccer' },
+  categoria: { stepLabel: 'Categoría', question: '¿Qué categoría?', placeholder: 'Buscá una categoría', empty: 'No encontramos categorías', icon: 'category' },
+  torneo: { stepLabel: 'Torneo', question: '¿Qué torneo?', placeholder: 'Buscá un torneo', empty: 'No encontramos torneos', icon: 'emoji_events' },
 }
 
 const ASUNTO_MAX = 80
@@ -47,7 +47,7 @@ const couponColorOptions: { value: CouponColor; label: string; swatch: string; p
   { value: 'purple', label: 'Violeta', swatch: 'bg-purple-500', preview: 'from-purple-500 via-violet-500 to-fuchsia-500 shadow-purple-500/20', active: 'ring-purple-500 border-purple-400' },
 ]
 
-const STEPS = ['Para quién', 'Mensaje', 'Cupón', 'Revisar']
+type StepId = 'audiencia' | 'filtro' | 'mensaje' | 'cupon' | 'revisar' | 'enviada'
 
 function getCouponColor(value: CouponColor) {
   return couponColorOptions.find(option => option.value === value) || couponColorOptions[0]
@@ -94,7 +94,8 @@ interface NotificacionWizardProps {
 }
 
 export default function NotificacionWizard({ onSent }: NotificacionWizardProps) {
-  const [step, setStep] = useState(0)
+  const [step, setStep] = useState<StepId>('audiencia')
+  const searchRef = useRef<HTMLInputElement>(null)
   const [tipoDestinatario, setTipoDestinatario] = useState<TipoDestinatario | ''>('')
   const [filtroId, setFiltroId] = useState('')
   const [filtroSearch, setFiltroSearch] = useState('')
@@ -167,12 +168,14 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
     valorCupon: incluirCupon && (!valorCupon || parseFloat(valorCupon) <= 0) ? 'El valor del cupón es obligatorio' : '',
     vigencia: vigenciaError,
   }
-  const stepValid = [
-    !errors.tipoDestinatario && !errors.filtroId,
-    !errors.asunto && !errors.mensaje,
-    !errors.tituloCupon && !errors.valorCupon && !errors.vigencia,
-    true,
-  ]
+  const stepValid: Record<StepId, boolean> = {
+    audiencia: !errors.tipoDestinatario,
+    filtro: !errors.filtroId,
+    mensaje: !errors.asunto && !errors.mensaje,
+    cupon: !errors.tituloCupon && !errors.valorCupon && !errors.vigencia,
+    revisar: true,
+    enviada: true,
+  }
   const shown = (field: keyof typeof errors) => (touched[field] ? errors[field] : '')
   const touch = (field: string) => setTouched(prev => ({ ...prev, [field]: true }))
 
@@ -194,23 +197,46 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
       : audience.label
     : '—'
 
+  // The filter step only exists when the chosen audience needs one
+  const steps: { id: StepId; label: string }[] = [
+    { id: 'audiencia', label: 'Para quién' },
+    ...(needsFilter && tipoDestinatario ? [{ id: 'filtro' as const, label: filterNoun[tipoDestinatario].stepLabel }] : []),
+    { id: 'mensaje', label: 'Mensaje' },
+    { id: 'cupon', label: 'Cupón' },
+    { id: 'revisar', label: 'Revisar' },
+  ]
+  const stepIndex = Math.max(0, steps.findIndex(s => s.id === step))
+
   const goNext = () => {
     if (!stepValid[step]) {
-      if (step === 0) { touch('tipoDestinatario'); touch('filtroId') }
-      if (step === 1) { touch('asunto'); touch('mensaje') }
-      if (step === 2) { touch('tituloCupon'); touch('valorCupon'); touch('vigencia') }
+      if (step === 'audiencia') touch('tipoDestinatario')
+      if (step === 'filtro') touch('filtroId')
+      if (step === 'mensaje') { touch('asunto'); touch('mensaje') }
+      if (step === 'cupon') { touch('tituloCupon'); touch('valorCupon'); touch('vigencia') }
       return
     }
-    setStep(s => Math.min(3, s + 1))
+    setStep(steps[Math.min(steps.length - 1, stepIndex + 1)].id)
+  }
+
+  // Focus the search only where there is a physical keyboard; on touch devices it would pop the keyboard over the list
+  useEffect(() => {
+    if (step === 'filtro' && window.matchMedia('(pointer: fine)').matches) searchRef.current?.focus()
+  }, [step])
+
+  const goBack = () => setStep(steps[Math.max(0, stepIndex - 1)].id)
+
+  const selectFilter = (id: string) => {
+    setFiltroId(id)
+    setStep(steps[Math.min(steps.length - 1, stepIndex + 1)].id)
   }
 
   const skipCoupon = () => {
     setIncluirCupon(false)
-    setStep(3)
+    setStep('revisar')
   }
 
   const reset = () => {
-    setStep(0)
+    setStep('audiencia')
     setTipoDestinatario('')
     setFiltroId('')
     setFiltroSearch('')
@@ -258,7 +284,7 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
       }
       const result = await createNotificacion(data)
       setSentCount(typeof result?.destinatarios_count === 'number' ? result.destinatarios_count : null)
-      setStep(4)
+      setStep('enviada')
       onSent?.()
     } catch (error) {
       setSendError(error instanceof Error ? error.message : 'No pudimos enviar la notificación')
@@ -276,7 +302,7 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
     'min-h-[48px] px-5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm font-semibold transition-colors flex items-center justify-center gap-1 disabled:opacity-50'
 
   // ---------- Success ----------
-  if (step === 4) {
+  if (step === 'enviada') {
     return (
       <div className={`${cardClass} text-center py-8`}>
         <div className="w-16 h-16 rounded-full bg-green-500/15 text-green-600 dark:text-green-400 flex items-center justify-center mx-auto mb-4">
@@ -304,11 +330,11 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
       {/* Step indicator */}
       <div className="mb-6">
         <ol className="flex items-center gap-2">
-          {STEPS.map((label, i) => {
-            const done = i < step
-            const current = i === step
+          {steps.map(({ id, label }, i) => {
+            const done = i < stepIndex
+            const current = i === stepIndex
             return (
-              <li key={label} className="flex-1 min-w-0">
+              <li key={id} className="flex-1 min-w-0">
                 <div className={`h-1.5 rounded-full transition-colors ${done || current ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`} />
                 <p className={`mt-1.5 text-xs font-semibold truncate ${current ? 'text-primary' : 'text-slate-400 dark:text-slate-500'}`}>
                   <span className="sm:hidden">{current ? `${i + 1}. ${label}` : i + 1}</span>
@@ -320,8 +346,8 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
         </ol>
       </div>
 
-      {/* Step 1: Audience */}
-      {step === 0 && (
+      {/* Audience */}
+      {step === 'audiencia' && (
         <section className="space-y-4">
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">¿Para quién es?</h2>
@@ -336,9 +362,11 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
                   key={opt.value}
                   type="button"
                   onClick={() => {
-                    setTipoDestinatario(opt.value)
-                    setFiltroId('')
-                    setFiltroSearch('')
+                    if (opt.value !== tipoDestinatario) {
+                      setTipoDestinatario(opt.value)
+                      setFiltroId('')
+                      setFiltroSearch('')
+                    }
                     setTouched(prev => ({ ...prev, tipoDestinatario: false, filtroId: false }))
                   }}
                   aria-pressed={active}
@@ -364,51 +392,61 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
           </div>
           <FieldError message={shown('tipoDestinatario')} />
 
-          {needsFilter && tipoDestinatario && (
-            <div>
-              <label className={labelClass}>{filterNoun[tipoDestinatario].placeholder}</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 dark:text-slate-500 text-lg pointer-events-none">search</span>
-                <input
-                  type="text"
-                  value={filtroSearch}
-                  onChange={(e) => setFiltroSearch(e.target.value)}
-                  placeholder="Escribí para buscar"
-                  className={`${inputBase} pl-10 ${shown('filtroId') ? inputBorderErr : inputBorderOk}`}
-                />
-              </div>
-              <div className="mt-2 max-h-56 overflow-y-auto rounded-xl border border-slate-200/80 dark:border-slate-700/60 bg-white/60 dark:bg-slate-900/40 divide-y divide-slate-100 dark:divide-slate-700/50">
-                {filteredItems.length === 0 ? (
-                  <p className="px-4 py-4 text-sm text-slate-500 dark:text-slate-400 text-center">{filterNoun[tipoDestinatario].empty}</p>
-                ) : (
-                  filteredItems.map(item => {
-                    const active = String(item.id) === filtroId
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => setFiltroId(String(item.id))}
-                        className={`w-full min-h-[44px] flex items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors ${
-                          active
-                            ? 'bg-primary/10 text-primary font-semibold'
-                            : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60'
-                        }`}
-                      >
-                        <span className="flex-1 min-w-0 truncate">{item.nombre}</span>
-                        {active && <span className="material-symbols-outlined text-lg">check</span>}
-                      </button>
-                    )
-                  })
-                )}
-              </div>
-              <FieldError message={shown('filtroId')} />
-            </div>
-          )}
         </section>
       )}
 
-      {/* Step 2: Message */}
-      {step === 1 && (
+      {/* Filter: team, category or tournament */}
+      {step === 'filtro' && needsFilter && tipoDestinatario && (
+        <section className="space-y-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">{filterNoun[tipoDestinatario].question}</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Tocá una opción y seguimos.</p>
+          </div>
+
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 dark:text-slate-500 text-lg pointer-events-none">search</span>
+            <input
+              ref={searchRef}
+              type="text"
+              value={filtroSearch}
+              onChange={(e) => setFiltroSearch(e.target.value)}
+              placeholder={filterNoun[tipoDestinatario].placeholder}
+              aria-label={filterNoun[tipoDestinatario].placeholder}
+              className={`${inputBase} pl-10 ${shown('filtroId') ? inputBorderErr : inputBorderOk}`}
+            />
+          </div>
+
+          <div className="rounded-xl border border-slate-200/80 dark:border-slate-700/60 bg-white/60 dark:bg-slate-900/40 divide-y divide-slate-100 dark:divide-slate-700/50">
+            {filteredItems.length === 0 ? (
+              <p className="px-4 py-4 text-sm text-slate-500 dark:text-slate-400 text-center">{filterNoun[tipoDestinatario].empty}</p>
+            ) : (
+              filteredItems.map(item => {
+                const active = String(item.id) === filtroId
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => selectFilter(String(item.id))}
+                    aria-pressed={active}
+                    className={`w-full min-h-[52px] flex items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors ${
+                      active
+                        ? 'bg-primary/10 text-primary font-semibold'
+                        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <span className="flex-1 min-w-0 truncate">{item.nombre}</span>
+                    {active && <span className="material-symbols-outlined text-lg">check</span>}
+                  </button>
+                )
+              })
+            )}
+          </div>
+          <FieldError message={shown('filtroId')} />
+        </section>
+      )}
+
+      {/* Message */}
+      {step === 'mensaje' && (
         <section className="space-y-4">
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">¿Qué querés decirles?</h2>
@@ -474,8 +512,8 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
         </section>
       )}
 
-      {/* Step 3: Coupon */}
-      {step === 2 && (
+      {/* Coupon */}
+      {step === 'cupon' && (
         <section className="space-y-4">
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">¿Sumás un cupón?</h2>
@@ -703,8 +741,8 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
         </section>
       )}
 
-      {/* Step 4: Review */}
-      {step === 3 && (
+      {/* Review */}
+      {step === 'revisar' && (
         <section className="space-y-4">
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">Revisá y enviá</h2>
@@ -712,14 +750,14 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
           </div>
 
           <div className="rounded-xl border border-slate-200/80 dark:border-slate-700/60 bg-white/50 dark:bg-slate-900/30 divide-y divide-slate-100 dark:divide-slate-700/50">
-            <SummaryRow icon={audience?.icon || 'groups'} label="Para" onEdit={() => setStep(0)}>
+            <SummaryRow icon={audience?.icon || 'groups'} label="Para" onEdit={() => setStep('audiencia')}>
               <p className="text-sm font-semibold text-slate-900 dark:text-white break-words">{audienceSummary}</p>
             </SummaryRow>
-            <SummaryRow icon="chat" label="Mensaje" onEdit={() => setStep(1)}>
+            <SummaryRow icon="chat" label="Mensaje" onEdit={() => setStep('mensaje')}>
               <p className="text-sm font-semibold text-slate-900 dark:text-white break-words">{asunto.trim()}</p>
               <p className="text-sm text-slate-600 dark:text-slate-300 mt-0.5 break-words whitespace-pre-line">{mensaje.trim()}</p>
             </SummaryRow>
-            <SummaryRow icon="local_offer" label="Cupón" onEdit={() => setStep(2)}>
+            <SummaryRow icon="local_offer" label="Cupón" onEdit={() => setStep('cupon')}>
               {incluirCupon ? (
                 <div className="mt-1">
                   <CouponPreview
@@ -761,18 +799,18 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
 
       {/* Navigation */}
       <div className="flex gap-3 mt-6">
-        {step > 0 && (
-          <button type="button" onClick={() => setStep(s => s - 1)} disabled={sending} className={secondaryBtn}>
+        {stepIndex > 0 && (
+          <button type="button" onClick={goBack} disabled={sending} className={secondaryBtn}>
             <span className="material-symbols-outlined text-lg">arrow_back</span>
             Volver
           </button>
         )}
-        {step === 2 && (
+        {step === 'cupon' && (
           <button type="button" onClick={skipCoupon} className={secondaryBtn}>
             Sin cupón
           </button>
         )}
-        {step < 3 && (
+        {step !== 'revisar' && (
           <button
             type="button"
             onClick={goNext}
