@@ -366,7 +366,7 @@ export default function CajaHistorial({ cantinaId, refreshKey = 0, showCantina =
 
       {loading ? (
         <div className="space-y-4" aria-busy="true">
-          <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="h-24 rounded-xl bg-slate-200/70 dark:bg-slate-800 animate-pulse" />
             ))}
@@ -385,7 +385,6 @@ export default function CajaHistorial({ cantinaId, refreshKey = 0, showCantina =
               <Metric icon="payments" label="Total cobrado" value={money(totales.total_cobrado)} tone="text-green-400" toneBg="bg-green-500/10" />
               <Metric icon="sell" label="Descuentos" value={`-${money(totales.total_descuentos)}`} tone="text-red-400" toneBg="bg-red-500/10" />
               <Metric icon="stars" label="Puntos dados" value={String(totales.puntos_dados)} tone="text-amber-400" toneBg="bg-amber-500/10" />
-              <Metric icon="phonelink_off" label="Ventas sin la app" value={String(totales.ventas_sin_app)} tone="text-slate-500 dark:text-slate-300" toneBg="bg-slate-500/10" />
             </div>
 
             <div>
