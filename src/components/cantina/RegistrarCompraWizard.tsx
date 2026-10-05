@@ -6,12 +6,19 @@ import {
   buscarCupon,
   getPuntosJugadorPorDni,
   registrarCompra,
+  type CouponColor,
   type CuponResponse,
   type PuntosJugadorResponse,
   type RegistrarCompraData,
 } from '@/lib/api'
+import {
+  getCuponesDisponibles,
+  normalizarDni,
+  registrarCompraConCuponId,
+  type CuponDisponible,
+} from '@/lib/cuponesCaja'
 import { useQrScanner } from './useQrScanner'
-import { isCuponVencido } from '@/lib/cupones'
+import { formatCuponVigencia, isCuponVencido } from '@/lib/cupones'
 
 type Step = 'monto' | 'cliente' | 'extras' | 'confirmar' | 'resultado'
 type Lookup = 'idle' | 'loading' | 'found' | 'notfound' | 'error'
@@ -33,11 +40,34 @@ function parseMonto(value: string): number {
 }
 
 // The discount is computed over the amount the coupon applies to (base), not the whole purchase
-function calcDescuento(cupon: CuponResponse | null, base: number): number {
+function calcDescuento(cupon: Pick<CuponActivo, 'tipo_descuento' | 'valor_descuento'> | null, base: number): number {
   if (!cupon || base <= 0) return 0
   if (cupon.tipo_descuento === 'porcentaje') return Math.round(((base * cupon.valor_descuento) / 100) * 100) / 100
   return Math.min(cupon.valor_descuento, base)
 }
+
+// The coupon driving the discount: tapped from the player's list or found by code
+interface CuponActivo {
+  origen: 'lista' | 'codigo'
+  id: string
+  codigo: string | null
+  titulo: string
+  tipo_descuento: 'porcentaje' | 'monto_fijo'
+  valor_descuento: number
+  monto_minimo_compra: number | null
+}
+
+const descuentoLabel = (c: Pick<CuponActivo, 'tipo_descuento' | 'valor_descuento'>) =>
+  c.tipo_descuento === 'porcentaje' ? `${c.valor_descuento}%` : formatMoney(c.valor_descuento)
+
+const cuponAccent: Record<CouponColor, { bar: string; badge: string }> = {
+  amber: { bar: 'bg-amber-500', badge: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200' },
+  blue: { bar: 'bg-blue-500', badge: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-200' },
+  green: { bar: 'bg-green-500', badge: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200' },
+  red: { bar: 'bg-red-500', badge: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200' },
+  purple: { bar: 'bg-purple-500', badge: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200' },
+}
+const accentFor = (color: string | null) => cuponAccent[(color as CouponColor) ?? 'amber'] ?? cuponAccent.amber
 
 interface Props {
   isOpen: boolean
@@ -64,7 +94,15 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
   const [lookup, setLookup] = useState<Lookup>('idle')
   const [jugador, setJugador] = useState<PuntosJugadorResponse | null>(null)
   const [lookupMsg, setLookupMsg] = useState('')
-  const [cuponOn, setCuponOn] = useState(false)
+  // DNI the last conclusive lookup answered for; guards against a result that belongs to an older DNI
+  const [lookupDni, setLookupDni] = useState('')
+  const [disponibles, setDisponibles] = useState<CuponDisponible[]>([])
+  const [dispLoading, setDispLoading] = useState(false)
+  const [dispError, setDispError] = useState('')
+  const [dispReload, setDispReload] = useState(0)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  // Fallback: type or scan a coupon code
+  const [codigoOn, setCodigoOn] = useState(false)
   const [codigo, setCodigo] = useState('')
   const [cupon, setCupon] = useState<CuponResponse | null>(null)
   const [cuponLoading, setCuponLoading] = useState(false)
@@ -78,8 +116,20 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
 
   const montoNum = parseMonto(monto)
   const dniValido = dni.length >= 7 && dni.length <= 9
-  const jugadorFound = lookup === 'found' && !!jugador
+  const lookupActual = lookupDni === dni
+  const jugadorFound = lookup === 'found' && !!jugador && lookupActual
+  const dniNoRegistrado = lookup === 'notfound' && lookupActual
   const puedeSumarPuntos = puntosActivos && jugadorFound
+
+  const clearCupon = () => {
+    setSelectedId(null)
+    setCodigoOn(false)
+    setCodigo('')
+    setCupon(null)
+    setCuponLoading(false)
+    setCuponError('')
+    setMontoAplicable('')
+  }
 
   const searchCupon = async (raw: string) => {
     const value = raw.trim()
@@ -116,12 +166,11 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
     setLookup('idle')
     setJugador(null)
     setLookupMsg('')
-    setCuponOn(false)
-    setCodigo('')
-    setCupon(null)
-    setCuponLoading(false)
-    setCuponError('')
-    setMontoAplicable('')
+    setLookupDni('')
+    setDisponibles([])
+    setDispLoading(false)
+    setDispError('')
+    clearCupon()
     setSubmitting(false)
     setError('')
     setResult(null)
@@ -138,6 +187,7 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
       setLookup('idle')
       setJugador(null)
       setLookupMsg('')
+      setLookupDni('')
       return
     }
     let cancelled = false
@@ -147,6 +197,7 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
         const data = await getPuntosJugadorPorDni(dni)
         if (cancelled) return
         setJugador(data)
+        setLookupDni(dni)
         setLookup('found')
       } catch (err) {
         if (cancelled) return
@@ -154,9 +205,11 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
         setJugador(null)
         // Backend 404: "No encontramos un jugador con ese DNI en el club".
         if (/no encontra|not found|404|no existe/i.test(message)) {
+          setLookupDni(dni)
           setLookup('notfound')
           setLookupMsg('')
         } else {
+          setLookupDni('')
           setLookup('error')
           setLookupMsg(message || 'No pudimos buscar el DNI')
         }
@@ -168,21 +221,62 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
     }
   }, [dni, sinDni])
 
+  // Players' coupons are fetched only once the lookup resolved for the current DNI.
+  // The cleanup flag drops responses that arrive after the DNI changed.
+  const dniResuelto = jugadorFound ? dni : ''
+  useEffect(() => {
+    setSelectedId(null)
+    setDisponibles([])
+    setDispError('')
+    if (!dniResuelto) {
+      setDispLoading(false)
+      return
+    }
+    let cancelled = false
+    setDispLoading(true)
+    getCuponesDisponibles(dniResuelto)
+      .then((data) => {
+        if (!cancelled) setDisponibles(data.cupones)
+      })
+      .catch((err) => {
+        if (!cancelled) setDispError(err instanceof Error ? err.message : 'No pudimos buscar los cupones')
+      })
+      .finally(() => {
+        if (!cancelled) setDispLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [dniResuelto, dispReload])
+
+  const cuponLista = disponibles.find((c) => c.id === selectedId) ?? null
+  const cuponActivo: CuponActivo | null = cuponLista
+    ? { origen: 'lista', ...cuponLista, codigo: null }
+    : codigoOn && cupon
+      ? { ...cupon, origen: 'codigo' }
+      : null
+
   // Coupon validity given the current amount / DNI
   const cuponProblem = useMemo(() => {
+    if (!cuponActivo) return ''
+    if (cuponActivo.monto_minimo_compra && montoNum < cuponActivo.monto_minimo_compra) {
+      return `Este cupón requiere una compra mínima de ${formatMoney(cuponActivo.monto_minimo_compra)}.`
+    }
+    if (cuponLista) {
+      return isCuponVencido({ usado: false, valido_desde: null, ...cuponLista }) ? 'Este cupón está vencido.' : ''
+    }
     if (!cupon) return ''
     if (cupon.usado) return 'Este cupón ya fue utilizado.'
     if (isCuponVencido(cupon)) return 'Este cupón está vencido.'
-    if (cupon.monto_minimo_compra && montoNum < cupon.monto_minimo_compra) {
-      return `Este cupón requiere una compra mínima de ${formatMoney(cupon.monto_minimo_compra)}.`
-    }
-    if (cupon.jugadores?.dni && !sinDni && dniValido && cupon.jugadores.dni !== dni) {
+    // Compare digits only, and only once the lookup answered for the DNI currently typed
+    const duenoDni = normalizarDni(cupon.jugadores?.dni)
+    if (duenoDni && !sinDni && (jugadorFound || dniNoRegistrado) && duenoDni !== normalizarDni(dni)) {
       return 'El cupón no pertenece a ese DNI.'
     }
     return ''
-  }, [cupon, montoNum, dni, dniValido, sinDni])
+  }, [cuponActivo, cuponLista, cupon, montoNum, dni, sinDni, jugadorFound, dniNoRegistrado])
 
-  const cuponAplicado = cuponOn && !!cupon && !cuponProblem ? cupon : null
+  const cuponAplicado = cuponActivo && !cuponProblem ? cuponActivo : null
   const aplicableNum = parseMonto(montoAplicable)
   const aplicableValid = aplicableNum > 0 && aplicableNum <= montoNum
   const aplicableError =
@@ -212,20 +306,38 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
     setStep(next)
   }
 
-  const toggleCupon = () => {
-    if (cuponOn) {
-      stopScanner()
-      setCuponOn(false)
-      setCodigo('')
-      setCupon(null)
-      setCuponError('')
-      setMontoAplicable('')
-    } else {
-      setCuponOn(true)
-    }
+  const quitarCupon = () => {
+    stopScanner()
+    clearCupon()
   }
 
-  const extrasBlocked = cuponOn && (!cupon || !!cuponProblem || cuponLoading || !aplicableValid)
+  // Tap to select, tap again to deselect. A new pick resets the amount the discount applies to.
+  const toggleCuponLista = (id: string) => {
+    stopScanner()
+    setCodigoOn(false)
+    setCodigo('')
+    setCupon(null)
+    setCuponError('')
+    setMontoAplicable('')
+    setSelectedId((prev) => (prev === id ? null : id))
+  }
+
+  const abrirCodigo = () => {
+    setSelectedId(null)
+    setMontoAplicable('')
+    setCodigoOn(true)
+  }
+
+  const handleDniChange = (value: string) => {
+    stopScanner()
+    clearCupon()
+    setDisponibles([])
+    setDni(normalizarDni(value).slice(0, 9))
+    setSinDni(false)
+  }
+
+  const extrasBlocked =
+    (codigoOn && !cupon) || (!!cuponActivo && (!!cuponProblem || cuponLoading || !aplicableValid))
 
   const handleSubmit = async () => {
     if (!montoNum) {
@@ -235,11 +347,17 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
     try {
       setSubmitting(true)
       setError('')
-      const data = await registrarCompra({
+      const body = {
         monto_compra: montoNum,
         ...(!sinDni && dniValido ? { dni } : {}),
-        ...(cuponAplicado?.codigo ? { cupon_codigo: cuponAplicado.codigo, monto_aplicable: aplicableNum } : {}),
-      })
+      }
+      const data =
+        cuponAplicado?.origen === 'lista'
+          ? await registrarCompraConCuponId({ ...body, cupon_id: cuponAplicado.id, monto_aplicable: aplicableNum })
+          : await registrarCompra({
+              ...body,
+              ...(cuponAplicado?.codigo ? { cupon_codigo: cuponAplicado.codigo, monto_aplicable: aplicableNum } : {}),
+            })
       setResult(data)
       setStep('resultado')
       onCompleted?.()
@@ -354,10 +472,7 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
                 type="text"
                 inputMode="numeric"
                 value={dni}
-                onChange={(e) => {
-                  setDni(e.target.value.replace(/\D/g, '').slice(0, 9))
-                  setSinDni(false)
-                }}
+                onChange={(e) => handleDniChange(e.target.value)}
                 placeholder="DNI (sin puntos ni espacios)"
                 className={`${inputClass} text-center text-lg`}
               />
@@ -368,7 +483,7 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
                   Buscando...
                 </div>
               )}
-              {lookup === 'found' && jugador && (
+              {jugadorFound && jugador && (
                 <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4 text-center">
                   <span className="material-symbols-outlined text-3xl text-green-600 dark:text-green-400">verified</span>
                   <p className="text-lg font-semibold text-slate-900 dark:text-white">
@@ -379,7 +494,7 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
                   )}
                 </div>
               )}
-              {lookup === 'notfound' && (
+              {dniNoRegistrado && (
                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex gap-3">
                   <span className="material-symbols-outlined text-2xl text-amber-600 dark:text-amber-400">info</span>
                   <p className="text-base text-amber-800 dark:text-amber-200">
@@ -392,9 +507,77 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
                 <p className="text-base text-red-500 dark:text-red-400 text-center">{lookupMsg}</p>
               )}
 
+              {jugadorFound && (
+                <div className="space-y-2">
+                  <p className="text-base font-semibold text-slate-700 dark:text-slate-200">Cupones disponibles</p>
+                  {dispLoading && (
+                    <div className="flex items-center gap-2 text-base text-slate-500 dark:text-slate-400">
+                      <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      Buscando cupones...
+                    </div>
+                  )}
+                  {dispError && (
+                    <div className="flex items-center gap-3">
+                      <p className="flex-1 text-base text-red-500 dark:text-red-400">{dispError}</p>
+                      <button
+                        type="button"
+                        onClick={() => setDispReload((n) => n + 1)}
+                        className="min-h-12 px-4 rounded-lg border border-slate-300 dark:border-slate-600 text-base font-medium text-slate-700 dark:text-slate-200"
+                      >
+                        Reintentar
+                      </button>
+                    </div>
+                  )}
+                  {!dispLoading && !dispError && disponibles.length === 0 && (
+                    <p className="text-base text-slate-500 dark:text-slate-400">No tiene cupones disponibles</p>
+                  )}
+                  {disponibles.map((c) => {
+                    const accent = accentFor(c.color)
+                    const selected = c.id === selectedId
+                    const bajoMinimo = !!c.monto_minimo_compra && montoNum < c.monto_minimo_compra
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        aria-pressed={selected}
+                        disabled={bajoMinimo}
+                        onClick={() => toggleCuponLista(c.id)}
+                        className={`relative w-full min-h-[72px] pl-5 pr-4 py-3 rounded-xl border-2 text-left flex items-center gap-3 overflow-hidden transition-colors disabled:opacity-50 ${
+                          selected
+                            ? 'border-primary bg-primary/10'
+                            : 'border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700'
+                        }`}
+                      >
+                        <span className={`absolute left-0 inset-y-0 w-2 ${accent.bar}`} aria-hidden />
+                        <span className="flex-1 min-w-0">
+                          <span className="block text-base font-semibold text-slate-900 dark:text-white">{c.titulo}</span>
+                          <span className="block text-base text-slate-500 dark:text-slate-400">
+                            {c.monto_minimo_compra ? `Compra mínima ${formatMoney(c.monto_minimo_compra)} · ` : ''}
+                            {formatCuponVigencia({ ...c, valido_desde: null })}
+                          </span>
+                          {bajoMinimo && (
+                            <span className="block text-base text-amber-600 dark:text-amber-400">
+                              La compra no llega al mínimo
+                            </span>
+                          )}
+                        </span>
+                        <span className={`shrink-0 rounded-lg px-3 py-1.5 text-lg font-bold ${accent.badge}`}>
+                          {descuentoLabel(c)}
+                        </span>
+                        {selected && (
+                          <span className="material-symbols-outlined text-3xl text-primary shrink-0">check_circle</span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={() => {
+                  stopScanner()
+                  clearCupon()
                   setSinDni(true)
                   setDni('')
                 }}
@@ -419,135 +602,149 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
 
           {step === 'extras' && (
             <div className="space-y-4">
-              <p className="text-slate-700 dark:text-slate-200 text-lg font-semibold text-center">Extras (opcionales)</p>
+              <p className="text-slate-700 dark:text-slate-200 text-lg font-semibold text-center">Cupón (opcional)</p>
 
-              {/* Coupon card */}
-              <div
-                className={`rounded-xl border-2 transition-colors ${
-                  cuponOn ? 'border-primary bg-primary/5' : 'border-slate-300 dark:border-slate-600'
-                }`}
-              >
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={cuponOn}
-                  onClick={toggleCupon}
-                  className="w-full min-h-[72px] px-4 flex items-center gap-3 text-left"
-                >
-                  <span className="material-symbols-outlined text-3xl text-primary">confirmation_number</span>
-                  <span className="flex-1 text-base font-semibold text-slate-900 dark:text-white">
-                    Agregar cupón de descuento
-                  </span>
-                  <span className="material-symbols-outlined text-3xl text-primary">
-                    {cuponOn ? 'toggle_on' : 'toggle_off'}
-                  </span>
-                </button>
+              {!cuponActivo && !codigoOn && (
+                <p className="text-base text-slate-500 dark:text-slate-400 text-center">
+                  {jugadorFound
+                    ? 'No elegiste ningún cupón. Volvé para tocar uno de los del jugador.'
+                    : 'Sin cupón en esta compra.'}
+                </p>
+              )}
 
-                {cuponOn && (
-                  <div className="px-4 pb-4 space-y-3">
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={codigo}
-                        onChange={(e) => {
-                          setCodigo(e.target.value.toUpperCase())
-                          setCupon(null)
-                          setCuponError('')
-                          setMontoAplicable('')
-                        }}
-                        onKeyDown={(e) => e.key === 'Enter' && searchCupon(codigo)}
-                        placeholder="Ej: CUP-ABC123"
-                        className={`${inputClass} flex-1 min-w-0 font-mono`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => searchCupon(codigo)}
-                        disabled={cuponLoading || !codigo.trim()}
-                        aria-label="Buscar cupón"
-                        className="w-12 h-12 shrink-0 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center"
-                      >
-                        {cuponLoading ? (
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <span className="material-symbols-outlined text-2xl">search</span>
-                        )}
-                      </button>
-                    </div>
-
+              {codigoOn && (
+                <div className="rounded-xl border-2 border-primary bg-primary/5 p-4 space-y-3">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={codigo}
+                      onChange={(e) => {
+                        setCodigo(e.target.value.toUpperCase())
+                        setCupon(null)
+                        setCuponError('')
+                        setMontoAplicable('')
+                      }}
+                      onKeyDown={(e) => e.key === 'Enter' && searchCupon(codigo)}
+                      placeholder="Ej: CUP-ABC123"
+                      className={`${inputClass} flex-1 min-w-0 font-mono`}
+                    />
                     <button
                       type="button"
-                      onClick={() => (scanner.active ? stopScanner() : void scanner.start())}
-                      className="w-full min-h-12 px-4 rounded-lg border border-slate-300 dark:border-slate-600 text-base font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
+                      onClick={() => searchCupon(codigo)}
+                      disabled={cuponLoading || !codigo.trim()}
+                      aria-label="Buscar cupón"
+                      className="w-12 h-12 shrink-0 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center justify-center"
                     >
-                      <span className="material-symbols-outlined text-2xl">
-                        {scanner.active ? 'close' : 'qr_code_scanner'}
-                      </span>
-                      {scanner.active ? 'Cerrar cámara' : 'Escanear QR'}
+                      {cuponLoading ? (
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <span className="material-symbols-outlined text-2xl">search</span>
+                      )}
                     </button>
-
-                    {scanner.active && (
-                      <div className="relative bg-black rounded-xl overflow-hidden aspect-square">
-                        <video ref={scanner.videoRef} className="w-full h-full object-cover" playsInline muted />
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                          <div className="w-40 h-40 border-4 border-primary/80 rounded-xl" />
-                        </div>
-                      </div>
-                    )}
-                    {scanner.error && <p className="text-base text-red-500 dark:text-red-400">{scanner.error}</p>}
-                    {cuponError && <p className="text-base text-red-500 dark:text-red-400">{cuponError}</p>}
-
-                    {cupon && (
-                      <div className="bg-white dark:bg-slate-900 rounded-lg p-3 space-y-1">
-                        <p className="text-base font-semibold text-slate-900 dark:text-white">{cupon.titulo}</p>
-                        <p className="text-base text-slate-600 dark:text-slate-300">
-                          {cupon.tipo_descuento === 'porcentaje'
-                            ? `${cupon.valor_descuento}% de descuento`
-                            : `${formatMoney(cupon.valor_descuento)} de descuento`}
-                        </p>
-                        {cuponProblem ? (
-                          <p className="text-base text-red-500 dark:text-red-400">{cuponProblem}</p>
-                        ) : (
-                          <div className="space-y-2 pt-1">
-                            <label htmlFor="rc-aplicable" className="block text-base font-semibold text-slate-900 dark:text-white">
-                              ¿Sobre cuánto se aplica el descuento?
-                            </label>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">
-                              Ingresá el precio de los productos del cupón «{cupon.titulo}» (ej. solo las hamburguesas)
-                            </p>
-                            <div className="relative">
-                              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-bold text-slate-400">$</span>
-                              <input
-                                id="rc-aplicable"
-                                type="text"
-                                inputMode="decimal"
-                                value={montoAplicable}
-                                onChange={(e) => {
-                                  const v = e.target.value
-                                  if (/^\d*[.,]?\d{0,2}$/.test(v)) setMontoAplicable(v)
-                                }}
-                                aria-invalid={!!aplicableError}
-                                placeholder="0"
-                                className={`${inputClass} pl-9`}
-                              />
-                            </div>
-                            {aplicableError && <p className="text-sm text-red-500 dark:text-red-400">{aplicableError}</p>}
-                            {aplicableValid && (
-                              <>
-                                <p className="text-base text-green-600 dark:text-green-400">
-                                  Descuento: -{formatMoney(descuento)}
-                                </p>
-                                <p className="text-base font-bold text-slate-900 dark:text-white">
-                                  Total a cobrar: {formatMoney(total)}
-                                </p>
-                              </>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
-                )}
-              </div>
+
+                  <button
+                    type="button"
+                    onClick={() => (scanner.active ? stopScanner() : void scanner.start())}
+                    className="w-full min-h-12 px-4 rounded-lg border border-slate-300 dark:border-slate-600 text-base font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-2xl">
+                      {scanner.active ? 'close' : 'qr_code_scanner'}
+                    </span>
+                    {scanner.active ? 'Cerrar cámara' : 'Escanear QR'}
+                  </button>
+
+                  {scanner.active && (
+                    <div className="relative bg-black rounded-xl overflow-hidden aspect-square">
+                      <video ref={scanner.videoRef} className="w-full h-full object-cover" playsInline muted />
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="w-40 h-40 border-4 border-primary/80 rounded-xl" />
+                      </div>
+                    </div>
+                  )}
+                  {scanner.error && <p className="text-base text-red-500 dark:text-red-400">{scanner.error}</p>}
+                  {cuponError && <p className="text-base text-red-500 dark:text-red-400">{cuponError}</p>}
+                </div>
+              )}
+
+              {cuponActivo && (
+                <div className="rounded-xl border-2 border-primary bg-primary/5 p-4 space-y-2">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-base font-semibold text-slate-900 dark:text-white">{cuponActivo.titulo}</p>
+                      <p className="text-base text-slate-600 dark:text-slate-300">
+                        {descuentoLabel(cuponActivo)} de descuento
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={quitarCupon}
+                      aria-label="Quitar cupón"
+                      className="w-11 h-11 shrink-0 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500"
+                    >
+                      <span className="material-symbols-outlined text-2xl">close</span>
+                    </button>
+                  </div>
+                  {cuponProblem ? (
+                    <p className="text-base text-red-500 dark:text-red-400">{cuponProblem}</p>
+                  ) : (
+                    <div className="space-y-2 pt-1">
+                      <label htmlFor="rc-aplicable" className="block text-base font-semibold text-slate-900 dark:text-white">
+                        ¿Sobre cuánto se aplica el descuento?
+                      </label>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">
+                        Ingresá el precio de los productos del cupón «{cuponActivo.titulo}» (ej. solo las hamburguesas)
+                      </p>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-bold text-slate-400">$</span>
+                        <input
+                          id="rc-aplicable"
+                          type="text"
+                          inputMode="decimal"
+                          value={montoAplicable}
+                          onChange={(e) => {
+                            const v = e.target.value
+                            if (/^\d*[.,]?\d{0,2}$/.test(v)) setMontoAplicable(v)
+                          }}
+                          aria-invalid={!!aplicableError}
+                          placeholder="0"
+                          className={`${inputClass} pl-9`}
+                        />
+                      </div>
+                      {aplicableError && <p className="text-sm text-red-500 dark:text-red-400">{aplicableError}</p>}
+                      {aplicableValid && (
+                        <>
+                          <p className="text-base text-green-600 dark:text-green-400">
+                            Descuento: -{formatMoney(descuento)}
+                          </p>
+                          <p className="text-base font-bold text-slate-900 dark:text-white">
+                            Total a cobrar: {formatMoney(total)}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!codigoOn && !cuponLista && (
+                <button
+                  type="button"
+                  onClick={abrirCodigo}
+                  className="w-full min-h-12 text-base font-medium text-primary underline underline-offset-4"
+                >
+                  ¿Tiene un código?
+                </button>
+              )}
+              {codigoOn && !cupon && (
+                <button
+                  type="button"
+                  onClick={quitarCupon}
+                  className="w-full min-h-12 text-base font-medium text-slate-500 dark:text-slate-400 underline underline-offset-4"
+                >
+                  Cancelar código
+                </button>
+              )}
             </div>
           )}
 
