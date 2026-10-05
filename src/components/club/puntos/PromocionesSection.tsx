@@ -34,7 +34,7 @@ import {
 } from './ui'
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
-const QUICK = [2, 3]
+const MULTIPLIERS = [2, 3]
 
 const fmtMult = (n: number) => `x${String(Number(n.toFixed(2))).replace('.', ',')}`
 
@@ -73,15 +73,17 @@ function PromocionModal({
   onSaved: () => void
 }) {
   const [titulo, setTitulo] = useState(item?.titulo ?? '')
-  const [mult, setMult] = useState(item ? String(item.multiplicador).replace('.', ',') : '2')
+  // Only x2 or x3 can be saved; a legacy promotion with another value starts with nothing chosen
+  const [mult, setMult] = useState<number | null>(
+    !item || MULTIPLIERS.includes(Number(item.multiplicador)) ? Number(item?.multiplicador ?? 2) : null
+  )
+  const legacyMult = item && !MULTIPLIERS.includes(Number(item.multiplicador)) ? Number(item.multiplicador) : null
   const [days, setDays] = useState<number[]>(item?.dias_semana ?? [])
   const [desde, setDesde] = useState(item?.fecha_desde?.slice(0, 10) ?? '')
   const [hasta, setHasta] = useState(item?.fecha_hasta?.slice(0, 10) ?? '')
   const [activo, setActivo] = useState(item?.activo ?? true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-
-  const multNum = Number(mult.trim().replace(',', '.'))
 
   const toggleDay = (d: number) =>
     setDays(prev => (prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort()))
@@ -90,11 +92,7 @@ function PromocionModal({
     const name = titulo.trim()
     if (!name) return setError('Ingresá un título para la promoción.')
     if (name.length > 80) return setError('El título admite hasta 80 caracteres.')
-    if (!/^\d+([.,]\d+)?$/.test(mult.trim()) || !Number.isFinite(multNum)) {
-      return setError('Ingresá un multiplicador válido.')
-    }
-    if (multNum <= 1 || multNum > 10) return setError('El multiplicador debe ser mayor a 1 y hasta 10.')
-    if (Math.round(multNum * 100) / 100 !== multNum) return setError('El multiplicador admite hasta 2 decimales.')
+    if (mult === null) return setError('Elegí x2 o x3.')
     if (desde && hasta && hasta < desde) return setError('La fecha "hasta" no puede ser anterior a "desde".')
     setError('')
     setSaving(true)
@@ -102,7 +100,7 @@ function PromocionModal({
       if (item) {
         await actualizarPuntosPromocion(item.id, {
           titulo: name,
-          multiplicador: multNum,
+          multiplicador: mult,
           dias_semana: days.length ? days : null,
           fecha_desde: desde || null,
           fecha_hasta: hasta || null,
@@ -111,7 +109,7 @@ function PromocionModal({
       } else {
         await crearPuntosPromocion({
           titulo: name,
-          multiplicador: multNum,
+          multiplicador: mult,
           dias_semana: days.length ? days : undefined,
           fecha_desde: desde || undefined,
           fecha_hasta: hasta || undefined,
@@ -158,15 +156,15 @@ function PromocionModal({
 
       <div>
         <span className={labelCls}>Multiplicador</span>
-        <div className="flex flex-wrap items-center gap-2">
-          {QUICK.map(q => (
+        <div className="grid grid-cols-2 gap-3">
+          {MULTIPLIERS.map(q => (
             <button
               key={q}
               type="button"
-              aria-pressed={multNum === q}
-              onClick={() => setMult(String(q))}
-              className={`h-11 min-w-16 rounded-xl border-2 px-4 text-base font-bold ${
-                multNum === q
+              aria-pressed={mult === q}
+              onClick={() => setMult(q)}
+              className={`h-14 rounded-xl border-2 text-xl font-extrabold transition-colors ${
+                mult === q
                   ? 'border-primary bg-primary/10 text-primary'
                   : 'border-slate-200 text-slate-700 dark:border-slate-600 dark:text-slate-200'
               }`}
@@ -174,15 +172,12 @@ function PromocionModal({
               x{q}
             </button>
           ))}
-          <input
-            aria-label="Otro multiplicador"
-            inputMode="decimal"
-            value={mult}
-            onChange={e => setMult(e.target.value)}
-            placeholder="Otro"
-            className={`${inputCls} !w-28`}
-          />
         </div>
+        {legacyMult !== null && mult === null && (
+          <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">
+            Esta promoción tiene un multiplicador de {fmtMult(legacyMult)}. Elegí x2 o x3 para guardarla.
+          </p>
+        )}
       </div>
 
       <div>
