@@ -1,7 +1,6 @@
-'use client'
+import { redirect } from 'next/navigation'
 
-import EquiposListPage from '@/components/equipos/EquiposListPage'
-
+// The team list now lives as a tab of the combined tournaments page
 export default function ClubEquiposPage() {
-  return <EquiposListPage basePath="/dashboard/club/equipos" />
+  redirect('/dashboard/club/torneos?tab=equipos')
 }

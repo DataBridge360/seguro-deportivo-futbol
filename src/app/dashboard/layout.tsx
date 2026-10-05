@@ -391,6 +391,7 @@ export default function DashboardLayout({
               const isActive = item.href === '/dashboard'
                 ? pathname === '/dashboard'
                 : pathname === item.href || pathname.startsWith(item.href + '/')
+                  || (item.matchPaths ?? []).some(path => pathname === path || pathname.startsWith(path + '/'))
 
               return (
                 <Link

@@ -86,18 +86,12 @@ export const navigationItems: NavItem[] = [
     roles: ['club']
   },
   {
-    label: 'Equipos',
-    href: '/dashboard/club/equipos',
-    icon: 'Shield',
-    materialIcon: 'shield',
-    roles: ['club']
-  },
-  {
-    label: 'Torneos',
+    label: 'Torneos y equipos',
     href: '/dashboard/club/torneos',
     icon: 'Trophy',
     materialIcon: 'emoji_events',
-    roles: ['club']
+    roles: ['club'],
+    matchPaths: ['/dashboard/club/equipos']
   },
   {
     label: 'Puntos',

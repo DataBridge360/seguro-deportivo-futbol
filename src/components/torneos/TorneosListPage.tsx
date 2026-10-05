@@ -8,6 +8,8 @@ import NotificationModal from '@/components/ui/NotificationModal'
 
 interface Props {
   basePath: string
+  /** Hides the page title when the list is embedded under another page's heading. */
+  hideHeader?: boolean
 }
 
 function calcularEstado(torneo: Torneo): Torneo['estado'] {
@@ -45,7 +47,7 @@ function formatDate(dateString: string) {
   return `${d}/${m}/${y}`
 }
 
-export default function TorneosListPage({ basePath }: Props) {
+export default function TorneosListPage({ basePath, hideHeader = false }: Props) {
   const [torneos, setTorneos] = useState<Torneo[]>([])
   const [loading, setLoading] = useState(true)
   const [notification, setNotification] = useState<{ open: boolean; title: string; message: string; type: 'success' | 'error' | 'info' }>({ open: false, title: '', message: '', type: 'info' })
@@ -82,8 +84,8 @@ export default function TorneosListPage({ basePath }: Props) {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Torneos de Fútbol</h1>
+      <div className={`flex items-center ${hideHeader ? 'justify-end' : 'justify-between'}`}>
+        {!hideHeader && <h1 className="text-xl font-bold text-slate-900 dark:text-white">Torneos de Fútbol</h1>}
         <Link
           href={`${basePath}/nuevo`}
           className="flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium transition-colors"

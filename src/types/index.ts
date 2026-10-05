@@ -23,4 +23,6 @@ export interface NavItem {
   roles: UserRole[]
   // Hidden for profiles with acceso_limitado
   fullAccessOnly?: boolean
+  // Extra path prefixes that also mark this item as active
+  matchPaths?: string[]
 }

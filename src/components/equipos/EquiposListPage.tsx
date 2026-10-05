@@ -14,9 +14,11 @@ import NotificationModal from '@/components/ui/NotificationModal'
 
 interface Props {
   basePath: string // e.g. "/dashboard/club/equipos"
+  /** Hides the page title when the list is embedded under another page's heading. */
+  hideHeader?: boolean
 }
 
-export default function EquiposListPage({ basePath }: Props) {
+export default function EquiposListPage({ basePath, hideHeader = false }: Props) {
   const [equipos, setEquipos] = useState<Equipo[]>([])
   const [loading, setLoading] = useState(true)
   const [menuAbiertoId, setMenuAbiertoId] = useState<string | null>(null)
@@ -308,9 +310,11 @@ export default function EquiposListPage({ basePath }: Props) {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Equipos</h1>
-      </div>
+      {!hideHeader && (
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Equipos</h1>
+        </div>
+      )}
 
       {/* ── Sección: Categorías (desplegable) ── */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
