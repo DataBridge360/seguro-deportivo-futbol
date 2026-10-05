@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { getPuntosConfig, guardarPuntosConfig } from '@/lib/api'
 import { useAuthStore } from '@/stores/authStore'
-import { ErrorNote, Spinner, Toggle, fmt, inputCls, primaryBtnCls } from './ui'
+import { ErrorNote, Spinner, fmt, inputCls, primaryBtnCls } from './ui'
 
 const MAX_MONTO = 100_000_000
 const MAX_PUNTOS = 1_000_000
@@ -34,7 +34,6 @@ export default function EquivalenciaSection() {
   const [hasConfig, setHasConfig] = useState(false)
   const [monto, setMonto] = useState('')
   const [puntos, setPuntos] = useState('')
-  const [activo, setActivo] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
@@ -48,7 +47,6 @@ export default function EquivalenciaSection() {
           setHasConfig(true)
           setMonto(String(Number(cfg.monto_base)).replace('.', ','))
           setPuntos(String(Number(cfg.puntos)))
-          setActivo(Boolean(cfg.activo))
         }
       })
       .catch(e => {
@@ -79,7 +77,7 @@ export default function EquivalenciaSection() {
     setError('')
     setSaving(true)
     try {
-      await guardarPuntosConfig({ monto_base: montoNum, puntos: puntosNum, activo })
+      await guardarPuntosConfig({ monto_base: montoNum, puntos: puntosNum, activo: true })
       setHasConfig(true)
       setSaved(true)
     } catch (e) {
@@ -91,12 +89,9 @@ export default function EquivalenciaSection() {
 
   return (
     <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div>
-        <h2 className="text-lg font-bold text-slate-900 dark:text-white">Equivalencia</h2>
-        <p className="mt-1 text-base text-slate-500 dark:text-slate-400">
-          Cada compra en la cantina suma puntos al jugador según esta equivalencia. Los puntos se calculan sobre el total de la compra, antes del descuento del cupón.
-        </p>
-      </div>
+      <p className="text-base text-slate-500 dark:text-slate-400">
+        Cada compra en la cantina suma puntos al jugador según esta equivalencia. Los puntos se calculan sobre lo que el jugador paga: el descuento de un cupón no suma puntos.
+      </p>
 
       {loading ? (
         <div className="space-y-3">
@@ -111,8 +106,7 @@ export default function EquivalenciaSection() {
             {hasConfig && Number.isFinite(montoNum) && Number.isFinite(puntosNum) ? (
               <p>
                 Cada <span className="font-bold">${fmt(montoNum)}</span> de compra suman{' '}
-                <span className="font-bold">{fmt(puntosNum)} puntos</span>
-                {activo ? '.' : ' (los puntos están pausados).'}
+                <span className="font-bold">{fmt(puntosNum)} puntos</span>.
               </p>
             ) : (
               <p>Todavía no hay una equivalencia configurada.</p>
@@ -176,15 +170,6 @@ export default function EquivalenciaSection() {
               ? `Ejemplo: una compra de $5.000 suma ${fmt(example)} puntos`
               : 'Completá los dos campos para ver un ejemplo.'}
           </p>
-
-          <Toggle
-            checked={activo}
-            onChange={v => {
-              setActivo(v)
-              setSaved(false)
-            }}
-            label="Puntos activos"
-          />
 
           <ErrorNote message={error} />
           {saved && (
