@@ -57,6 +57,8 @@ function usePaged<T>(fetchPage: (offset: number, limit: number) => Promise<{ ite
   fetchRef.current = fetchPage
   const aliveRef = useRef(true)
   const itemsRef = useRef<T[]>([])
+  // One request at a time: a double tap on "Ver más" must not load the same page twice
+  const inflightRef = useRef(false)
 
   useEffect(() => {
     aliveRef.current = true
@@ -66,6 +68,8 @@ function usePaged<T>(fetchPage: (offset: number, limit: number) => Promise<{ ite
   }, [])
 
   const run = useCallback(async (first: boolean) => {
+    if (inflightRef.current) return
+    inflightRef.current = true
     if (first) setLoading(true)
     else setLoadingMore(true)
     setError(null)
@@ -79,6 +83,7 @@ function usePaged<T>(fetchPage: (offset: number, limit: number) => Promise<{ ite
       if (!aliveRef.current) return
       setError(err instanceof Error && err.message ? err.message : 'No pudimos cargar los datos')
     } finally {
+      inflightRef.current = false
       if (aliveRef.current) {
         setLoading(false)
         setLoadingMore(false)
