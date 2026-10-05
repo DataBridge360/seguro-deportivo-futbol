@@ -102,8 +102,8 @@ export default function NotificacionesPanel({ showHeader = true }: { showHeader?
       {/* Header */}
       {showHeader && (
         <div className="flex items-start gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20 flex-shrink-0">
-            <span className="material-symbols-outlined text-white text-2xl">campaign</span>
+          <div className="size-11 rounded-full bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+            <span className="material-symbols-outlined text-2xl">campaign</span>
           </div>
           <div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Notificaciones</h1>
@@ -119,7 +119,7 @@ export default function NotificacionesPanel({ showHeader = true }: { showHeader?
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Historial</h2>
           {historial.length > 0 && (
-            <span className="px-2.5 py-0.5 rounded-full bg-slate-100/70 dark:bg-slate-800/70 backdrop-blur-md border border-slate-200/60 dark:border-slate-700/60 text-xs font-medium text-slate-600 dark:text-slate-300">
+            <span className="px-2.5 py-0.5 rounded-full bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-white/10 text-xs font-medium text-slate-600 dark:text-slate-300">
               {historial.length} {historial.length === 1 ? 'enviada' : 'enviadas'}
             </span>
           )}
@@ -130,8 +130,8 @@ export default function NotificacionesPanel({ showHeader = true }: { showHeader?
             <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         ) : historial.length === 0 ? (
-          <div className="bg-white/60 dark:bg-slate-800/40 backdrop-blur-xl border border-white/60 dark:border-white/5 rounded-2xl p-8 text-center">
-            <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-700/50 flex items-center justify-center mx-auto mb-2">
+          <div className="bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-white/10 shadow-sm rounded-2xl p-8 text-center">
+            <div className="size-11 rounded-full bg-slate-100 dark:bg-slate-700/50 flex items-center justify-center mx-auto mb-2">
               <span className="material-symbols-outlined text-slate-400 dark:text-slate-500">inbox</span>
             </div>
             <p className="text-slate-500 dark:text-slate-400 text-sm">No hay notificaciones enviadas</p>
@@ -142,28 +142,28 @@ export default function NotificacionesPanel({ showHeader = true }: { showHeader?
               {historialPaginado.map(notif => (
                 <div
                   key={notif.id}
-                  className="group bg-white/60 dark:bg-slate-800/40 backdrop-blur-xl border border-white/60 dark:border-white/5 rounded-2xl p-4 flex items-center gap-4 hover:bg-white/80 dark:hover:bg-slate-800/60 hover:border-primary/20 hover:shadow-md hover:-translate-y-0.5 transition-all"
+                  className="bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-white/10 shadow-sm rounded-2xl p-3 flex items-center gap-3"
                 >
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                  <div className={`size-11 rounded-full flex items-center justify-center flex-shrink-0 ${
                     notif.con_cupon
-                      ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md shadow-amber-500/20'
+                      ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400'
                       : 'bg-primary/10 text-primary'
                   }`}>
-                    <span className="material-symbols-outlined text-xl">
+                    <span className="material-symbols-outlined text-[24px]">
                       {notif.con_cupon ? 'local_offer' : 'notifications'}
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">{notif.titulo}</p>
                     <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100/80 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 text-xs rounded-full">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 text-xs rounded-full">
                         <span className="material-symbols-outlined text-sm">{tipoFiltroIcon(notif.tipo_filtro)}</span>
                         {tipoFiltroLabel(notif.tipo_filtro)}
                       </span>
                       {notif.con_cupon && (
                         <span className={`inline-block px-2 py-0.5 text-xs rounded-full border font-medium ${
                           notif.cupon_eliminado_at
-                            ? 'bg-slate-100/80 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400 border-slate-200/60 dark:border-slate-600/50'
+                            ? 'bg-slate-100 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-600/50'
                             : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
                         }`}>
                           {notif.cupon_eliminado_at ? 'Cupon eliminado' : 'Con cupon'}
@@ -177,7 +177,7 @@ export default function NotificacionesPanel({ showHeader = true }: { showHeader?
                       type="button"
                       onClick={() => handleEliminarCupon(notif)}
                       disabled={deletingCouponId === notif.id}
-                      className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 disabled:opacity-50 transition-colors"
+                      className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 active:scale-[0.96] disabled:opacity-50 transition-colors"
                       aria-label="Eliminar cupon"
                       title="Eliminar cupon"
                     >
@@ -201,7 +201,7 @@ export default function NotificacionesPanel({ showHeader = true }: { showHeader?
                     type="button"
                     onClick={() => setHistorialPage(p => Math.max(1, p - 1))}
                     disabled={historialPage === 1}
-                    className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-white/60 dark:bg-slate-800/40 backdrop-blur-md border border-slate-200/60 dark:border-slate-700/60 hover:bg-white dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                    className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-white/10 active:scale-[0.96] disabled:opacity-30 disabled:pointer-events-none transition-colors"
                   >
                     <span className="material-symbols-outlined text-lg text-slate-600 dark:text-slate-300">chevron_left</span>
                   </button>
@@ -212,7 +212,7 @@ export default function NotificacionesPanel({ showHeader = true }: { showHeader?
                     type="button"
                     onClick={() => setHistorialPage(p => Math.min(totalHistorialPages, p + 1))}
                     disabled={historialPage === totalHistorialPages}
-                    className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-white/60 dark:bg-slate-800/40 backdrop-blur-md border border-slate-200/60 dark:border-slate-700/60 hover:bg-white dark:hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                    className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-white dark:bg-slate-800 ring-1 ring-slate-200/70 dark:ring-white/10 active:scale-[0.96] disabled:opacity-30 disabled:pointer-events-none transition-colors"
                   >
                     <span className="material-symbols-outlined text-lg text-slate-600 dark:text-slate-300">chevron_right</span>
                   </button>

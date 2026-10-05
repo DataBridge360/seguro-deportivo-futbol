@@ -19,14 +19,15 @@ const audienceOptions: {
   label: string
   helper: string
   icon: string
+  tint: string
   needsFilter: boolean
 }[] = [
-  { value: 'todos', label: 'Todos', helper: 'Todos los jugadores del club', icon: 'groups', needsFilter: false },
-  { value: 'equipo', label: 'Un equipo', helper: 'Solo los jugadores de un equipo', icon: 'sports_soccer', needsFilter: true },
-  { value: 'categoria', label: 'Una categoría', helper: 'Jugadores de una categoría', icon: 'category', needsFilter: true },
-  { value: 'torneo', label: 'Un torneo', helper: 'Jugadores que juegan un torneo', icon: 'emoji_events', needsFilter: true },
-  { value: 'seguro_vigente', label: 'Con seguro vigente', helper: 'Los que tienen el seguro al día', icon: 'verified_user', needsFilter: false },
-  { value: 'seguro_vencido', label: 'Con seguro vencido', helper: 'Los que tienen que renovar', icon: 'gpp_bad', needsFilter: false },
+  { value: 'todos', label: 'Todos', helper: 'Todos los jugadores del club', icon: 'groups', tint: 'bg-sky-100 text-sky-600 dark:bg-sky-500/20 dark:text-sky-300', needsFilter: false },
+  { value: 'equipo', label: 'Un equipo', helper: 'Solo los jugadores de un equipo', icon: 'sports_soccer', tint: 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400', needsFilter: true },
+  { value: 'categoria', label: 'Una categoría', helper: 'Jugadores de una categoría', icon: 'category', tint: 'bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300', needsFilter: true },
+  { value: 'torneo', label: 'Un torneo', helper: 'Jugadores que juegan un torneo', icon: 'emoji_events', tint: 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400', needsFilter: true },
+  { value: 'seguro_vigente', label: 'Con seguro vigente', helper: 'Los que tienen el seguro al día', icon: 'verified_user', tint: 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400', needsFilter: false },
+  { value: 'seguro_vencido', label: 'Con seguro vencido', helper: 'Los que tienen que renovar', icon: 'gpp_bad', tint: 'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400', needsFilter: false },
 ]
 
 const filterNoun: Record<string, { stepLabel: string; question: string; placeholder: string; empty: string; icon: string }> = {
@@ -74,8 +75,8 @@ function normalize(text: string): string {
 }
 
 const inputBase =
-  'w-full px-4 min-h-[44px] py-2.5 bg-white/60 dark:bg-slate-900/40 backdrop-blur-md border rounded-xl text-slate-900 dark:text-white text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all duration-200 focus:outline-none focus:bg-white/80 dark:focus:bg-slate-900/60 focus:ring-2 focus:ring-primary/30 focus:border-primary/50'
-const inputBorderOk = 'border-slate-200/80 dark:border-slate-700/60'
+  'w-full px-4 min-h-[48px] py-2.5 bg-white dark:bg-slate-900 border rounded-xl text-slate-900 dark:text-white text-base sm:text-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50'
+const inputBorderOk = 'border-slate-200 dark:border-slate-700'
 const inputBorderErr = 'border-red-400/70 focus:ring-red-400/30 focus:border-red-400'
 const labelClass = 'block text-slate-700 dark:text-slate-300 text-xs font-semibold mb-1.5 uppercase tracking-wide'
 
@@ -96,6 +97,8 @@ interface NotificacionWizardProps {
 export default function NotificacionWizard({ onSent }: NotificacionWizardProps) {
   const [step, setStep] = useState<StepId>('audiencia')
   const searchRef = useRef<HTMLInputElement>(null)
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const prevStep = useRef<StepId>(step)
   const [tipoDestinatario, setTipoDestinatario] = useState<TipoDestinatario | ''>('')
   const [filtroId, setFiltroId] = useState('')
   const [filtroSearch, setFiltroSearch] = useState('')
@@ -223,6 +226,14 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
     if (step === 'filtro' && window.matchMedia('(pointer: fine)').matches) searchRef.current?.focus()
   }, [step])
 
+  // Bring the wizard back into view when the step changes so the user is not left mid-page
+  useEffect(() => {
+    if (prevStep.current === step) return
+    prevStep.current = step
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    wrapperRef.current?.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' })
+  }, [step])
+
   const goBack = () => setStep(steps[Math.max(0, stepIndex - 1)].id)
 
   const selectFilter = (id: string) => {
@@ -293,43 +304,60 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
     }
   }
 
-  const cardClass =
-    'relative bg-white/70 dark:bg-slate-800/40 backdrop-blur-2xl border border-white/60 dark:border-white/5 rounded-2xl p-5 sm:p-6 shadow-xl shadow-slate-200/40 dark:shadow-black/30'
+  const sectionCard =
+    'bg-white dark:bg-slate-800 rounded-2xl ring-1 ring-slate-200/70 dark:ring-white/10 shadow-sm'
 
   const primaryBtn =
-    'flex-1 min-h-[48px] px-5 rounded-xl bg-gradient-to-r from-primary to-primary/80 text-white text-sm font-semibold shadow-lg shadow-primary/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center gap-2'
+    'flex-1 min-h-[48px] px-5 rounded-xl bg-primary hover:bg-primary/90 text-white text-sm font-semibold shadow-sm transition-colors active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2'
   const secondaryBtn =
-    'min-h-[48px] px-5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm font-semibold transition-colors flex items-center justify-center gap-1 disabled:opacity-50'
+    'min-h-[48px] px-4 sm:px-5 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 ring-1 ring-slate-200 dark:ring-white/10 text-slate-700 dark:text-slate-200 text-sm font-semibold transition-colors active:scale-[0.98] flex items-center justify-center gap-1 disabled:opacity-50'
 
   // ---------- Success ----------
   if (step === 'enviada') {
     return (
-      <div className={`${cardClass} text-center py-8`}>
-        <div className="w-16 h-16 rounded-full bg-green-500/15 text-green-600 dark:text-green-400 flex items-center justify-center mx-auto mb-4">
-          <span className="material-symbols-outlined text-4xl">check_circle</span>
+      <div ref={wrapperRef} className="scroll-mt-20">
+        <div className={`${sectionCard} p-6 text-center py-8`}>
+          <div className="size-16 rounded-full bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400 flex items-center justify-center mx-auto mb-4">
+            <span className="material-symbols-outlined text-4xl">check_circle</span>
+          </div>
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">¡Listo, enviada!</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto leading-relaxed">
+            {incluirCupon && soloNuevos
+              ? 'Lo van a ver los jugadores que se registren desde el inicio del cupón.'
+              : sentCount !== null
+              ? `La notificación le llegó a ${sentCount} ${sentCount === 1 ? 'jugador' : 'jugadores'}.`
+              : 'La notificación ya está en camino.'}
+            {incluirCupon && ' Cada código del cupón se genera cuando el jugador lo abre.'}
+          </p>
+          <button type="button" onClick={reset} className={`${primaryBtn} w-full sm:w-auto sm:px-8 mx-auto mt-6`}>
+            <span className="material-symbols-outlined text-lg">add</span>
+            Enviar otra
+          </button>
         </div>
-        <h2 className="text-xl font-bold text-slate-900 dark:text-white">¡Listo, enviada!</h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-sm mx-auto leading-relaxed">
-          {incluirCupon && soloNuevos
-            ? 'Lo van a ver los jugadores que se registren desde el inicio del cupón.'
-            : sentCount !== null
-            ? `La notificación le llegó a ${sentCount} ${sentCount === 1 ? 'jugador' : 'jugadores'}.`
-            : 'La notificación ya está en camino.'}
-          {incluirCupon && ' Cada código del cupón se genera cuando el jugador lo abre.'}
-        </p>
-        <button type="button" onClick={reset} className={`${primaryBtn} w-full sm:w-auto sm:px-8 mx-auto mt-6`}>
-          <span className="material-symbols-outlined text-lg">add</span>
-          Enviar otra
-        </button>
       </div>
     )
   }
 
   return (
-    <div className={cardClass}>
+    <div ref={wrapperRef} className="scroll-mt-20 space-y-4">
       {/* Step indicator */}
-      <div className="mb-6">
-        <ol className="flex items-center gap-2">
+      <div className={`${sectionCard} px-4 py-3`}>
+        <div className="sm:hidden">
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+            Paso {stepIndex + 1} de {steps.length} · <span className="text-primary">{steps[stepIndex].label}</span>
+          </p>
+          <div
+            role="progressbar"
+            aria-label="Progreso"
+            aria-valuemin={1}
+            aria-valuemax={steps.length}
+            aria-valuenow={stepIndex + 1}
+            className="mt-2 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden"
+          >
+            <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${((stepIndex + 1) / steps.length) * 100}%` }} />
+          </div>
+        </div>
+        <ol className="hidden sm:flex items-center gap-2">
           {steps.map(({ id, label }, i) => {
             const done = i < stepIndex
             const current = i === stepIndex
@@ -337,8 +365,7 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
               <li key={id} className="flex-1 min-w-0">
                 <div className={`h-1.5 rounded-full transition-colors ${done || current ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`} />
                 <p className={`mt-1.5 text-xs font-semibold truncate ${current ? 'text-primary' : 'text-slate-400 dark:text-slate-500'}`}>
-                  <span className="sm:hidden">{current ? `${i + 1}. ${label}` : i + 1}</span>
-                  <span className="hidden sm:inline">{i + 1}. {label}</span>
+                  {i + 1}. {label}
                 </p>
               </li>
             )
@@ -354,7 +381,7 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Elegí quién va a recibir la notificación.</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
             {audienceOptions.map(opt => {
               const active = tipoDestinatario === opt.value
               return (
@@ -370,33 +397,28 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
                     setTouched(prev => ({ ...prev, tipoDestinatario: false, filtroId: false }))
                   }}
                   aria-pressed={active}
-                  className={`relative flex items-center gap-3 min-h-[64px] p-3 rounded-xl border text-left backdrop-blur-md transition-all duration-200 ${
+                  className={`relative flex flex-col items-center gap-2 min-h-[124px] rounded-2xl px-2 py-3.5 text-center shadow-sm transition-transform active:scale-[0.98] ${
                     active
-                      ? 'bg-primary/10 border-primary/50 shadow-md shadow-primary/10 ring-2 ring-primary/20'
-                      : 'bg-white/40 dark:bg-slate-900/30 border-slate-200/70 dark:border-slate-700/50 hover:border-primary/30 hover:bg-white/70 dark:hover:bg-slate-900/50'
+                      ? 'bg-primary/5 ring-2 ring-primary dark:bg-primary/10'
+                      : 'bg-white ring-1 ring-slate-200/70 dark:bg-slate-800 dark:ring-white/10'
                   }`}
                 >
-                  <span className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                    active ? 'bg-primary text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                  }`}>
-                    <span className="material-symbols-outlined text-2xl">{opt.icon}</span>
+                  {active && <span className="material-symbols-outlined absolute top-2 right-2 text-primary text-lg">check_circle</span>}
+                  <span className={`flex size-11 items-center justify-center rounded-full ${active ? 'bg-primary text-white' : opt.tint}`}>
+                    <span className="material-symbols-outlined text-[24px]">{opt.icon}</span>
                   </span>
-                  <span className="flex-1 min-w-0">
-                    <span className={`block text-sm font-semibold ${active ? 'text-primary' : 'text-slate-900 dark:text-white'}`}>{opt.label}</span>
-                    <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-snug">{opt.helper}</span>
-                  </span>
-                  {active && <span className="material-symbols-outlined text-primary text-xl">check_circle</span>}
+                  <span className={`text-sm font-semibold leading-tight ${active ? 'text-primary' : 'text-slate-900 dark:text-white'}`}>{opt.label}</span>
+                  <span className="text-[11px] sm:text-xs leading-tight text-slate-500 dark:text-slate-400">{opt.helper}</span>
                 </button>
               )
             })}
           </div>
           <FieldError message={shown('tipoDestinatario')} />
-
         </section>
       )}
 
       {/* Filter: team, category or tournament */}
-      {step === 'filtro' && needsFilter && tipoDestinatario && (
+      {step === 'filtro' && needsFilter && tipoDestinatario && audience && (
         <section className="space-y-4">
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-white">{filterNoun[tipoDestinatario].question}</h2>
@@ -404,7 +426,7 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
           </div>
 
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 dark:text-slate-500 text-lg pointer-events-none">search</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 dark:text-slate-500 text-xl pointer-events-none">search</span>
             <input
               ref={searchRef}
               type="text"
@@ -412,15 +434,17 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
               onChange={(e) => setFiltroSearch(e.target.value)}
               placeholder={filterNoun[tipoDestinatario].placeholder}
               aria-label={filterNoun[tipoDestinatario].placeholder}
-              className={`${inputBase} pl-10 ${shown('filtroId') ? inputBorderErr : inputBorderOk}`}
+              className={`${inputBase} pl-11 ${shown('filtroId') ? inputBorderErr : inputBorderOk}`}
             />
           </div>
 
-          <div className="rounded-xl border border-slate-200/80 dark:border-slate-700/60 bg-white/60 dark:bg-slate-900/40 divide-y divide-slate-100 dark:divide-slate-700/50">
-            {filteredItems.length === 0 ? (
-              <p className="px-4 py-4 text-sm text-slate-500 dark:text-slate-400 text-center">{filterNoun[tipoDestinatario].empty}</p>
-            ) : (
-              filteredItems.map(item => {
+          {filteredItems.length === 0 ? (
+            <div className={`${sectionCard} px-4 py-8 text-center`}>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{filterNoun[tipoDestinatario].empty}</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredItems.map(item => {
                 const active = String(item.id) === filtroId
                 return (
                   <button
@@ -428,19 +452,22 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
                     type="button"
                     onClick={() => selectFilter(String(item.id))}
                     aria-pressed={active}
-                    className={`w-full min-h-[52px] flex items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors ${
+                    className={`w-full min-h-[56px] flex items-center gap-3 rounded-2xl px-3 py-2 text-left shadow-sm transition-transform active:scale-[0.98] ${
                       active
-                        ? 'bg-primary/10 text-primary font-semibold'
-                        : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                        ? 'bg-primary/5 ring-2 ring-primary dark:bg-primary/10'
+                        : 'bg-white ring-1 ring-slate-200/70 dark:bg-slate-800 dark:ring-white/10'
                     }`}
                   >
-                    <span className="flex-1 min-w-0 truncate">{item.nombre}</span>
-                    {active && <span className="material-symbols-outlined text-lg">check</span>}
+                    <span className={`flex size-11 items-center justify-center rounded-full flex-shrink-0 ${active ? 'bg-primary text-white' : audience.tint}`}>
+                      <span className="material-symbols-outlined text-[24px]">{filterNoun[tipoDestinatario].icon}</span>
+                    </span>
+                    <span className={`flex-1 min-w-0 truncate text-sm font-semibold ${active ? 'text-primary' : 'text-slate-900 dark:text-white'}`}>{item.nombre}</span>
+                    {active && <span className="material-symbols-outlined text-primary text-xl">check_circle</span>}
                   </button>
                 )
-              })
-            )}
-          </div>
+              })}
+            </div>
+          )}
           <FieldError message={shown('filtroId')} />
         </section>
       )}
@@ -453,44 +480,46 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Escribí un asunto corto y el mensaje.</p>
           </div>
 
-          <div>
-            <label className={labelClass}>Asunto</label>
-            <div className="relative">
-              <input
-                type="text"
-                value={asunto}
-                onChange={(e) => setAsunto(e.target.value.slice(0, ASUNTO_MAX))}
-                onBlur={() => touch('asunto')}
-                placeholder="Ej: Se suspende el partido del sábado"
-                className={`${inputBase} pr-16 ${shown('asunto') ? inputBorderErr : inputBorderOk}`}
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400 dark:text-slate-500 tabular-nums pointer-events-none">
-                {asunto.length}/{ASUNTO_MAX}
-              </span>
+          <div className={`${sectionCard} p-4 space-y-4`}>
+            <div>
+              <label className={labelClass}>Asunto</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={asunto}
+                  onChange={(e) => setAsunto(e.target.value.slice(0, ASUNTO_MAX))}
+                  onBlur={() => touch('asunto')}
+                  placeholder="Ej: Se suspende el partido del sábado"
+                  className={`${inputBase} pr-16 ${shown('asunto') ? inputBorderErr : inputBorderOk}`}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400 dark:text-slate-500 tabular-nums pointer-events-none">
+                  {asunto.length}/{ASUNTO_MAX}
+                </span>
+              </div>
+              <FieldError message={shown('asunto')} />
             </div>
-            <FieldError message={shown('asunto')} />
-          </div>
 
-          <div>
-            <label className={labelClass}>Mensaje</label>
-            <div className="relative">
-              <textarea
-                value={mensaje}
-                onChange={(e) => setMensaje(e.target.value.slice(0, MENSAJE_MAX))}
-                onBlur={() => touch('mensaje')}
-                placeholder="Escribí el mensaje para los jugadores..."
-                className={`${inputBase} min-h-[120px] pb-7 resize-none ${shown('mensaje') ? inputBorderErr : inputBorderOk}`}
-              />
-              <span className="absolute right-3 bottom-2.5 text-xs font-medium text-slate-400 dark:text-slate-500 tabular-nums pointer-events-none">
-                {mensaje.length}/{MENSAJE_MAX}
-              </span>
+            <div>
+              <label className={labelClass}>Mensaje</label>
+              <div className="relative">
+                <textarea
+                  value={mensaje}
+                  onChange={(e) => setMensaje(e.target.value.slice(0, MENSAJE_MAX))}
+                  onBlur={() => touch('mensaje')}
+                  placeholder="Escribí el mensaje para los jugadores..."
+                  className={`${inputBase} min-h-[140px] pb-7 resize-none ${shown('mensaje') ? inputBorderErr : inputBorderOk}`}
+                />
+                <span className="absolute right-3 bottom-2.5 text-xs font-medium text-slate-400 dark:text-slate-500 tabular-nums pointer-events-none">
+                  {mensaje.length}/{MENSAJE_MAX}
+                </span>
+              </div>
+              <FieldError message={shown('mensaje')} />
             </div>
-            <FieldError message={shown('mensaje')} />
           </div>
 
           {/* Phone preview */}
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">Así se ve en el celular</p>
+          <div className={`${sectionCard} p-4`}>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-3">Así se ve en el celular</p>
             <div className="mx-auto max-w-xs rounded-[2rem] bg-slate-900 dark:bg-slate-950 p-3 shadow-xl">
               <div className="rounded-[1.5rem] bg-gradient-to-b from-slate-700 to-slate-800 px-3 pt-6 pb-8">
                 <div className="rounded-2xl bg-white/90 dark:bg-slate-100/95 p-3 shadow-lg">
@@ -521,10 +550,10 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
           </div>
 
           <div
-            className={`relative overflow-hidden rounded-2xl border backdrop-blur-md transition-all duration-300 ${
+            className={`relative overflow-hidden rounded-2xl shadow-sm transition-colors ${
               incluirCupon
-                ? 'bg-gradient-to-br from-amber-50/80 via-white/40 to-amber-50/40 dark:from-amber-500/10 dark:via-slate-900/30 dark:to-amber-500/5 border-amber-300/50 dark:border-amber-400/20'
-                : 'bg-white/40 dark:bg-slate-900/30 border-slate-200/70 dark:border-slate-700/50'
+                ? 'bg-amber-50 ring-1 ring-amber-300/70 dark:bg-amber-500/10 dark:ring-amber-400/30'
+                : 'bg-white ring-1 ring-slate-200/70 dark:bg-slate-800 dark:ring-white/10'
             }`}
           >
             <button
@@ -532,26 +561,26 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
               role="switch"
               aria-checked={incluirCupon}
               onClick={() => setIncluirCupon(v => !v)}
-              className="w-full min-h-[72px] flex items-center gap-3 p-4 text-left"
+              className="w-full min-h-[72px] flex items-center gap-3 p-4 text-left active:scale-[0.99] transition-transform"
             >
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
+              <span className={`flex size-11 items-center justify-center rounded-full flex-shrink-0 transition-colors ${
                 incluirCupon
-                  ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
+                  ? 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400'
+                  : 'bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
               }`}>
-                <span className="material-symbols-outlined text-2xl">local_offer</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-slate-900 dark:text-white text-sm">Incluir cupón de descuento</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Se crea una plantilla; cada código se genera al abrirlo</p>
-              </div>
-              <div className={`relative w-12 h-7 rounded-full transition-colors flex-shrink-0 ${incluirCupon ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
-                <div className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-md transition-all duration-200 ${incluirCupon ? 'left-6' : 'left-1'}`} />
-              </div>
+                <span className="material-symbols-outlined text-[24px]">local_offer</span>
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="block font-semibold text-slate-900 dark:text-white text-sm">Incluir cupón de descuento</span>
+                <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5">Se crea una plantilla; cada código se genera al abrirlo</span>
+              </span>
+              <span className={`relative w-12 h-7 rounded-full transition-colors flex-shrink-0 ${incluirCupon ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-600'}`}>
+                <span className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-md transition-all duration-200 ${incluirCupon ? 'left-6' : 'left-1'}`} />
+              </span>
             </button>
 
             {incluirCupon && (
-              <div className="px-4 pb-4 space-y-4 border-t border-amber-200/40 dark:border-amber-400/10 pt-4">
+              <div className="px-4 pb-4 space-y-4 border-t border-amber-200/60 dark:border-amber-400/15 pt-4">
                 <div>
                   <label className={labelClass}>Título del cupón</label>
                   <div className="relative">
@@ -585,7 +614,7 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
                           setTipoCupon(opt.value)
                           if (opt.value === 'porcentaje' && valorCupon && parseInt(valorCupon, 10) > 100) setValorCupon('100')
                         }}
-                        className={`min-h-[44px] flex items-center justify-center gap-1.5 rounded-lg text-sm font-semibold transition-all ${
+                        className={`min-h-[44px] flex items-center justify-center gap-1.5 rounded-lg text-sm font-semibold transition-colors ${
                           tipoCupon === opt.value
                             ? 'bg-white dark:bg-slate-700 text-amber-700 dark:text-amber-300 shadow-sm'
                             : 'text-slate-500 dark:text-slate-400'
@@ -691,9 +720,11 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
                   role="switch"
                   aria-checked={soloNuevos}
                   onClick={() => setSoloNuevos(v => !v)}
-                  className="w-full min-h-[56px] flex items-center gap-3 rounded-xl border border-slate-200/70 dark:border-slate-700/50 bg-white/40 dark:bg-slate-900/30 px-3 py-2.5 text-left"
+                  className="w-full min-h-[64px] flex items-center gap-3 rounded-2xl bg-white dark:bg-slate-900 ring-1 ring-slate-200/70 dark:ring-white/10 px-3 py-2.5 text-left active:scale-[0.99] transition-transform"
                 >
-                  <span className="material-symbols-outlined text-2xl text-slate-500 dark:text-slate-400">person_add</span>
+                  <span className="flex size-11 items-center justify-center rounded-full flex-shrink-0 bg-violet-100 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300">
+                    <span className="material-symbols-outlined text-[24px]">person_add</span>
+                  </span>
                   <span className="flex-1 min-w-0">
                     <span className="block text-sm font-semibold text-slate-900 dark:text-white">Solo nuevos registros</span>
                     <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5">Lo ven solo quienes se registren desde el inicio. No se envía push.</span>
@@ -716,9 +747,9 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
                           aria-label={option.label}
                           aria-pressed={active}
                           title={option.label}
-                          className={`h-11 rounded-xl border bg-white/50 dark:bg-slate-900/30 flex items-center justify-center transition-all ${active ? `ring-2 ${option.active}` : 'border-slate-200/70 dark:border-slate-700/50 hover:border-slate-400/60'}`}
+                          className={`h-12 rounded-xl border bg-white dark:bg-slate-900 flex items-center justify-center transition-colors active:scale-[0.98] ${active ? `ring-2 ${option.active}` : 'border-slate-200 dark:border-slate-700 hover:border-slate-400/60'}`}
                         >
-                          <span className={`w-6 h-6 rounded-full ${option.swatch}`} />
+                          <span className={`size-6 rounded-full ${option.swatch}`} />
                         </button>
                       )
                     })}
@@ -749,7 +780,7 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Chequeá que esté todo bien. Una vez enviada no se puede deshacer.</p>
           </div>
 
-          <div className="rounded-xl border border-slate-200/80 dark:border-slate-700/60 bg-white/50 dark:bg-slate-900/30 divide-y divide-slate-100 dark:divide-slate-700/50">
+          <div className={`${sectionCard} divide-y divide-slate-100 dark:divide-white/10`}>
             <SummaryRow icon={audience?.icon || 'groups'} label="Para" onEdit={() => setStep('audiencia')}>
               <p className="text-sm font-semibold text-slate-900 dark:text-white break-words">{audienceSummary}</p>
             </SummaryRow>
@@ -775,64 +806,68 @@ export default function NotificacionWizard({ onSent }: NotificacionWizardProps) 
           </div>
 
           {sendError && (
-            <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-300/60 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300">
+            <div role="alert" className="flex items-start gap-2 rounded-2xl border border-red-300/60 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300">
               <span className="material-symbols-outlined text-lg">error</span>
               <span className="flex-1 break-words">{sendError}</span>
             </div>
           )}
-
-          <button type="button" onClick={handleSend} disabled={sending} className={`${primaryBtn} w-full min-h-[52px]`}>
-            {sending ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Enviando...
-              </>
-            ) : (
-              <>
-                <span className="material-symbols-outlined text-lg">send</span>
-                Enviar notificación
-              </>
-            )}
-          </button>
         </section>
       )}
 
-      {/* Navigation */}
-      <div className="flex gap-3 mt-6">
-        {stepIndex > 0 && (
-          <button type="button" onClick={goBack} disabled={sending} className={secondaryBtn}>
-            <span className="material-symbols-outlined text-lg">arrow_back</span>
-            Volver
-          </button>
-        )}
-        {step === 'cupon' && (
-          <button type="button" onClick={skipCoupon} className={secondaryBtn}>
-            Sin cupón
-          </button>
-        )}
-        {step !== 'revisar' && (
-          <button
-            type="button"
-            onClick={goNext}
-            disabled={!stepValid[step]}
-            className={primaryBtn}
-          >
-            Siguiente
-            <span className="material-symbols-outlined text-lg">arrow_forward</span>
-          </button>
-        )}
+      {/* Navigation: fixed bottom bar on phones, inline from sm up */}
+      <div className="max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:z-30 max-sm:border-t max-sm:border-slate-200 dark:max-sm:border-slate-700 max-sm:bg-white dark:max-sm:bg-slate-900 max-sm:px-4 max-sm:pt-3 max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pt-2">
+        <div className="flex gap-3">
+          {stepIndex > 0 && (
+            <button type="button" onClick={goBack} disabled={sending} className={secondaryBtn}>
+              <span className="material-symbols-outlined text-lg">arrow_back</span>
+              Volver
+            </button>
+          )}
+          {step === 'cupon' && (
+            <button type="button" onClick={skipCoupon} className={secondaryBtn}>
+              Sin cupón
+            </button>
+          )}
+          {step !== 'revisar' ? (
+            <button
+              type="button"
+              onClick={goNext}
+              disabled={!stepValid[step]}
+              className={primaryBtn}
+            >
+              Siguiente
+              <span className="material-symbols-outlined text-lg">arrow_forward</span>
+            </button>
+          ) : (
+            <button type="button" onClick={handleSend} disabled={sending} className={primaryBtn}>
+              {sending ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Enviando...
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined text-lg">send</span>
+                  Enviar notificación
+                </>
+              )}
+            </button>
+          )}
+        </div>
       </div>
+      {/* Keeps the last content clear of the fixed bar */}
+      <div className="h-20 sm:hidden" aria-hidden="true" />
     </div>
   )
 }
 
 function CouponPreview({ gradient, title, dateText, valueText, extraText }: { gradient: string; title: string; dateText: string; valueText: string; extraText?: string }) {
   return (
-    <div className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${gradient} p-4 text-white shadow-lg`}>
+    <div className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${gradient} p-4 text-white shadow-lg`}>
       <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-white/10 blur-2xl" />
       <div className="absolute -left-4 -bottom-4 w-16 h-16 rounded-full bg-white/10 blur-xl" />
       <div className="relative flex items-center gap-3">
-        <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
+        <div className="size-12 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
           <span className="material-symbols-outlined text-2xl">confirmation_number</span>
         </div>
         <div className="flex-1 min-w-0">
@@ -853,8 +888,8 @@ function CouponPreview({ gradient, title, dateText, valueText, extraText }: { gr
 function SummaryRow({ icon, label, onEdit, children }: { icon: string; label: string; onEdit: () => void; children: React.ReactNode }) {
   return (
     <div className="flex items-start gap-3 p-3">
-      <span className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
-        <span className="material-symbols-outlined text-xl">{icon}</span>
+      <span className="size-11 rounded-full bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+        <span className="material-symbols-outlined text-[24px]">{icon}</span>
       </span>
       <div className="flex-1 min-w-0">
         <p className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</p>
