@@ -46,7 +46,7 @@ function tipoFiltroIcon(tipo: string): string {
   return tipoDestinatarioOptions.find(o => o.value === tipo)?.icon || 'notifications'
 }
 
-export default function NotificacionesPanel() {
+export default function NotificacionesPanel({ showHeader = true }: { showHeader?: boolean }) {
   const [deletingCouponId, setDeletingCouponId] = useState<string | null>(null)
   const [showNotification, setShowNotification] = useState(false)
   const [notifTitle, setNotifTitle] = useState('')
@@ -100,15 +100,17 @@ export default function NotificacionesPanel() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-start gap-3">
-        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20 flex-shrink-0">
-          <span className="material-symbols-outlined text-white text-2xl">campaign</span>
+      {showHeader && (
+        <div className="flex items-start gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20 flex-shrink-0">
+            <span className="material-symbols-outlined text-white text-2xl">campaign</span>
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Notificaciones</h1>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">Envia mensajes y cupones a tus jugadores</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Notificaciones</h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">Envia mensajes y cupones a tus jugadores</p>
-        </div>
-      </div>
+      )}
 
       <NotificacionWizard onSent={refreshHistorial} />
 

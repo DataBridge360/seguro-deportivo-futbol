@@ -1,5 +1,5 @@
-import NotificacionesPanel from '@/components/notificaciones/NotificacionesPanel'
+import { redirect } from 'next/navigation'
 
-export default function NotificacionesPage() {
-  return <NotificacionesPanel />
+export default function NotificacionesRedirect() {
+  redirect('/dashboard/club/comunicacion?tab=notificaciones')
 }

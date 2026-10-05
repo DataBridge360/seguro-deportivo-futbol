@@ -115,17 +115,10 @@ export const navigationItems: NavItem[] = [
     fullAccessOnly: true
   },
   {
-    label: 'Anuncios',
-    href: '/dashboard/club/anuncios',
+    label: 'Comunicación',
+    href: '/dashboard/club/comunicacion',
     icon: 'Megaphone',
     materialIcon: 'campaign',
-    roles: ['club']
-  },
-  {
-    label: 'Notificaciones',
-    href: '/dashboard/club/notificaciones',
-    icon: 'Bell',
-    materialIcon: 'notifications',
     roles: ['club']
   },
   {
