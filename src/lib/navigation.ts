@@ -100,13 +100,6 @@ export const navigationItems: NavItem[] = [
     roles: ['club']
   },
   {
-    label: 'Verificar QR',
-    href: '/dashboard/club/verificar-qr',
-    icon: 'QrCode',
-    materialIcon: 'qr_code_scanner',
-    roles: ['club']
-  },
-  {
     label: 'Puntos',
     href: '/dashboard/club/puntos',
     icon: 'Star',
