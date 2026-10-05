@@ -329,10 +329,13 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
   }
 
   const handleDniChange = (value: string) => {
+    const next = normalizarDni(value).slice(0, 9)
+    // Typing a dot or space leaves the same digits: keep the current coupons
+    if (next === dni) return
     stopScanner()
     clearCupon()
     setDisponibles([])
-    setDni(normalizarDni(value).slice(0, 9))
+    setDni(next)
     setSinDni(false)
   }
 
