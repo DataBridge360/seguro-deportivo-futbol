@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   getPuntosJugadorPorDni,
-  registrarCompra,
   type CouponColor,
   type PuntosJugadorResponse,
   type RegistrarCompraData,
@@ -12,6 +11,7 @@ import {
 import {
   getCuponesDisponibles,
   normalizarDni,
+  registrarCompraConCantina,
   registrarCompraConCuponId,
   type CuponDisponible,
 } from '@/lib/cuponesCaja'
@@ -62,6 +62,10 @@ interface Props {
   puntosActivos: boolean
   // Called after a purchase was registered so the page can refresh its data
   onCompleted?: () => void
+  // Club only: the cantina that charges (sent as cantina_id)
+  cantinaId?: string
+  // Club only: shown at the top so the cashier knows where the sale lands
+  cantinaNombre?: string
 }
 
 const primaryBtn =
@@ -71,7 +75,7 @@ const secondaryBtn =
 const inputClass =
   'w-full h-12 px-4 bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-base placeholder:text-slate-400 focus:outline-none focus:border-primary'
 
-export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, onCompleted }: Props) {
+export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, onCompleted, cantinaId, cantinaNombre }: Props) {
   const [mounted, setMounted] = useState(false)
   const [step, setStep] = useState<Step>('monto')
   const [monto, setMonto] = useState('')
@@ -265,10 +269,11 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
       const body = {
         monto_compra: montoNum,
         ...(!sinDni && dniValido ? { dni } : {}),
+        ...(cantinaId ? { cantina_id: cantinaId } : {}),
       }
       const data = cuponAplicado
         ? await registrarCompraConCuponId({ ...body, cupon_id: cuponAplicado.id, monto_aplicable: aplicableNum })
-        : await registrarCompra(body)
+        : await registrarCompraConCantina(body)
       setResult(data)
       setStep('resultado')
       onCompleted?.()
@@ -326,6 +331,13 @@ export default function RegistrarCompraWizard({ isOpen, onClose, puntosActivos, 
             <span className="material-symbols-outlined text-2xl">close</span>
           </button>
         </div>
+
+        {cantinaNombre && (
+          <div className="mx-5 mt-4 flex items-center gap-2 rounded-xl bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">
+            <span className="material-symbols-outlined text-xl">storefront</span>
+            <span className="truncate">Cobra: {cantinaNombre}</span>
+          </div>
+        )}
 
         {/* Step indicator */}
         {step !== 'resultado' && (

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { listarCompras, type CompraCajaItem, type ListarComprasData } from '@/lib/api'
+import type { CompraConCobrador } from '@/lib/contabilidadClub'
 import DateTimePicker from '@/components/ui/DateTimePicker'
 import { useAuthStore } from '@/stores/authStore'
 
@@ -128,6 +129,10 @@ function clienteLabel(c: CompraCajaItem): { main: string; sub?: string } {
   if (c.jugador) return { main: `${c.jugador.nombre} ${c.jugador.apellido}`.trim() }
   if (c.dni_mascara) return { main: 'Sin la app', sub: `DNI ${c.dni_mascara}` }
   return { main: 'Sin DNI' }
+}
+
+function cobradoPor(c: CompraCajaItem): string | null {
+  return (c as CompraConCobrador).creado_por?.nombre ?? null
 }
 
 interface MetricProps {
@@ -414,6 +419,7 @@ export default function CajaHistorial({ cantinaId, refreshKey = 0, showCantina =
                               <p className="text-base font-semibold text-slate-900 dark:text-white truncate">{cli.main}</p>
                               {cli.sub && <p className="text-xs text-slate-500 dark:text-slate-400">{cli.sub}</p>}
                               {showCantina && <p className="text-xs font-medium text-primary">{c.cantina.nombre}</p>}
+                              {cobradoPor(c) && <p className="text-xs text-slate-500 dark:text-slate-400">Cobrado por {cobradoPor(c)}</p>}
                             </div>
                             <p className="text-lg font-bold text-slate-900 dark:text-white shrink-0">{money(c.monto_total)}</p>
                           </div>
@@ -450,6 +456,7 @@ export default function CajaHistorial({ cantinaId, refreshKey = 0, showCantina =
                                 {cli.main}
                                 {cli.sub && <span className="block text-xs text-slate-500 dark:text-slate-400">{cli.sub}</span>}
                                 {showCantina && <span className="block text-xs font-medium text-primary">{c.cantina.nombre}</span>}
+                                {cobradoPor(c) && <span className="block text-xs text-slate-500 dark:text-slate-400">Cobrado por {cobradoPor(c)}</span>}
                               </td>
                               <td className="px-4 py-3">
                                 <div className="flex flex-wrap gap-2">

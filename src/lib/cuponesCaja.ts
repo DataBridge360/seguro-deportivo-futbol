@@ -35,7 +35,18 @@ export type RegistrarCompraConCuponIdBody = Omit<RegistrarCompraBody, 'cupon_cod
   cupon_id?: string
 }
 
-export async function registrarCompraConCuponId(body: RegistrarCompraConCuponIdBody): Promise<RegistrarCompraData> {
+// Club only: the cantina that charges; api.ts' RegistrarCompraBody has no cantina_id yet
+export type RegistrarCompraBodyConCantina = RegistrarCompraBody & { cantina_id?: string }
+
+export async function registrarCompraConCuponId(body: RegistrarCompraConCuponIdBody & { cantina_id?: string }): Promise<RegistrarCompraData> {
+  const res = await apiFetch('/compras', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+  return res.data
+}
+
+export async function registrarCompraConCantina(body: RegistrarCompraBodyConCantina): Promise<RegistrarCompraData> {
   const res = await apiFetch('/compras', {
     method: 'POST',
     body: JSON.stringify(body),
