@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import RecompensasSection from '@/components/club/puntos/RecompensasSection'
 import CanjesSection from '@/components/club/puntos/CanjesSection'
 import ConfiguracionSection from '@/components/club/puntos/ConfiguracionSection'
@@ -16,8 +17,16 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]['id']
 
-export default function ClubPuntosPage() {
-  const [tab, setTab] = useState<TabId>('canjes')
+function ClubPuntosContent() {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  // The tab lives in the URL (like torneos) so the Configuración sub-screen survives back and reload
+  const tabParam = searchParams.get('tab')
+  const tab: TabId = TABS.find(t => t.id === tabParam)?.id ?? 'canjes'
+  const setTab = (id: TabId) => {
+    router.replace(id === 'canjes' ? pathname : `${pathname}?tab=${id}`, { scroll: false })
+  }
   const [pendientes, setPendientes] = useState<number | null>(null)
 
   useEffect(() => {
@@ -51,5 +60,13 @@ export default function ClubPuntosPage() {
         {tab === 'configuracion' && <ConfiguracionSection />}
       </PageTabs>
     </div>
+  )
+}
+
+export default function ClubPuntosPage() {
+  return (
+    <Suspense>
+      <ClubPuntosContent />
+    </Suspense>
   )
 }
