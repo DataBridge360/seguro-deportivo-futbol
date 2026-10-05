@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import SafeImage from '@/components/ui/SafeImage'
 import {
   anularPuntosCanje,
@@ -8,8 +8,11 @@ import {
   getCanjePorCodigo,
   type CanjePorCodigo,
 } from '@/lib/api'
+import { getCanjesPorDni, type CanjesPorDniData } from '@/lib/canjesCaja'
+import { normalizarDni } from '@/lib/cuponesCaja'
 import {
   ConfirmModal,
+  EmptyState,
   ErrorNote,
   Modal,
   Spinner,
@@ -43,7 +46,15 @@ export default function EntregarRecompensaModal({ isOpen, onClose }: Props) {
   return <Inner onClose={onClose} />
 }
 
+type Lookup = 'idle' | 'loading' | 'ok' | 'error'
+
 function Inner({ onClose }: { onClose: () => void }) {
+  const [dni, setDni] = useState('')
+  const [lookup, setLookup] = useState<Lookup>('idle')
+  const [lookupError, setLookupError] = useState('')
+  const [data, setData] = useState<CanjesPorDniData | null>(null)
+  const [reload, setReload] = useState(0)
+  const [codigoOpen, setCodigoOpen] = useState(false)
   const [codigo, setCodigo] = useState('')
   const [canje, setCanje] = useState<CanjePorCodigo | null>(null)
   const [loading, setLoading] = useState(false)
@@ -52,6 +63,46 @@ function Inner({ onClose }: { onClose: () => void }) {
   const [confirmError, setConfirmError] = useState('')
   const [confirm, setConfirm] = useState<Confirm>(null)
   const [done, setDone] = useState<Done>(null)
+
+  // Live lookup of the player's pending canjes (debounced). The cleanup flag drops
+  // responses that arrive after the DNI changed.
+  useEffect(() => {
+    if (dni.length < 7) {
+      setLookup('idle')
+      setLookupError('')
+      setData(null)
+      return
+    }
+    let cancelled = false
+    setLookup('loading')
+    setLookupError('')
+    const timer = setTimeout(() => {
+      getCanjesPorDni(dni)
+        .then(res => {
+          if (cancelled) return
+          setData(res)
+          setLookup('ok')
+        })
+        .catch(e => {
+          if (cancelled) return
+          setData(null)
+          setLookup('error')
+          setLookupError(errMsg(e, 'No pudimos buscar las recompensas'))
+        })
+    }, 400)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [dni, reload])
+
+  const handleDniChange = (value: string) => {
+    const next = normalizarDni(value).slice(0, 9)
+    // Typing a dot or space leaves the same digits: keep the current list
+    if (next === dni) return
+    setData(null)
+    setDni(next)
+  }
 
   const buscar = async (raw: string) => {
     const value = normalizeCodigo(raw)
@@ -79,6 +130,7 @@ function Inner({ onClose }: { onClose: () => void }) {
   const reset = () => {
     scanner.stop()
     setCodigo('')
+    setCodigoOpen(false)
     setCanje(null)
     setError('')
     setConfirmError('')
@@ -101,6 +153,8 @@ function Inner({ onClose }: { onClose: () => void }) {
       await entregarPuntosCanje(canje.id)
       setConfirm(null)
       setDone({ kind: 'entregado' })
+      setData(null)
+      setReload(n => n + 1)
     } catch (e) {
       setConfirmError(errMsg(e, 'No pudimos entregar la recompensa'))
     } finally {
@@ -116,6 +170,8 @@ function Inner({ onClose }: { onClose: () => void }) {
       const res = await anularPuntosCanje(canje.id)
       setConfirm(null)
       setDone({ kind: 'anulado', devueltos: res.puntos_devueltos })
+      setData(null)
+      setReload(n => n + 1)
     } catch (e) {
       setConfirmError(errMsg(e, 'No pudimos anular el canje'))
     } finally {
@@ -130,7 +186,7 @@ function Inner({ onClose }: { onClose: () => void }) {
 
   return (
     <>
-      <Modal title="Entregar recompensa" onClose={close} busy={busy || loading} suspended={confirm !== null}>
+      <Modal title="Recompensas" onClose={close} busy={busy || loading} suspended={confirm !== null}>
         {done ? (
           <div className="flex flex-col items-center gap-4 py-4 text-center">
             <span
@@ -151,7 +207,7 @@ function Inner({ onClose }: { onClose: () => void }) {
             )}
             <div className="mt-2 flex w-full flex-col gap-3 sm:flex-row">
               <button type="button" onClick={reset} className={`${primaryBtnCls} flex-1`}>
-                Entregar otra
+                Ver recompensas
               </button>
               <button type="button" onClick={close} className={`${secondaryBtnCls} flex-1`}>
                 Cerrar
@@ -223,7 +279,7 @@ function Inner({ onClose }: { onClose: () => void }) {
             )}
 
             <button type="button" onClick={reset} className={secondaryBtnCls}>
-              Buscar otro código
+              Volver
             </button>
           </>
         ) : (
@@ -246,48 +302,130 @@ function Inner({ onClose }: { onClose: () => void }) {
                 </button>
               </div>
             ) : (
-              <form
-                className="space-y-4"
-                onSubmit={e => {
-                  e.preventDefault()
-                  void buscar(codigo)
-                }}
-              >
-                <div>
-                  <label htmlFor="codigo-recompensa" className={labelCls}>
-                    Código de la recompensa
+              <>
+                <div className="space-y-2">
+                  <label htmlFor="dni-recompensa" className="block text-center text-lg font-semibold text-slate-700 dark:text-slate-200">
+                    ¿Quién retira?
                   </label>
                   <input
-                    id="codigo-recompensa"
+                    id="dni-recompensa"
                     type="text"
-                    value={codigo}
+                    inputMode="numeric"
                     autoComplete="off"
-                    autoCapitalize="characters"
-                    placeholder="RC-XXXXXX"
-                    onChange={e => {
-                      setCodigo(e.target.value.toUpperCase().replace(/\s+/g, ''))
-                      setError('')
-                    }}
-                    className={`${inputCls} font-mono`}
+                    value={dni}
+                    onChange={e => handleDniChange(e.target.value)}
+                    placeholder="DNI (sin puntos ni espacios)"
+                    className={`${inputCls} text-center text-lg`}
                   />
                 </div>
-                <button type="submit" disabled={loading} className={`${primaryBtnCls} w-full`}>
-                  {loading ? <Spinner /> : <span className="material-symbols-outlined">search</span>}
-                  Buscar
-                </button>
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={() => {
-                    setError('')
-                    void scanner.start()
-                  }}
-                  className={`${secondaryBtnCls} w-full`}
-                >
-                  <span className="material-symbols-outlined">qr_code_scanner</span>
-                  Escanear QR
-                </button>
-              </form>
+
+                {lookup === 'loading' && (
+                  <div className="flex items-center justify-center gap-2 text-base text-slate-500 dark:text-slate-400">
+                    <Spinner />
+                    Buscando...
+                  </div>
+                )}
+                <ErrorNote message={lookupError} />
+
+                {lookup === 'ok' && data && (
+                  <div className="space-y-3">
+                    <p className="text-center text-lg font-semibold text-slate-900 dark:text-white">
+                      {data.jugador.apellido}, {data.jugador.nombre}
+                    </p>
+                    {data.canjes.length === 0 ? (
+                      <EmptyState icon="redeem" title="No tiene recompensas para entregar" />
+                    ) : (
+                      <ul className="space-y-3">
+                        {data.canjes.map(c => (
+                          <li key={c.id}>
+                            <button
+                              type="button"
+                              onClick={() => setCanje(c)}
+                              className="flex min-h-24 w-full items-center gap-4 rounded-2xl border border-slate-200 bg-white p-3 text-left transition-colors hover:border-primary hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700/50"
+                            >
+                              <div className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-700">
+                                <SafeImage
+                                  src={c.recompensa?.imagen_url}
+                                  icon="redeem"
+                                  iconClassName="text-4xl"
+                                  className="size-full object-cover"
+                                />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="break-words text-lg font-bold text-slate-900 dark:text-white">
+                                  {c.recompensa?.titulo ?? 'Recompensa'}
+                                </p>
+                                <p className="text-base text-slate-700 dark:text-slate-200">
+                                  {fmt(c.costo_puntos)} puntos
+                                </p>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">
+                                  {formatDateTime(c.created_at)}
+                                </p>
+                              </div>
+                              <span className="material-symbols-outlined text-slate-400" aria-hidden>
+                                chevron_right
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+
+                <div className="border-t border-slate-200 pt-3 dark:border-slate-700">
+                  {codigoOpen ? (
+                    <form
+                      className="space-y-3"
+                      onSubmit={e => {
+                        e.preventDefault()
+                        void buscar(codigo)
+                      }}
+                    >
+                      <label htmlFor="codigo-recompensa" className={labelCls}>
+                        Código de la recompensa
+                      </label>
+                      <input
+                        id="codigo-recompensa"
+                        type="text"
+                        value={codigo}
+                        autoComplete="off"
+                        autoCapitalize="characters"
+                        placeholder="RC-XXXXXX"
+                        onChange={e => {
+                          setCodigo(e.target.value.toUpperCase().replace(/\s+/g, ''))
+                          setError('')
+                        }}
+                        className={`${inputCls} font-mono`}
+                      />
+                      <button type="submit" disabled={loading} className={`${primaryBtnCls} w-full`}>
+                        {loading ? <Spinner /> : <span className="material-symbols-outlined">search</span>}
+                        Buscar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={loading}
+                        onClick={() => {
+                          setError('')
+                          void scanner.start()
+                        }}
+                        className={`${secondaryBtnCls} w-full`}
+                      >
+                        <span className="material-symbols-outlined">qr_code_scanner</span>
+                        Escanear QR
+                      </button>
+                    </form>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setCodigoOpen(true)}
+                      className="min-h-11 w-full text-base font-semibold text-primary hover:underline"
+                    >
+                      ¿Tiene un código?
+                    </button>
+                  )}
+                </div>
+              </>
             )}
             <ErrorNote message={error || scanner.error} />
           </>

@@ -41,7 +41,7 @@ export default function CantinaCajaPage() {
           className="w-full min-h-12 bg-white dark:bg-slate-800 border-2 border-primary text-primary hover:bg-primary/5 rounded-lg text-base font-semibold transition-colors flex items-center justify-center gap-2"
         >
           <span className="material-symbols-outlined text-2xl">redeem</span>
-          Entregar recompensa
+          Recompensas
         </button>
       </div>
 
