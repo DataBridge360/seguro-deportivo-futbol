@@ -707,7 +707,7 @@ export default function EquiposListPage({ basePath, hideHeader = false }: Props)
             </div>
 
             <p className="text-sm text-slate-600 dark:text-slate-300 mb-3">
-              Estás por eliminar <strong>&quot;{deleteModal.nombre}&quot;</strong>. Esta acción no se puede deshacer.
+              Estás por eliminar <strong>&quot;{deleteModal.nombre}&quot;</strong>. Esta acción no se puede deshacer. Si el equipo está inscripto en algún torneo, primero tenés que desinscribirlo de cada torneo.
             </p>
 
             <div className="mb-4">

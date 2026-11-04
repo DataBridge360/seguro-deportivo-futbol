@@ -311,16 +311,13 @@ export default function EquipoJugadoresPage({ basePath }: Props) {
     }
   }
 
-  const handleDesinscribirEquipo = async () => {
+  const handleDesinscribirEquipo = async (password: string) => {
     if (!inscripcion) return
     try {
       setDesinscribiendo(true)
-      await desinscribirEquipo(inscripcion.id)
+      await desinscribirEquipo(inscripcion.id, password)
       setShowConfirmDesinscribir(false)
       router.push(`${basePath}/${torneoId}`)
-    } catch (error) {
-      setShowConfirmDesinscribir(false)
-      setNotification({ open: true, title: 'Error al desinscribir', message: error instanceof Error ? error.message : 'Error desconocido', type: 'error' })
     } finally {
       setDesinscribiendo(false)
     }

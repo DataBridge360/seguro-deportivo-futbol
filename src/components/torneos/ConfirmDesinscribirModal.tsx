@@ -14,7 +14,8 @@ interface Props {
   delegadosCount?: number
   busy?: boolean
   onCancel: () => void
-  onConfirm: () => void
+  // Rejects with the error to show (e.g. wrong password); the modal stays open
+  onConfirm: (password: string) => Promise<void>
 }
 
 function plural(n: number, singular: string, pluralForm: string) {
@@ -36,10 +37,19 @@ export default function ConfirmDesinscribirModal({
   const [loading, setLoading] = useState(false)
   const [failed, setFailed] = useState(false)
   const [fetched, setFetched] = useState<{ jugadores: number; delegados: number } | null>(null)
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
 
   const provided = jugadoresCount !== undefined && delegadosCount !== undefined
 
   useEffect(() => setMounted(true), [])
+
+  useEffect(() => {
+    if (open) {
+      setPassword('')
+      setError('')
+    }
+  }, [open])
 
   useEffect(() => {
     if (!open || provided) return
@@ -66,6 +76,18 @@ export default function ConfirmDesinscribirModal({
 
   const counts = provided ? { jugadores: jugadoresCount, delegados: delegadosCount } : fetched
   const n = counts?.jugadores ?? 0
+
+  const handleConfirm = async () => {
+    if (!password.trim()) {
+      setError('Ingresá tu contraseña')
+      return
+    }
+    try {
+      await onConfirm(password)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error desconocido')
+    }
+  }
 
   return createPortal(
     <div
@@ -105,6 +127,27 @@ export default function ConfirmDesinscribirModal({
           )}
         </div>
 
+        <div className="mb-4">
+          <label className="mb-1 block text-sm font-medium text-slate-600 dark:text-slate-300">Contraseña</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value)
+              setError('')
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !busy && !loading) handleConfirm()
+            }}
+            placeholder="Ingresá tu contraseña"
+            disabled={busy}
+            className={`w-full rounded-lg border bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary focus:outline-none dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500 ${
+              error ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'
+            }`}
+          />
+          {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
+        </div>
+
         <div className="flex gap-2">
           <button
             onClick={onCancel}
@@ -114,8 +157,8 @@ export default function ConfirmDesinscribirModal({
             Cancelar
           </button>
           <button
-            onClick={onConfirm}
-            disabled={busy || loading}
+            onClick={handleConfirm}
+            disabled={busy || loading || !password}
             className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lg bg-red-500 px-4 py-2 text-base font-medium text-white transition-colors hover:bg-red-600 disabled:opacity-50"
           >
             {busy ? (
