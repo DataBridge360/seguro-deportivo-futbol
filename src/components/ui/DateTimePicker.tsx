@@ -64,6 +64,8 @@ export default function DateTimePicker({
   const [viewMode, setViewMode] = useState<ViewMode>('days')
   const [mounted, setMounted] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  // The picker is portaled to <body>, so it is not inside `ref`; both count as "inside"
+  const pickerRef = useRef<HTMLDivElement>(null)
 
   const today = new Date()
   const parsed = dateValue ? new Date(`${dateValue}T00:00:00`) : null
@@ -90,9 +92,9 @@ export default function DateTimePicker({
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
+      const target = e.target as Node
+      if (ref.current?.contains(target) || pickerRef.current?.contains(target)) return
+      setOpen(false)
     }
     if (open) document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
@@ -160,7 +162,7 @@ export default function DateTimePicker({
   }
 
   const picker = (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div ref={pickerRef} className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onMouseDown={() => setOpen(false)} />
       <div className="relative w-full max-w-3xl rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-2xl p-4 sm:p-5">
         <div className="flex items-center justify-between mb-4">
