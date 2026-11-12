@@ -762,9 +762,10 @@ export async function getEquiposInscritos(torneoId: string): Promise<Inscripcion
   return res.data
 }
 
-export async function desinscribirEquipo(inscripcionId: string): Promise<void> {
+export async function desinscribirEquipo(inscripcionId: string, password: string): Promise<void> {
   await apiFetch(`/clubes/torneo-equipos/${inscripcionId}`, {
     method: 'DELETE',
+    body: JSON.stringify({ password }),
   })
 }
 

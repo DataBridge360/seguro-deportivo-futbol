@@ -326,18 +326,13 @@ export default function TorneoDetailPage({ basePath }: Props) {
     setShowModalInscripcion(true)
   }
 
-  const handleDesinscribir = async () => {
+  const handleDesinscribir = async (password: string) => {
     if (!showConfirmDesinscribir) return
-    try {
-      await desinscribirEquipo(showConfirmDesinscribir.id)
-      setInscripciones(prev => prev.filter(i => i.id !== showConfirmDesinscribir.id))
-      const nombre = showConfirmDesinscribir.nombre
-      setShowConfirmDesinscribir(null)
-      setNotification({ open: true, title: 'Equipo desinscrito', message: `"${nombre}" fue desinscrito`, type: 'success' })
-    } catch (error) {
-      setShowConfirmDesinscribir(null)
-      setNotification({ open: true, title: 'Error al desinscribir', message: error instanceof Error ? error.message : 'Error desconocido', type: 'error' })
-    }
+    await desinscribirEquipo(showConfirmDesinscribir.id, password)
+    setInscripciones(prev => prev.filter(i => i.id !== showConfirmDesinscribir.id))
+    const nombre = showConfirmDesinscribir.nombre
+    setShowConfirmDesinscribir(null)
+    setNotification({ open: true, title: 'Equipo desinscrito', message: `"${nombre}" fue desinscrito`, type: 'success' })
   }
 
   // ─── PDF ───────────────────────────────────────────────
