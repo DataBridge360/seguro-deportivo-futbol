@@ -15,6 +15,17 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+// Activar la versión nueva apenas se instala, sin esperar a que el usuario
+// cierre la app. Este SW no cachea nada, así que reemplazarlo en caliente
+// es seguro.
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 // Forzar activación inmediata del SW actualizado
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
