@@ -32,8 +32,7 @@ messaging.onBackgroundMessage((payload) => {
 
   const notificationOptions = {
     body: body,
-    icon: '/icon-192.png',
-    badge: '/badge-72.png',
+    icon: '/icons/icon-192.png',
     data: payload.data,
     tag: payload.data?.notificacion_id ?? 'default',
     requireInteraction: false,
